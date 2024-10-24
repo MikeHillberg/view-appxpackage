@@ -65,7 +65,7 @@ namespace PackageCatalogViewer
                 if (isInstalling)
                 {
                     _originalpackages.Add(package);
-                    _originalpackages = new ObservableCollection<Package>(_originalpackages.OrderBy((p) => p.DisplayName).ToList());
+                    _originalpackages = new ObservableCollection<Package>(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
                     FilterPackages();
                 }
                 else
@@ -98,7 +98,7 @@ namespace PackageCatalogViewer
                 //packages = packages.OrderBy((p) => p.DisplayName).ToList();
                 var sorted = from p in packages
                              where !p.IsResourcePackage
-                             let name = p.DisplayName
+                             let name = p.Id.Name // DisplayName throws a lot
                              orderby string.IsNullOrEmpty(name) ? "zzz" : name
                              select p;
                 packages = sorted.ToList();
@@ -184,7 +184,7 @@ namespace PackageCatalogViewer
             var filter = _filter.ToLower();
             var packages = from p in _originalpackages
                                //where p.DisplayName.ToLower().Contains(filter)
-                           let matches = regex.Matches(p.DisplayName)
+                           let matches = regex.Matches(p.Id.Name)
                            where matches.Count > 0
                            select p;
             Packages = new ObservableCollection<Package>(packages);

@@ -45,7 +45,7 @@
                   MinWidth="{x:Bind MinListWidth, Mode=OneWay}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="wam:Package">
-                    <TextBlock Text="{x:Bind DisplayName}" />
+                    <TextBlock Text="{x:Bind Id.Name}" />
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
