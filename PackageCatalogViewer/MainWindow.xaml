@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="PackageCatalogViewer.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PackageCatalogViewer"
+    xmlns:wam="using:Windows.ApplicationModel"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Package Catalog (for User)">
+
+    <Grid x:Name="_root" 
+          ColumnDefinitions="Auto,*" 
+          RowDefinitions="Auto,Auto,*" 
+          ColumnSpacing="20">
+
+        <CommandBar Grid.Row="0"
+                    Grid.Column="0"
+                    HorizontalAlignment="Left"
+                    Grid.ColumnSpan="2"
+                    DefaultLabelPosition="Right"
+                    Margin="0,10,0,10">
+            
+            <AppBarButton Click="Remove" Icon="Delete" Label="Remove" />
+            <AppBarButton Click="LaunchClick" Icon="Play" Label="Launch" />
+
+            <!--<Button Click="Remove">Remove</Button>
+            <Button Click="LaunchClick">Launch</Button>
+            <Button Click="AddClick">Add</Button>-->
+        </CommandBar>
+
+        <TextBox x:Name="_filterBox"
+                 Grid.Row="1"
+                 HorizontalAlignment="Stretch"
+                 PlaceholderText="Filter with wildcards, e.g. *App*" 
+                 Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+        <ListView x:Name="_lv" 
+                  Background="LightGray"
+                  Grid.Row="2"
+                  ItemsSource="{x:Bind Packages, Mode=OneWay}"
+                  SelectionChanged="SelectionChanged"
+                  SizeChanged="ListSizeChanged"
+                  MinWidth="{x:Bind MinListWidth, Mode=OneWay}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="wam:Package">
+                    <TextBlock Text="{x:Bind DisplayName}" />
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <local:PackageView x:Name="_detail"
+                           Grid.Row="2"
+                           Grid.Column="1" 
+                           Package="{x:Bind (wam:Package)_lv.SelectedItem, Mode=OneWay}"/>
+
+    </Grid>
+</Window>
