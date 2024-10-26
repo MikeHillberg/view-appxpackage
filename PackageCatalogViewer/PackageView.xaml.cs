@@ -130,7 +130,7 @@ namespace PackageCatalogViewer
             {
                 try
                 {
-                    return _package.DisplayName;
+                    return _package.Id.FullName;
                 }
                 catch (Exception)
                 {

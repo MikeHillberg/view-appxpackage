@@ -12,6 +12,8 @@
 
     <StackPanel x:Name="_root"
                 Spacing="5"
+                Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
+                Padding="20"
                 Visibility="{x:Bind NotEmpty(Package)}">
 
         <TextBlock Text="{x:Bind Package.DisplayName}"

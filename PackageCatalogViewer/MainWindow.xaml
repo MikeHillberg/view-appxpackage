@@ -32,12 +32,13 @@
 
         <TextBox x:Name="_filterBox"
                  Grid.Row="1"
+                 Padding="10"
                  HorizontalAlignment="Stretch"
                  PlaceholderText="Filter with wildcards, e.g. *App*" 
                  Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
         <ListView x:Name="_lv" 
-                  Background="LightGray"
+                  Background="Transparent"
                   Grid.Row="2"
                   ItemsSource="{x:Bind Packages, Mode=OneWay}"
                   SelectionChanged="SelectionChanged"
@@ -51,7 +52,7 @@
         </ListView>
 
         <local:PackageView x:Name="_detail"
-                           Grid.Row="2"
+                           Grid.Row="1" Grid.RowSpan="2"
                            Grid.Column="1" 
                            Package="{x:Bind (wam:Package)_lv.SelectedItem, Mode=OneWay}"/>
 
