@@ -4,7 +4,6 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PackageCatalogViewer"
-    xmlns:wam="using:Windows.ApplicationModel"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -41,11 +40,12 @@
                   Background="Transparent"
                   Grid.Row="2"
                   ItemsSource="{x:Bind Packages, Mode=OneWay}"
+                  SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=TwoWay}"
                   SelectionChanged="SelectionChanged"
                   SizeChanged="ListSizeChanged"
                   MinWidth="{x:Bind MinListWidth, Mode=OneWay}">
             <ListView.ItemTemplate>
-                <DataTemplate x:DataType="wam:Package">
+                <DataTemplate x:DataType="local:PackageModel">
                     <TextBlock Text="{x:Bind Id.Name}" />
                 </DataTemplate>
             </ListView.ItemTemplate>
@@ -54,7 +54,7 @@
         <local:PackageView x:Name="_detail"
                            Grid.Row="1" Grid.RowSpan="2"
                            Grid.Column="1" 
-                           Package="{x:Bind (wam:Package)_lv.SelectedItem, Mode=OneWay}"/>
+                           Package="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"/>
 
     </Grid>
 </Window>

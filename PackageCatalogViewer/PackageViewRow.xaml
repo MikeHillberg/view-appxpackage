@@ -6,21 +6,22 @@
     xmlns:local="using:PackageCatalogViewer"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    x:DefaultBindMode="OneWay"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid local:CollapseIfEmpty.IsEnabledFor="{x:Bind Value}" Margin="0,5,0,0">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <TextBlock x:Name="_label" 
-                   Text="{x:Bind Label, Mode=OneWay}" 
+                   Text="{x:Bind Label}" 
                    MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}"
                    SizeChanged="LabelSizeChanged"
                    IsTextSelectionEnabled="True"/>
         <TextBlock Grid.Column="1" 
-                   Text="{x:Bind Value, Mode=OneWay}" 
+                   Text="{x:Bind Value}" 
                    TextWrapping="Wrap"
                    IsTextSelectionEnabled="True"/>
 

@@ -39,6 +39,7 @@ namespace PackageCatalogViewer
 
             this.InitializeComponent();
             RootElement = this._root;
+            Instance = this;
 
             RootElement.Loaded += (s, e) =>
             {
@@ -46,8 +47,12 @@ namespace PackageCatalogViewer
             };
 
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
-            _packageCatalog.PackageInstalling += (s, e) => UpdateDeployment(e.IsComplete, e.Package, true);
-            _packageCatalog.PackageUninstalling += (s, e) => UpdateDeployment(e.IsComplete, e.Package, false);
+
+            _packageCatalog.PackageInstalling += (s, e) 
+                => UpdateDeployment(e.IsComplete, e.Package, true);
+
+            _packageCatalog.PackageUninstalling += (s, e) 
+                => UpdateDeployment(e.IsComplete, e.Package, false);
 
             _root.Loaded += (_, __) => SetMicaBackdrop();
             SetWindowIcon();
@@ -55,7 +60,24 @@ namespace PackageCatalogViewer
 
         internal static FrameworkElement RootElement { get; private set; }
 
-        void UpdateDeployment(bool isComplete, Package package, bool isInstalling)
+        internal static MainWindow Instance;
+
+        PackageModel _currentItem;
+        internal PackageModel CurrentItem
+        {
+            get => _currentItem;
+            set
+            {
+                if (_currentItem != value)
+                {
+                    _currentItem = value;
+                    RaisePropertyChanged();
+                }
+            }
+        }
+
+
+        void UpdateDeployment(bool isComplete, PackageModel package, bool isInstalling)
         {
             if (!isComplete)
             {
@@ -73,7 +95,7 @@ namespace PackageCatalogViewer
                 if (isInstalling)
                 {
                     _originalpackages.Add(package);
-                    _originalpackages = new ObservableCollection<Package>(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                    _originalpackages = new ObservableCollection<PackageModel>(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
                     FilterPackages();
                 }
                 else
@@ -87,9 +109,9 @@ namespace PackageCatalogViewer
 
 
         PackageCatalog _packageCatalog;
-        ObservableCollection<Package> _originalpackages;
-        static ObservableCollection<Package> _packages;
-        public ObservableCollection<Package> Packages
+        ObservableCollection<PackageModel> _originalpackages;
+        static ObservableCollection<PackageModel> _packages;
+        public ObservableCollection<PackageModel> Packages
         {
             get { return _packages; }
             private set { _packages = value; RaisePropertyChanged(); }
@@ -99,23 +121,23 @@ namespace PackageCatalogViewer
 
         async void StartGetAllPackagesForUser()
         {
-            IEnumerable<Package> packages = null;
+            IEnumerable<PackageModel> packageModels = null;
             await Task.Run(() =>
             {
-                packages = _packageManager.FindPackagesForUser(string.Empty);
+                var packages = _packageManager.FindPackagesForUser(string.Empty);
                 //packages = packages.OrderBy((p) => p.DisplayName).ToList();
                 var sorted = from p in packages
                              where !p.IsResourcePackage
                              let name = p.Id.Name // DisplayName throws a lot
                              orderby string.IsNullOrEmpty(name) ? "zzz" : name
-                             select p;
-                packages = sorted.ToList();
+                             select (PackageModel) p;
+                packageModels = sorted.ToList();
             });
 
-            Debug.WriteLine($"{packages.ToArray()[0].DisplayName}");
-            _originalpackages = new ObservableCollection<Package>(packages);
+            _originalpackages = new ObservableCollection<PackageModel>(packageModels);
             Packages = _originalpackages;
         }
+
 
         PackageManager _packageManager = new PackageManager();
 
@@ -191,11 +213,10 @@ namespace PackageCatalogViewer
 
             var filter = _filter.ToLower();
             var packages = from p in _originalpackages
-                               //where p.DisplayName.ToLower().Contains(filter)
                            let matches = regex.Matches(p.Id.Name)
                            where matches.Count > 0
-                           select p;
-            Packages = new ObservableCollection<Package>(packages);
+                           select (PackageModel) p;
+            Packages = new ObservableCollection<PackageModel>(packages);
         }
 
         private void TestClick(object sender, RoutedEventArgs e)
@@ -258,9 +279,25 @@ namespace PackageCatalogViewer
             {
                 Process.Start(si);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
             }
+        }
+
+        internal void SelectPackage(PackageModel package)
+        {
+
+            var matchingPackage = Packages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
+            if (matchingPackage != null)
+            {
+                _lv.ScrollIntoView(package); // bugbug: why isn't this automatic?
+            }
+            else
+            {
+                _lv.SelectedIndex = -1;
+            }
+
+            CurrentItem = package;
         }
 
 

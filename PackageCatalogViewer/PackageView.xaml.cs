@@ -1,20 +1,11 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.ApplicationModel;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -31,13 +22,13 @@ namespace PackageCatalogViewer
 
         internal static PackageView Instance;
 
-        public Package Package
+        public PackageModel Package
         {
-            get { return (Package)GetValue(PackageProperty); }
+            get { return (PackageModel)GetValue(PackageProperty); }
             set { SetValue(PackageProperty, value); }
         }
         public static readonly DependencyProperty PackageProperty =
-            DependencyProperty.Register("Package", typeof(Package), typeof(PackageView), 
+            DependencyProperty.Register("Package", typeof(PackageModel), typeof(PackageView), 
                 new PropertyMetadata(null, (d,dp) => (d as PackageView).PackageChanged()));
 
         private void PackageChanged()
@@ -49,7 +40,7 @@ namespace PackageCatalogViewer
             }
         }
 
-        Visibility NotEmpty(Package package)
+        Visibility NotEmpty(PackageModel package)
         {
             return package == null ? Visibility.Collapsed : Visibility.Visible;
         }
@@ -113,36 +104,35 @@ namespace PackageCatalogViewer
             }
 
         }
+
+        private void DependencyClicked(PackageModel package)
+        {
+
+        }
+
+        private void Hyperlink_Click(Microsoft.UI.Xaml.Documents.Hyperlink sender, Microsoft.UI.Xaml.Documents.HyperlinkClickEventArgs args)
+        {
+            var package = GetMyTag(sender) as PackageModel;
+            MainWindow.Instance.SelectPackage(package);
+        }
+
+
+
+
+        public static object GetMyTag(DependencyObject obj)
+        {
+            return (object)obj.GetValue(MyTagProperty);
+        }
+
+        public static void SetMyTag(DependencyObject obj, object value)
+        {
+            obj.SetValue(MyTagProperty, value);
+        }
+        public static readonly DependencyProperty MyTagProperty =
+            DependencyProperty.RegisterAttached("MyTag", typeof(object), typeof(PackageView), new PropertyMetadata(null));
+
+
+
     }
 
-    public class PackageModel
-    {
-        private Package _package;
-
-        public PackageModel(Package package)
-        {
-            _package = package;
-        }
-
-        public string DisplayName
-        {
-            get
-            {
-                try
-                {
-                    return _package.Id.FullName;
-                }
-                catch (Exception)
-                {
-                    return Path.GetFileName(_package.InstalledPath);
-                }
-            }
-        }
-
-        internal static IEnumerable<PackageModel> Wrap(IEnumerable<Package> packages)
-        {
-            return from p in packages
-                   select new PackageModel(p);
-        }
-    }
 }
