@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Windows.ApplicationModel;
+using Windows.System;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -86,37 +88,22 @@ namespace PackageCatalogViewer
             }
         }
 
-        private void OpenManifest(object sender, RoutedEventArgs e)
-        {
-            if(Package == null)
-            {
-                Debug.Assert(false);
-                return;
-            }
-
-            var path = Package.InstalledPath;
-            path = Path.Combine(path, "AppxManifest.xml");
-            if (Path.Exists(path))
-            {
-                ProcessStartInfo psi = new(path);
-                psi.UseShellExecute = true;
-                Process.Start(psi);
-            }
-
-        }
 
         private void DependencyClicked(PackageModel package)
         {
 
         }
 
-        private void Hyperlink_Click(Microsoft.UI.Xaml.Documents.Hyperlink sender, Microsoft.UI.Xaml.Documents.HyperlinkClickEventArgs args)
+        private void GoToPackage(Microsoft.UI.Xaml.Documents.Hyperlink sender, Microsoft.UI.Xaml.Documents.HyperlinkClickEventArgs args)
         {
             var package = GetMyTag(sender) as PackageModel;
             MainWindow.Instance.SelectPackage(package);
         }
 
-
+        string GetTrueBooleans(PackageModel package)
+        {
+            return PackageModel.GetTrueBooleans(package);
+        }
 
 
         public static object GetMyTag(DependencyObject obj)
@@ -131,8 +118,16 @@ namespace PackageCatalogViewer
         public static readonly DependencyProperty MyTagProperty =
             DependencyProperty.RegisterAttached("MyTag", typeof(object), typeof(PackageView), new PropertyMetadata(null));
 
+        //private void OpenStore(object sender, RoutedEventArgs e)
+        //{
+        //    if (Package == null)
+        //    {
+        //        Debug.Assert(false);
+        //        return;
+        //    }
 
-
+        //    Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={Package.Id.FamilyName}"));
+        //}
     }
 
 }

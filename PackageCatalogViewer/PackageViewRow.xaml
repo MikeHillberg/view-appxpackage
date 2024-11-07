@@ -16,6 +16,7 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock x:Name="_label" 
+                   FontWeight="Bold"
                    Text="{x:Bind Label}" 
                    MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}"
                    SizeChanged="LabelSizeChanged"
@@ -23,6 +24,7 @@
         <TextBlock Grid.Column="1" 
                    Text="{x:Bind Value}" 
                    TextWrapping="Wrap"
+                   Margin="10,0,0,0"
                    IsTextSelectionEnabled="True"/>
 
     </Grid>

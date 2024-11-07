@@ -3,7 +3,12 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
-    <RootNamespace>PackageCatalogViewer</RootNamespace>
+
+	  <!-- bugbug: workaround for https://github.com/microsoft/CsWinRT/issues/1809 -->
+	  <!-- (Workaround was to also add a nuget ref to microsoft.windows.sdk.net.ref) -->
+	  <WindowsSdkPackageVersion>10.0.19041.47</WindowsSdkPackageVersion>
+	  
+	  <RootNamespace>PackageCatalogViewer</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers Condition="$([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)')) &gt;= 8">win-x86;win-x64;win-arm64</RuntimeIdentifiers>
@@ -13,14 +18,18 @@
     <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
   <ItemGroup>
+    <Content Remove="Assets\icon.ico" />
     <Content Remove="Assets\Icon1.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="Help.xaml" />
     <None Remove="PackageView.xaml" />
     <None Remove="PackageViewRow.xaml" />
+    <None Remove="ProgressOverlay.xaml" />
   </ItemGroup>
 
-  <ItemGroup>
+
+	<ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
@@ -42,6 +51,17 @@
   -->
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Assets\Icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Page Update="Help.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="ProgressOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Page Update="PackageViewRow.xaml">

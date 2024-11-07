@@ -8,9 +8,12 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Security.Principal;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
@@ -35,6 +38,15 @@ namespace PackageCatalogViewer
             this.InitializeComponent();
         }
 
+        internal static void WaitForDebugger()
+        {
+            while (!Debugger.IsAttached)
+            {
+                System.Threading.Thread.Sleep(100);
+            }
+        }
+
+
         /// <summary>
         /// Invoked when the application is launched.
         /// </summary>
@@ -46,5 +58,14 @@ namespace PackageCatalogViewer
         }
 
         private Window m_window;
+
+        public static bool IsProcessElevated()
+        {
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        public static bool Test = false;
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.UI.Xaml.Controls;
+﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Threading.Tasks;
 
@@ -21,7 +22,12 @@ namespace PackageCatalogViewer
                 {
                     Children =
                     {
-                        new TextBlock() { Text = message }
+                        new TextBlock() 
+                        { 
+                            Text = message,
+                            TextWrapping = TextWrapping.Wrap,
+                            IsTextSelectionEnabled = true
+                        }
                     }
                 },
                 Title = title

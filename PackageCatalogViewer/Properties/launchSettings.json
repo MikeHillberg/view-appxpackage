@@ -2,7 +2,8 @@
   "profiles": {
     "PackageCatalogViewer (Package)": {
       "commandName": "MsixPackage",
-      "nativeDebugging": false
+      "nativeDebugging": true,
+      "doNotLaunchApp": false
     },
     "PackageCatalogViewer (Unpackaged)": {
       "commandName": "Project"

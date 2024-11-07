@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
@@ -18,12 +17,15 @@ using Windows.Storage.Pickers;
 using WinRT.Interop;
 using WinRT;
 using System.IO;
+using Windows.System;
+using System.IO.Compression;
+using Microsoft.Win32;
+using Microsoft.UI.Xaml.Input;
+using Windows.Foundation;
+using System.Security.Principal;
+using System.Threading;
 
 
-
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace PackageCatalogViewer
 {
@@ -35,9 +37,11 @@ namespace PackageCatalogViewer
         public MainWindow()
         {
 
-            StartGetAllPackagesForUser();
+            ProcessCommandLineArguments();
+            StartLoadPackages();
 
             this.InitializeComponent();
+
             RootElement = this._root;
             Instance = this;
 
@@ -48,15 +52,125 @@ namespace PackageCatalogViewer
 
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
-            _packageCatalog.PackageInstalling += (s, e) 
+            _packageCatalog.PackageInstalling += (s, e)
                 => UpdateDeployment(e.IsComplete, e.Package, true);
 
-            _packageCatalog.PackageUninstalling += (s, e) 
+            _packageCatalog.PackageUninstalling += (s, e)
                 => UpdateDeployment(e.IsComplete, e.Package, false);
 
-            _root.Loaded += (_, __) => SetMicaBackdrop();
+            _root.Loaded += (_, __) =>
+            {
+                SetMicaBackdrop();
+
+                if (_commandLineProvided)
+                {
+                    _lv.SelectedIndex = 0;
+                }
+                else
+                {
+                    Random random = new();
+                    _lv.SelectedIndex = random.Next(0, _lv.Items.Count - 1);
+                }
+            };
+
+            //var ctrlF = new KeyboardAccelerator()
+            //{
+            //    Key = Windows.System.VirtualKey.F,
+            //    Modifiers = Windows.System.VirtualKeyModifiers.Control,
+            //};
+            //ctrlF.Invoked += GoToFilter;
+            //_root.KeyboardAccelerators.Add(ctrlF);
+
             SetWindowIcon();
+            SetWindowTitle();
         }
+
+        bool _isSearchEnabled = false;
+        public bool IsSearchEnabled
+        {
+            get => _isSearchEnabled;
+            set
+            {
+                _isSearchEnabled = value;
+                RaisePropertyChanged();
+            }
+        }
+
+        string SearchPlaceholderText(bool isSearchEnabled)
+        {
+            return isSearchEnabled
+                ? "Search with regex, e.g. myapp or my.*app (Ctrl+E)"
+                : "Initializing search ...";
+        }
+
+        string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
+
+        bool? _isElevated = null;
+        public bool IsElevated
+        {
+            get
+            {
+                if (_isElevated == null)
+                {
+                    _isElevated = App.IsProcessElevated();
+                }
+
+                return _isElevated.Value;
+            }
+        }
+
+        bool _isAllUsers = false;
+        internal bool IsAllUsers
+        {
+            get => _isAllUsers;
+            set
+            {
+                _isAllUsers = value;
+                RaisePropertyChanged();
+                StartLoadPackages();
+            }
+        }
+
+
+        bool _commandLineProvided = false;
+        void ProcessCommandLineArguments()
+        {
+            var args = Environment.GetCommandLineArgs();
+            if (args != null && args.Length > 1)
+            {
+                _commandLineProvided = true;
+                Filter = args[1];
+                return;
+            }
+
+            if (!Console.IsInputRedirected)
+            {
+                return;
+            }
+
+            using (StreamReader reader = new (Console.OpenStandardInput()))
+            {
+                List<string> names = new();
+                string line;
+                while((line = reader.ReadLine()) != null )
+                {
+                    var parts = line.Split(':');
+                    if(parts.Length != 2)
+                    {
+                        continue;
+                    }
+
+                    if (parts[0].Trim() == "PackageFullName")
+                    {
+                        names.Add(parts[1].Trim());
+                    }
+                }
+
+                PipeInputPackages = names.ToArray();
+            }
+        }
+
+        static public string[] PipeInputPackages;
 
         internal static FrameworkElement RootElement { get; private set; }
 
@@ -68,6 +182,15 @@ namespace PackageCatalogViewer
             get => _currentItem;
             set
             {
+                if (value == null)
+                {
+                    _currentItem = null;
+
+                    // Ignore the two-way binding where a resource package is selected,
+                    // so the SelectedItem goes to null
+                    return;
+                }
+
                 if (_currentItem != value)
                 {
                     _currentItem = value;
@@ -96,13 +219,18 @@ namespace PackageCatalogViewer
                 {
                     _originalpackages.Add(package);
                     _originalpackages = new ObservableCollection<PackageModel>(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
-                    FilterPackages();
+                    FilterAndSearchPackages();
                 }
                 else
                 {
+                    if (CurrentItem == package)
+                    {
+                        CurrentItem = null;
+                    }
+
                     var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
                     _originalpackages.Remove(existing);
-                    FilterPackages();
+                    FilterAndSearchPackages();
                 }
             });
         }
@@ -119,27 +247,161 @@ namespace PackageCatalogViewer
 
 
 
-        async void StartGetAllPackagesForUser()
+        bool _isMultiSelect = false;
+        public bool IsMultiSelect
         {
-            IEnumerable<PackageModel> packageModels = null;
-            await Task.Run(() =>
+            get { return _isMultiSelect; }
+            set
             {
-                var packages = _packageManager.FindPackagesForUser(string.Empty);
-                //packages = packages.OrderBy((p) => p.DisplayName).ToList();
-                var sorted = from p in packages
-                             where !p.IsResourcePackage
-                             let name = p.Id.Name // DisplayName throws a lot
-                             orderby string.IsNullOrEmpty(name) ? "zzz" : name
-                             select (PackageModel) p;
-                packageModels = sorted.ToList();
-            });
-
-            _originalpackages = new ObservableCollection<PackageModel>(packageModels);
-            Packages = _originalpackages;
+                _isMultiSelect = value;
+                RaisePropertyChanged();
+            }
         }
 
 
-        PackageManager _packageManager = new PackageManager();
+        private bool CanOpenStore(bool isMultiSelect)
+        {
+            if (isMultiSelect)
+            {
+                return false;
+            }
+
+            return CurrentItem != null && CurrentItem.SignatureKind == PackageSignatureKind.Store;
+        }
+
+        private void OpenStore()
+        {
+            if (IsMultiSelect || CurrentItem == null)
+            {
+                return;
+            }
+
+            var package = CurrentItem;
+            if (package.SignatureKind != PackageSignatureKind.Store)
+            {
+                return;
+            }
+
+            _ = Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={package.Id.FamilyName}"));
+        }
+
+        private void OpenManifest()
+        {
+            if (IsMultiSelect || CurrentItem == null)
+            {
+                return;
+            }
+
+            var path = CurrentItem.InstalledPath;
+
+            // bugbug: I think there's a Win32 API to get this out?
+            path = Path.Combine(path, "AppxManifest.xml");
+            if (Path.Exists(path))
+            {
+                ProcessStartInfo psi = new(path);
+                psi.UseShellExecute = true;
+                Process.Start(psi);
+            }
+        }
+
+        bool CanOpenManifest(bool isMultiSelect)
+        {
+            if (isMultiSelect)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        bool CanLaunch(bool isMultiSelect)
+        {
+            if (isMultiSelect)
+            {
+                return false;
+            }
+
+            return CurrentItem != null
+                && !CurrentItem.IsResourcePackage
+                && !CurrentItem.IsFramework;
+        }
+
+        bool _isLoading = false;
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set
+            {
+                _isLoading = value;
+                RaisePropertyChanged();
+            }
+        }
+
+        async void StartLoadPackages()
+        {
+            //App.WaitForDebugger();
+
+            IsLoading = true;
+            IsSearchEnabled = false;
+
+            var isElevated = App.IsProcessElevated() && IsAllUsers;
+            IEnumerable<PackageModel> packageModels = null;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    Debug.WriteLine("Inside Run");
+
+                    IEnumerable<Package> packages = null;
+                    if (isElevated)
+                    {
+                        packages = _packageManager.FindPackages();
+
+                    }
+                    else
+                    {
+                        packages = _packageManager.FindPackagesForUser(string.Empty);
+                    }
+
+                    var sorted = from p in packages
+                                 where !p.IsResourcePackage
+                                 let name = p.Id.Name // DisplayName throws a lot
+                                 orderby string.IsNullOrEmpty(name) ? "zzz" : name
+                                 select (PackageModel)p;
+                    packageModels = sorted.ToList();
+
+                    _originalpackages = new ObservableCollection<PackageModel>(packageModels);
+                });
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+
+            Packages = _originalpackages;
+
+
+            if (!string.IsNullOrEmpty(_filter))
+            {
+                FilterAndSearchPackages();
+            }
+
+            PackageModel.StartCalculateDependents(_originalpackages);
+
+            await Task.Run(() =>
+            {
+                _ = PackageModel.Find("hello world", _originalpackages);
+                Debug.WriteLine("Done initializing cache");
+            });
+            IsSearchEnabled = true;
+
+            return;
+        }
+
+
+        // bugbug
+        static internal PackageManager _packageManager = new PackageManager();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -159,9 +421,9 @@ namespace PackageCatalogViewer
             }
         }
 
-        async private void Remove(object sender, RoutedEventArgs e)
+        async private void RemovePackage(object sender, RoutedEventArgs e)
         {
-            var package = _lv.SelectedItem as Package;
+            var package = _lv.SelectedItem as PackageModel;
             if (package == null)
             {
                 return;
@@ -173,7 +435,19 @@ namespace PackageCatalogViewer
                 return;
             }
 
-            _ = _packageManager.RemovePackageAsync(package.Id.FullName);
+
+            try
+            {
+                var removing = _packageManager.RemovePackageAsync(package.Id.FullName);
+
+                // bugbug: is there something to check in the return DeploymentResult?
+                _ = await CallWithProgress(removing, "Removing ...");
+            }
+            catch (Exception e2)
+            {
+                Debug.WriteLine(e2.Message);
+                _ = MyMessageBox.Show(e2.Message, "Failed to remove package", isOKEnabled: true);
+            }
         }
 
 
@@ -186,11 +460,24 @@ namespace PackageCatalogViewer
             {
                 _filter = value;
                 RaisePropertyChanged();
-                FilterPackages();
+                FilterAndSearchPackages();
             }
         }
 
-        void FilterPackages()
+        string _searchText;
+        public string SearchText
+        {
+            get { return _searchText; }
+            set
+            {
+                _searchText = value;
+                RaisePropertyChanged();
+                FilterAndSearchPackages();
+            }
+        }
+
+
+        void FilterAndSearchPackages()
         {
             if (Packages == null)
             {
@@ -198,24 +485,28 @@ namespace PackageCatalogViewer
                 return;
             }
 
-            if (string.IsNullOrEmpty(_filter))
+            IEnumerable<PackageModel> packages = _originalpackages;
+
+            if (!string.IsNullOrEmpty(_filter))
             {
-                Packages = _originalpackages;
-                return;
-            }
-
-            var updatedFilter = $"^{_filter}$";
-            updatedFilter = updatedFilter.Replace("?", ".");
-            updatedFilter = updatedFilter.Replace("*", ".*");
+                var updatedFilter = $"^{_filter.Trim()}$";
+                updatedFilter = updatedFilter.Replace("?", ".");
+                updatedFilter = updatedFilter.Replace("*", ".*");
 
 
-            Regex regex = new(updatedFilter, RegexOptions.IgnoreCase);
+                Regex regex = new(updatedFilter, RegexOptions.IgnoreCase);
 
-            var filter = _filter.ToLower();
-            var packages = from p in _originalpackages
+                packages = from p in packages
                            let matches = regex.Matches(p.Id.Name)
                            where matches.Count > 0
-                           select (PackageModel) p;
+                           select (PackageModel)p;
+            }
+
+            if (!string.IsNullOrEmpty(_searchText))
+            {
+                packages = PackageModel.Find(_searchText, packages);
+            }
+
             Packages = new ObservableCollection<PackageModel>(packages);
         }
 
@@ -231,6 +522,8 @@ namespace PackageCatalogViewer
                 // bugbug: why isn't the x:Bind doing this?
                 _detail.Package = null;
             }
+
+            IsMultiSelect = _lv.SelectedItems != null && _lv.SelectedItems.Count > 1;
         }
 
         async private void AddClick(object sender, RoutedEventArgs e)
@@ -263,7 +556,7 @@ namespace PackageCatalogViewer
 
         private void LaunchClick(object sender, RoutedEventArgs e)
         {
-            var package = _lv.SelectedItem as Package;
+            var package = _lv.SelectedItem as PackageModel;
             if (package == null)
             {
                 return;
@@ -272,7 +565,7 @@ namespace PackageCatalogViewer
             // shell:AppsFolder\$($(get-appxpackage $app | select PackageFamilyName).PackageFamilyName)!app
 
             ProcessStartInfo si = new();
-            si.FileName = $@"shell:AppsFolder\{package.Id.FamilyName}!app";
+            si.FileName = $@"shell:AppsFolder\{package.FamilyName}!app";
             si.UseShellExecute = true;
 
             try
@@ -303,116 +596,171 @@ namespace PackageCatalogViewer
 
 
 
-
-        // Helpers for SetMicaBackrop
-        WindowsSystemDispatcherQueueHelper m_wsdqHelper;
-        Microsoft.UI.Composition.SystemBackdrops.MicaController m_micaController;
-        Microsoft.UI.Composition.SystemBackdrops.SystemBackdropConfiguration m_configurationSource;
-
-        bool _isMicaSet = false;
-
-
-        /// <summary>
-        /// Set an ICO to the AppWindow
-        /// </summary>
-        async void SetWindowIcon()
+        private void GoToFilter(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
         {
-            // This call is really slow, so don't wait on it
-            var installedPath = await Task.Run<string>(() => Windows.ApplicationModel.Package.Current.InstalledLocation.Path);
+            _filterBox.Focus(FocusState.Keyboard);
+        }
+        private void GoToSearch(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+        {
+            _searchBox.Focus(FocusState.Keyboard);
+        }
 
-            // Get the AppWindow
+        private async void AddUnsigned(object sender, RoutedEventArgs e)
+        {
+            if (!IsDeveloperModeEnabled())
+            {
+                _ = await MyMessageBox.Show(
+                                 "Developer mode must be enabled in Settings to add an unsigned package",
+                                 "Developer mode required",
+                                 isOKEnabled: true,
+                                 isCancelEnabled: false);
+                return;
+            }
+
+            var picker = new FileOpenPicker();
             var hwnd = WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            InitializeWithWindow.Initialize(picker, hwnd);
 
-            // Set the icon
-            // Used https://icoconvert.com
-            appWindow.SetIcon(Path.Combine(installedPath, "Assets/Icon.ico"));
-        }
-
-        /// <summary>
-        /// Set Mica as the Window backdrop, if possible
-        /// </summary>
-        internal void SetMicaBackdrop()
-        {
-            // With this set, portion of the Window content that isn't opaque will see
-            // Mica. So the search results pane is transparent, allowing this to show through.
-            // On Win10 this isn't supported, so the background will just be the default backstop
-
-            // Gets called by Loaded, running twice isn't good
-            if (_isMicaSet)
+            picker.FileTypeFilter.Add(".appx");
+            picker.FileTypeFilter.Add(".msix");
+            var storageFile = await picker.PickSingleFileAsync();
+            if (storageFile == null)
             {
                 return;
             }
-            _isMicaSet = true;
+            var path = storageFile.Path;
+            var directoryPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
+            var directoryPathT = directoryPath;
+            int i = 1;
+            while (Path.Exists(directoryPathT))
+            {
+                directoryPathT = $"{directoryPath}.{i++}";
+            }
+            directoryPath = directoryPathT;
 
-            // Not supported on Win10
-            if (!Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+            var result = await MyMessageBox.Show(
+                                "Package will be expanded to the following directory\n\n" +
+                                "Note that this directory will remain even after the package is removed\n\n" +
+                                $"{directoryPath}",
+                                "Expanding package",
+                                isOKEnabled: true,
+                                closeButtonText: "Cancel");
+            if (result != ContentDialogResult.Primary)
             {
                 return;
             }
 
+            ZipFile.ExtractToDirectory(path, directoryPath);
 
-            // Rest of the code is copied from WinUI Gallery
-            // https://github.com/microsoft/WinUI-Gallery/blob/260cb720ef83b3d134bc4805cffcfac9461dce33/WinUIGallery/SamplePages/SampleSystemBackdropsWindow.xaml.cs
-
-
-            m_wsdqHelper = new WindowsSystemDispatcherQueueHelper();
-            m_wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
-
-            // Hooking up the policy object
-            m_configurationSource = new Microsoft.UI.Composition.SystemBackdrops.SystemBackdropConfiguration();
-            this.Activated += Window_Activated;
-            this.Closed += Window_Closed;
-            ((FrameworkElement)this.Content).ActualThemeChanged += Window_ThemeChanged;
-
-            // Initial configuration state.
-            m_configurationSource.IsInputActive = true;
-            SetConfigurationSourceTheme();
-
-            m_micaController = new Microsoft.UI.Composition.SystemBackdrops.MicaController();
-
-            // Enable the system backdrop.
-            m_micaController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
-            m_micaController.SetSystemBackdropConfiguration(m_configurationSource);
-        }
-
-        private void Window_Activated(object sender, WindowActivatedEventArgs args)
-        {
-            m_configurationSource.IsInputActive = args.WindowActivationState != WindowActivationState.Deactivated;
-        }
-
-        private void Window_Closed(object sender, WindowEventArgs args)
-        {
-            // Make sure any Mica/Acrylic controller is disposed so it doesn't try to
-            // use this closed window.
-            if (m_micaController != null)
+            var manifestPath = Path.Combine(directoryPath, "AppxManifest.xml");
+            if (!Path.Exists(manifestPath))
             {
-                m_micaController.Dispose();
-                m_micaController = null;
+                _ = await MyMessageBox.Show(
+                                 "No AppxManifest.xml found in the package",
+                                 "Invalid package",
+                                 isOKEnabled: true);
+                return;
             }
-            this.Activated -= Window_Activated;
-            m_configurationSource = null;
-        }
 
-        private void Window_ThemeChanged(FrameworkElement sender, object args)
-        {
-            if (m_configurationSource != null)
+            var manifestUri = new Uri(manifestPath);
+            RegisterPackageOptions options = new()
             {
-                SetConfigurationSourceTheme();
+                DeveloperMode = true
+            };
+
+            // bugbug: update the docs
+            // Requires <rescap:Capability Name="packageManagement"/>
+            // or results in
+            // "The filename, directory name, or volume label syntax is incorrect."
+            var registering = _packageManager.RegisterPackageByUriAsync(manifestUri, options);
+
+            var addResult = await CallWithProgress(registering, "Adding ...");
+            if (!addResult.IsRegistered)
+            {
+                _ = MyMessageBox.Show($"{addResult.ErrorText}", "Failed to add package", isOKEnabled: true);
             }
         }
 
-        private void SetConfigurationSourceTheme()
+        private async Task<DeploymentResult> CallWithProgress(
+            IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation,
+            string message)
         {
-            switch (((FrameworkElement)this.Content).ActualTheme)
+            BusyMessage = message;
+            try
             {
-                case ElementTheme.Dark: m_configurationSource.Theme = Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Dark; break;
-                case ElementTheme.Light: m_configurationSource.Theme = Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Light; break;
-                case ElementTheme.Default: m_configurationSource.Theme = Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Default; break;
+                operation.Progress = (s, e) =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        // bugbug: throws a non-sensical exception on RangeBase.Value if you set this from the wrong thread
+                        ProgressPercentage = (int)e.percentage;
+                    });
+                };
+
+                return await operation;
+            }
+            finally
+            {
+                // bugbug: setting to null doesn't trigger the OneWay binding
+                BusyMessage = "";
+                ProgressPercentage = 0;
             }
         }
 
+        string _busyMessage;
+        string BusyMessage
+        {
+            get => _busyMessage;
+            set
+            {
+                _busyMessage = value;
+                RaisePropertyChanged();
+            }
+        }
+
+
+        double _progressPercentage = 0;
+        double ProgressPercentage
+        {
+            get => _progressPercentage;
+            set
+            {
+                _progressPercentage = value;
+                RaisePropertyChanged();
+            }
+        }
+
+        Visibility CalculateVisibility(string s)
+        {
+            return string.IsNullOrEmpty(s) ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private bool IsDeveloperModeEnabled()
+        {
+            string developerModeKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock";
+            string developerModeValueName = "AllowDevelopmentWithoutDevLicense";
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(developerModeKeyPath))
+                {
+                    if (key != null)
+                    {
+                        object devModeValue = key.GetValue(developerModeValueName);
+                        if (devModeValue != null && (int)devModeValue == 1)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return false;
+
+
+        }
     }
 
     /// <summary>
@@ -455,6 +803,9 @@ namespace PackageCatalogViewer
                 CreateDispatcherQueueController(options, ref m_dispatcherQueueController);
             }
         }
+
+
+
     }
 
 

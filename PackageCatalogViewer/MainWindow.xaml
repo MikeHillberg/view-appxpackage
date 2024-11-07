@@ -7,54 +7,117 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="Package Catalog (for User)">
+    x:DefaultBindMode="OneWay"
+    >
 
-    <Grid x:Name="_root" 
+    <UserControl IsEnabled="{x:Bind local:Utils.Not(_progressOverlay.IsOpen), Mode=OneWay}">
+        <Grid ColumnDefinitions="*" RowDefinitions="*"
+          KeyboardAcceleratorPlacementMode="Hidden" >
+            <Grid.KeyboardAccelerators>
+                <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="GoToFilter"/>
+                <KeyboardAccelerator Modifiers="Control" Key="E" Invoked="GoToSearch"/>
+            </Grid.KeyboardAccelerators>
+
+            <Grid x:Name="_root" 
           ColumnDefinitions="Auto,*" 
           RowDefinitions="Auto,Auto,*" 
           ColumnSpacing="20">
 
-        <CommandBar Grid.Row="0"
+                <CommandBar Grid.Row="0"
                     Grid.Column="0"
                     HorizontalAlignment="Left"
                     Grid.ColumnSpan="2"
                     DefaultLabelPosition="Right"
                     Margin="0,10,0,10">
-            
-            <AppBarButton Click="Remove" Icon="Delete" Label="Remove" />
-            <AppBarButton Click="LaunchClick" Icon="Play" Label="Launch" />
 
-            <!--<Button Click="Remove">Remove</Button>
-            <Button Click="LaunchClick">Launch</Button>
-            <Button Click="AddClick">Add</Button>-->
-        </CommandBar>
+                    <AppBarButton Click="LaunchClick" Icon="Play" Label="Launch"
+                          IsEnabled="{x:Bind CanLaunch(IsMultiSelect)}"/>
 
-        <TextBox x:Name="_filterBox"
+                    <AppBarButton Click="{x:Bind OpenStore}" Icon="Shop" 
+                          Label="Open in Store" 
+                          IsEnabled="{x:Bind CanOpenStore(IsMultiSelect)}"/>
+
+                    <AppBarButton Click="{x:Bind OpenManifest}" Icon="Document" Label="Open Manifest"
+                          IsEnabled="{x:Bind CanOpenManifest(IsMultiSelect)}"/>
+
+                    <AppBarSeparator/>
+
+                    <AppBarButton Click="RemovePackage" Icon="Delete" Label="Remove" />
+                    <AppBarButton Click="AddUnsigned" Icon="Add" Label="Add Unsigned"/>
+                    <AppBarToggleButton Label="All users"
+                                    IsChecked="{x:Bind IsAllUsers, Mode=TwoWay}"
+                                    Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" />
+
+
+                </CommandBar>
+
+                <StackPanel Grid.Row="1">
+
+                    <TextBox x:Name="_searchBox"
+                         IsEnabled="{x:Bind IsSearchEnabled}"
+                         Padding="10"
+                         HorizontalAlignment="Stretch"
+                         PlaceholderText="{x:Bind SearchPlaceholderText(IsSearchEnabled)}"
+                         Text="{x:Bind SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBox x:Name="_filterBox"
                  Grid.Row="1"
                  Padding="10"
                  HorizontalAlignment="Stretch"
-                 PlaceholderText="Filter with wildcards, e.g. *App*" 
+                 PlaceholderText="{x:Bind FilterPlaceholderText}" 
                  Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
 
-        <ListView x:Name="_lv" 
+                <ListView x:Name="_lv" 
                   Background="Transparent"
                   Grid.Row="2"
                   ItemsSource="{x:Bind Packages, Mode=OneWay}"
                   SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=TwoWay}"
                   SelectionChanged="SelectionChanged"
                   SizeChanged="ListSizeChanged"
+                  SelectionMode="Extended"
                   MinWidth="{x:Bind MinListWidth, Mode=OneWay}">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:PackageModel">
-                    <TextBlock Text="{x:Bind Id.Name}" />
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:PackageModel">
+                            <TextBlock Text="{x:Bind Id.Name}" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
 
-        <local:PackageView x:Name="_detail"
+                <local:PackageView x:Name="_detail"
                            Grid.Row="1" Grid.RowSpan="2"
                            Grid.Column="1" 
                            Package="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"/>
 
-    </Grid>
+
+
+            </Grid>
+
+
+            <!--<Grid Opacity="0.8" 
+          Background ="{ThemeResource ContentDialogBackgroundThemeBrush}"
+          CornerRadius="5,0,0,0"
+              Visibility="{x:Bind CalculateVisibility(BusyMessage)}">-->
+
+            <local:ProgressOverlay x:Name="_progressOverlay"
+                                   IsOpen="{x:Bind local:Utils.IsntEmpty(BusyMessage), Mode=OneWay}">
+
+                <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Width="400"
+                    Background="{ThemeResource SystemControlPageBackgroundChromeMediumLowBrush}"
+                    Padding="50"
+                    CornerRadius="5">
+
+                    <TextBlock Margin="0,0,0,20" Text="{x:Bind BusyMessage, Mode=OneWay}" />
+                    <ProgressBar 
+                     Minimum="0"
+                     Maximum="100"
+                     Value="{x:Bind ProgressPercentage}"/>
+
+                </StackPanel>
+            </local:ProgressOverlay>
+
+        </Grid>
+    </UserControl>
 </Window>

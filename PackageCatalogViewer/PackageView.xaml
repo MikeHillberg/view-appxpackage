@@ -15,48 +15,84 @@
                 Padding="20"
                 Visibility="{x:Bind NotEmpty(Package)}">
 
-            <TextBlock Text="{x:Bind Package.DisplayName}"
-                   Style="{StaticResource SubheaderTextBlockStyle}"
-                   Margin="0,0,0,10" />
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch" >
+
+                <TextBlock Text="{x:Bind Package.DisplayName}"
+                           Style="{StaticResource SubheaderTextBlockStyle}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,10" />
+
+                <Image Grid.Column="1" 
+                       Stretch="Uniform"
+                       HorizontalAlignment="Right" VerticalAlignment="Top"
+                       Height="75">
+                    <Image.Source>
+                        <BitmapImage UriSource="{x:Bind Package.Logo}" />
+                    </Image.Source>
+                </Image>
+
+            </Grid>
 
             <TextBlock Text="{x:Bind Package.Description}" Margin="0,0,0,10"
+                       TextWrapping="Wrap"
                        local:CollapseIfEmpty.IsEnabled="True" />
 
-            <HyperlinkButton Click="OpenManifest"
-                         Margin="-12,0,0,0">Open Manifest</HyperlinkButton>
+            <!--<TextBlock Margin="0,0,0,10" FontWeight="Bold">Highlights</TextBlock>-->
 
-            <TextBlock Margin="0,0,0,10" FontWeight="Bold">Common properties</TextBlock>
-            <!--<local:PackageViewRow Label="Display Name" Value="{x:Bind Package.DisplayName}"/>-->
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
             <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
             <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Id.Architecture}"/>
+            <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
             <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
             <local:PackageViewRow Label="Version" Value="{x:Bind Package.VersionString}"/>
             <local:PackageViewRow Label="Package Full Name" Value="{x:Bind Package.Id.FullName}"/>
+            <local:PackageViewRow Label='Author' Value='{x:Bind Package.Author}'/>
             <local:PackageViewRow Label="Install Location" Value="{x:Bind Package.InstalledPath}"/>
-            <local:PackageViewRow Label="Framework?" Value="{x:Bind Package.IsFramework}"/>
+            <local:PackageViewRow Label='EffectiveExternalPath' Value='{x:Bind Package.EffectiveExternalPath}'/>
+            <local:PackageViewRow Label='EffectivePath' Value='{x:Bind Package.EffectivePath}'/>
+            <local:PackageViewRow Label='MachineExternalPath' Value='{x:Bind Package.MachineExternalPath}'/>
+            <local:PackageViewRow Label='MutablePath' Value='{x:Bind Package.MutablePath}'/>
+            <local:PackageViewRow Label='UserExternalPath' Value='{x:Bind Package.UserExternalPath}'/>
             <local:PackageViewRow Label="Package Family Name" Value="{x:Bind Package.Id.FamilyName}"/>
             <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.Id.PublisherId}"/>
-            <local:PackageViewRow Label="Resource?" Value="{x:Bind Package.IsResourcePackage}"/>
-            <local:PackageViewRow Label="Development Mode?" Value="{x:Bind Package.IsDevelopmentMode}"/>
+            <local:PackageViewRow Label='Publisher' Value='{x:Bind Package.Publisher}'/>
+            <local:PackageViewRow Label="User Information" Value="{x:Bind Package.PackageUserInformation}"/>
+
+
             <!-- Non removeable? -->
             <!-- Partially Staged? -->
-            <local:PackageViewRow Label="Signature Kind" Value="{x:Bind Package.SignatureKind}"/>
-            <local:PackageViewRow Label="Status" Value="{x:Bind Package.Status}"/>
 
-            <local:PackageViewRow Label="Installed Date" Value="{x:Bind Package.InstalledDate}"/>
+            <local:PackageViewRow Label="Signature Kind" Value="{x:Bind Package.SignatureKind}"/>
+            <local:PackageViewRow Label="True booleans" Value="{x:Bind GetTrueBooleans(Package)}" />
+            <local:PackageViewRow Label="Status" Value="{x:Bind Package.Status}"/>
 
             <StackPanel Margin="0,15,0,0" Visibility="{x:Bind CollapseIfEmpty(Package.Dependencies)}">
                 <TextBlock FontWeight="Bold" Text="Dependencies"/>
                 <ListView ItemsSource="{x:Bind Package.Dependencies}" SelectionMode="None">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:PackageModel">
-                            <!--<TextBlock Text="{x:Bind DisplayName}" IsTextSelectionEnabled="True" />-->
                             <TextBlock>
-                            <Hyperlink Click="Hyperlink_Click" 
+                            <Hyperlink Click="GoToPackage" 
                                        local:PackageView.MyTag="{x:Bind}">
                                 <Run Text="{x:Bind Id.FullName}"/>
                             </Hyperlink>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+
+            <StackPanel Margin="0,15,0,0" Visibility="{x:Bind CollapseIfEmpty(Package.Dependents)}">
+                <TextBlock FontWeight="Bold" Text="Dependents"/>
+                <ListView ItemsSource="{x:Bind Package.Dependents}" SelectionMode="None">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:PackageModel">
+                            <TextBlock>
+                                <Hyperlink Click="GoToPackage" 
+                                           local:PackageView.MyTag="{x:Bind}">
+                                    <Run Text="{x:Bind Id.FullName}"/>
+                                </Hyperlink>
                             </TextBlock>
                         </DataTemplate>
                     </ListView.ItemTemplate>
