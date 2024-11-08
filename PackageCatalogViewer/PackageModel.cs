@@ -3,12 +3,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Data.SqlTypes;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Windows.ApplicationModel;
 using Windows.Storage;
 
@@ -73,7 +76,7 @@ namespace PackageCatalogViewer
                                   where property.PropertyType != typeof(bool)
                                   select property).ToList();
 
-                foreach(var p in _propertyInfos)
+                foreach (var p in _propertyInfos)
                 {
                     Debug.WriteLine(p.Name);
                 }
@@ -260,7 +263,7 @@ namespace PackageCatalogViewer
                                 first = false;
 
                                 {
-                                    SecurityIdentifier sid = new (user.UserSecurityId);
+                                    SecurityIdentifier sid = new(user.UserSecurityId);
                                     try
                                     {
                                         var account = (NTAccount)sid.Translate(typeof(NTAccount));
@@ -287,6 +290,70 @@ namespace PackageCatalogViewer
                 }
 
                 return _packageUserInformation;
+            }
+        }
+
+        string _appxManifestContent = null;
+        public string AppxManifestContent
+        {
+            get
+            {
+                if (_appxManifestContent == null)
+                {
+                    _appxManifestContent = "";
+
+                    try
+                    {
+                        var path = Path.Combine(this.InstalledPath, "AppxManifest.xml");
+                        if (Path.Exists(path))
+                        {
+                            _appxManifestContent = File.ReadAllText(path);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+
+                return _appxManifestContent;
+            }
+        }
+
+        string _appExecutionAlias = null;
+        public string AppExecutionAlias
+        {
+            get
+            {
+                if (_appExecutionAlias == null)
+                {
+                    _appExecutionAlias = "";
+
+                    XDocument doc = XDocument.Parse(AppxManifestContent);
+                    //XNamespace uap3 = "http://schemas.microsoft.com/appx/manifest/uap/windows10/3"; 
+                    XNamespace desktop = "http://schemas.microsoft.com/appx/manifest/desktop/windows10";
+                    var executionAliases = doc.Descendants(desktop + "ExecutionAlias");
+                    StringBuilder sb = null;
+                    foreach (var executionAlias in executionAliases)
+                    {
+                        if (sb == null)
+                        {
+                            sb = new StringBuilder();
+                        }
+                        else
+                        {
+                            sb.Append(", ");
+                        }
+
+                        var attribute = executionAlias.Attribute("Alias");
+                        if (attribute != null)
+                        {
+                            sb.Append(attribute.Value);
+                        }
+                        _appExecutionAlias = sb == null ? "" : sb.ToString();
+                    }
+                }
+
+                return _appExecutionAlias;
             }
         }
     }

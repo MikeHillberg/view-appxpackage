@@ -40,6 +40,7 @@
             <!--<TextBlock Margin="0,0,0,10" FontWeight="Bold">Highlights</TextBlock>-->
 
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
+            <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
             <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
             <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Id.Architecture}"/>
             <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
