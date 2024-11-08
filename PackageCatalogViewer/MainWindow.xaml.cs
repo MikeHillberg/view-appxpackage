@@ -38,6 +38,12 @@ namespace PackageCatalogViewer
         {
 
             ProcessCommandLineArguments();
+
+            if (PipeInputPackages != null)
+            {
+                _filter = "$input";
+            }
+
             StartLoadPackages();
 
             this.InitializeComponent();
@@ -71,6 +77,12 @@ namespace PackageCatalogViewer
                     Random random = new();
                     _lv.SelectedIndex = random.Next(0, _lv.Items.Count - 1);
                 }
+
+                if (Help.ShowHelpOnStartup)
+                {
+                    ShowHelp();
+                }
+
             };
 
             //var ctrlF = new KeyboardAccelerator()
@@ -83,6 +95,18 @@ namespace PackageCatalogViewer
 
             SetWindowIcon();
             SetWindowTitle();
+        }
+
+        void ShowHelp()
+        {
+            //_help.ShowAsync(ContentDialogPlacement.InPlace);
+
+            Help help = new()
+            {
+                XamlRoot = _lv.XamlRoot,
+                CloseButtonText = "Close"
+            };
+            _ = help.ShowAsync();
         }
 
         bool _isSearchEnabled = false;
@@ -148,14 +172,14 @@ namespace PackageCatalogViewer
                 return;
             }
 
-            using (StreamReader reader = new (Console.OpenStandardInput()))
+            using (StreamReader reader = new(Console.OpenStandardInput()))
             {
                 List<string> names = new();
                 string line;
-                while((line = reader.ReadLine()) != null )
+                while ((line = reader.ReadLine()) != null)
                 {
                     var parts = line.Split(':');
-                    if(parts.Length != 2)
+                    if (parts.Length != 2)
                     {
                         continue;
                     }
@@ -166,11 +190,14 @@ namespace PackageCatalogViewer
                     }
                 }
 
-                PipeInputPackages = names.ToArray();
+                if (names.Count > 0)
+                {
+                    PipeInputPackages = names.ToArray();
+                }
             }
         }
 
-        static public string[] PipeInputPackages;
+        static public string[] PipeInputPackages = null;
 
         internal static FrameworkElement RootElement { get; private set; }
 
@@ -391,7 +418,10 @@ namespace PackageCatalogViewer
 
             await Task.Run(() =>
             {
-                _ = PackageModel.Find("hello world", _originalpackages);
+                // Make a copy in case packages are added/deleted during the Find
+                List<PackageModel> packagesCopy = new(_originalpackages);
+                _ = PackageModel.Find("hello world", packagesCopy);
+
                 Debug.WriteLine("Done initializing cache");
             });
             IsSearchEnabled = true;
@@ -496,10 +526,31 @@ namespace PackageCatalogViewer
 
                 Regex regex = new(updatedFilter, RegexOptions.IgnoreCase);
 
-                packages = from p in packages
-                           let matches = regex.Matches(p.Id.Name)
-                           where matches.Count > 0
-                           select (PackageModel)p;
+                List<PackageModel> packages2 = new();
+                //packages = from p in packages
+                //           let matches = regex.Matches(p.Id.Name)
+                //           where matches.Count > 0
+                //           select (PackageModel)p;
+
+                var isInput = _filter.Trim() == "$input";
+                foreach (var p in packages)
+                {
+                    if (isInput)
+                    {
+                        if (PipeInputPackages.Contains(p.Id.FullName))
+                        {
+                            packages2.Add(p);
+                        }
+                        continue;
+                    }
+
+                    var matches = regex.Matches(p.Id.Name);
+                    if (matches.Count > 0)
+                    {
+                        packages2.Add(p);
+                    }
+                }
+                packages = packages2;
             }
 
             if (!string.IsNullOrEmpty(_searchText))
@@ -623,36 +674,49 @@ namespace PackageCatalogViewer
 
             picker.FileTypeFilter.Add(".appx");
             picker.FileTypeFilter.Add(".msix");
+            picker.FileTypeFilter.Add(".xml");
+
             var storageFile = await picker.PickSingleFileAsync();
             if (storageFile == null)
             {
+                // Canceled
                 return;
             }
             var path = storageFile.Path;
-            var directoryPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
-            var directoryPathT = directoryPath;
-            int i = 1;
-            while (Path.Exists(directoryPathT))
+            string manifestPath = null;
+
+            if (Path.GetExtension(path) == ".xml")
             {
-                directoryPathT = $"{directoryPath}.{i++}";
+                manifestPath = path;
             }
-            directoryPath = directoryPathT;
-
-            var result = await MyMessageBox.Show(
-                                "Package will be expanded to the following directory\n\n" +
-                                "Note that this directory will remain even after the package is removed\n\n" +
-                                $"{directoryPath}",
-                                "Expanding package",
-                                isOKEnabled: true,
-                                closeButtonText: "Cancel");
-            if (result != ContentDialogResult.Primary)
+            else
             {
-                return;
+                var directoryPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
+                var directoryPathT = directoryPath;
+                int i = 1;
+                while (Path.Exists(directoryPathT))
+                {
+                    directoryPathT = $"{directoryPath}.{i++}";
+                }
+                directoryPath = directoryPathT;
+
+                var result = await MyMessageBox.Show(
+                                    "Package will be expanded to the following directory\n\n" +
+                                    "Note that this directory will remain even after the package is removed\n\n" +
+                                    $"{directoryPath}",
+                                    "Expanding package",
+                                    isOKEnabled: true,
+                                    closeButtonText: "Cancel");
+                if (result != ContentDialogResult.Primary)
+                {
+                    return;
+                }
+
+                ZipFile.ExtractToDirectory(path, directoryPath);
+
+                manifestPath = Path.Combine(directoryPath, "AppxManifest.xml");
             }
 
-            ZipFile.ExtractToDirectory(path, directoryPath);
-
-            var manifestPath = Path.Combine(directoryPath, "AppxManifest.xml");
             if (!Path.Exists(manifestPath))
             {
                 _ = await MyMessageBox.Show(
@@ -760,6 +824,11 @@ namespace PackageCatalogViewer
             return false;
 
 
+        }
+
+        private void ShowHelpClick(object sender, RoutedEventArgs e)
+        {
+            ShowHelp();
         }
     }
 

@@ -6,21 +6,34 @@
     xmlns:local="using:PackageCatalogViewer"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     mc:Ignorable="d">
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">1000</x:Double>
+    </ContentDialog.Resources>
 
-    <StackPanel Padding="30" Spacing="10">
+    <Grid RowDefinitions="*,Auto" Padding="10" RowSpacing="30">
+        <ScrollViewer  
+                  MaxWidth="800" 
+                  Background="{ThemeResource SystemControlPageBackgroundChromeMediumLowBrush}"
+                  HorizontalAlignment="Center">
 
-        <TextBlock Style="{StaticResource TitleTextBlockStyle}">view-appxpackage</TextBlock>
+            <StackPanel>
+                <!-- Use the community toolkit's markdown reader -->
+                <!-- Help text is in help.md -->
+                <controls:MarkdownTextBlock x:Name="_markdown" Background="Transparent"/>
 
-        <TextBlock Style="{StaticResource BodyTextBlockStyle}">
-            This app shows the installed MSIX packages on your system</TextBlock>
+            </StackPanel>
+        </ScrollViewer>
 
-        <TextBlock Style="{StaticResource BodyTextBlockStyle}">Extra features</TextBlock>
+        <StackPanel Grid.Row="1" Spacing="5" HorizontalAlignment="Center">
+            <!-- Bugbug: referene this property as an instance property and get a random error -->
+            <CheckBox IsChecked="{x:Bind local:Help.ShowHelpOnStartup, Mode=TwoWay}">
+                Show on startup
+            </CheckBox>
 
-        <TextBlock Style="{StaticResource BodyTextBlockStyle}">
-            
-        </TextBlock>
+            <Button Click="CloseClick" HorizontalAlignment="Stretch">Close</Button>
+        </StackPanel>
+    </Grid>
 
-
-    </StackPanel>
 </ContentDialog>

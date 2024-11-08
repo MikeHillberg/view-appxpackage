@@ -46,11 +46,10 @@
 			</uap:VisualElements>
 
 			<Extensions>
-				<uap3:Extension Category="windows.appExecutionAlias" 
-								Executable="view-appxpackage.exe" 
-								EntryPoint="Windows.FullTrustApplication">
+				<uap3:Extension Category="windows.appExecutionAlias" Executable="view-appxpackage.exe" EntryPoint="Windows.FullTrustApplication">
 					<uap3:AppExecutionAlias>
 						<desktop:ExecutionAlias Alias="view-appxpackage.exe" />
+						<desktop:ExecutionAlias Alias="view-msixpackage.exe" />
 					</uap3:AppExecutionAlias>
 				</uap3:Extension>
 			</Extensions>

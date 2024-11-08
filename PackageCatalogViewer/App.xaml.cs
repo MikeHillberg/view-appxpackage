@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Shapes;
+using Microsoft.Windows.Storage;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -59,11 +60,17 @@ namespace PackageCatalogViewer
 
         private Window m_window;
 
+        static bool? _isProcessElevated = null;
         public static bool IsProcessElevated()
         {
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            WindowsPrincipal principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+            if (_isProcessElevated == null)
+            {
+                WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
+                _isProcessElevated = principal.IsInRole(WindowsBuiltInRole.Administrator);
+            }
+
+            return _isProcessElevated.Value;
         }
 
         public static bool Test = false;
