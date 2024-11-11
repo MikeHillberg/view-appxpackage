@@ -1,27 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Window
-    x:Class="PackageCatalogViewer.MainWindow"
+    x:Class="ViewAppxPackage.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:PackageCatalogViewer"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    x:DefaultBindMode="OneWay"
-    >
+    xmlns:local="using:ViewAppxPackage"
+    x:DefaultBindMode="OneWay" >
 
-    <UserControl IsEnabled="{x:Bind local:Utils.Not(_progressOverlay.IsOpen), Mode=OneWay}">
+    <!-- Disable the whole window if an overlay is showing -->
+    <UserControl IsEnabled="{x:Bind local:Utils.NotAny(_progressOverlay.IsOpen, IsLoading)}">
+        
         <Grid ColumnDefinitions="*" RowDefinitions="*"
-          KeyboardAcceleratorPlacementMode="Hidden" >
+              KeyboardAcceleratorPlacementMode="Hidden" >
             <Grid.KeyboardAccelerators>
+                <!-- The placement mode is 'hidden' because otherwise these cause constant tool tips -->
+                <!-- bugbug: override this on the CommandBar? -->
                 <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="GoToFilter"/>
                 <KeyboardAccelerator Modifiers="Control" Key="E" Invoked="GoToSearch"/>
             </Grid.KeyboardAccelerators>
 
+            <!-- Two columns for the list and the detail -->
+            <!-- Three rows for the CommandBar, search/filter boxes, and content -->
+            <!-- The package view detail is column 1 and spans rows 2/3 -->
             <Grid x:Name="_root" 
-                      ColumnDefinitions="Auto,*" 
-                      RowDefinitions="Auto,Auto,*" 
-                      ColumnSpacing="20">
+                  ColumnDefinitions="Auto,*" 
+                  RowDefinitions="Auto,Auto,*" 
+                  ColumnSpacing="20">
 
                 <CommandBar Grid.Row="0"
                     Grid.Column="0"
@@ -44,10 +47,10 @@
 
                     <AppBarButton Click="RemovePackage" Icon="Delete" Label="Remove" />
 
-                    <AppBarButton Click="AddClick" Icon="Add" Label="Add"
+                    <AppBarButton Click="AddPackage" Icon="Add" Label="Add"
                                   ToolTipService.ToolTip="Add a package (must be signed with a trusted certificate)"/>
 
-                    <AppBarButton Click="AddUnsigned" Label="Register">
+                    <AppBarButton Click="RegisterPackage" Label="Register">
                         <AppBarButton.Icon>
                             <!-- Registered trademark symbol is the best icon I can think of so far for "register" -->
                             <FontIcon FontFamily="Segoe UI Symbol" Glyph="&#x00AE;" />
@@ -63,12 +66,14 @@
                     
                     <AppBarToggleButton Label="All users"
                                     IsChecked="{x:Bind IsAllUsers, Mode=TwoWay}"
-                                    Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" />
+                                    Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" 
+                                    ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. This button only appears when the app is run elevated."/>
 
                     <AppBarButton Icon="Help" Label="Help" Click="ShowHelpClick"/>
 
                 </CommandBar>
 
+                <!-- Search and Filter text boxes -->
                 <StackPanel Grid.Row="1">
 
                     <TextBox x:Name="_searchBox"
@@ -86,47 +91,50 @@
                              Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 </StackPanel>
 
-                <ListView x:Name="_lv" 
+                <!-- List of packages. Transparent to make Mica work -->
+                <!-- The ListSizeChanged handler is to make this list wide enough for the longest package name -->
+                <Grid Grid.Row="2">
+                    <TextBlock Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}" >No packages found</TextBlock>
+                    
+                    <ListView x:Name="_lv" 
                           Background="Transparent"
-                          Grid.Row="2"
                           ItemsSource="{x:Bind Packages, Mode=OneWay}"
                           SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=TwoWay}"
                           SelectionChanged="SelectionChanged"
                           SizeChanged="ListSizeChanged"
                           SelectionMode="Extended"
                           MinWidth="{x:Bind MinListWidth, Mode=OneWay}">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:PackageModel">
-                            <TextBlock Text="{x:Bind Id.Name}" />
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:PackageModel">
+                                <TextBlock Text="{x:Bind Id.Name}" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
 
+                <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center">Nothing to see here, select a package</TextBlock>
+
+                <!-- Detail view. Note that this spans two rows -->
                 <local:PackageView x:Name="_detail"
                                    Grid.Row="1" Grid.RowSpan="2"
                                    Grid.Column="1" 
                                    Package="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"/>
 
-
-
             </Grid>
 
 
+            <!-- This overlay sits over the whole window and shows up when an async but blocking operation is happening -->
             <local:ProgressOverlay x:Name="_progressOverlay"
                                    IsOpen="{x:Bind local:Utils.IsntEmpty(BusyMessage), Mode=OneWay}">
 
-                <StackPanel HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Width="400"
-                            Background="{ThemeResource SystemControlPageBackgroundChromeMediumLowBrush}"
-                            Padding="50"
-                            CornerRadius="5">
+                <StackPanel Spacing="20">
 
-                    <TextBlock Margin="0,0,0,20" Text="{x:Bind BusyMessage, Mode=OneWay}" />
-                    <ProgressBar 
-                             Minimum="0"
-                             Maximum="100"
-                             Value="{x:Bind ProgressPercentage}"/>
+                    <TextBlock Text="{x:Bind BusyMessage, Mode=OneWay}" />
+                    <ProgressBar  Minimum="0"
+                                  Maximum="100"
+                                  Value="{x:Bind ProgressPercentage}"/>
 
                 </StackPanel>
             </local:ProgressOverlay>

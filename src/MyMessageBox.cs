@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Threading.Tasks;
 
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
     // Simple wrapper to show a traditional message box
     internal class MyMessageBox

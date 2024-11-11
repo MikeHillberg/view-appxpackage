@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
     /// <summary>
     /// Interface recognized by CollapseIfEmpty behavior
@@ -130,7 +126,7 @@ namespace PackageCatalogViewer
                 changeProperty = ItemsControl.ItemsSourceProperty;
 
 
-                if (ic.ItemsSource == null)
+                if (ic.ItemsSource == null || ic.Items.Count == 0)
                 {
                     isEmpty = true;
                 }

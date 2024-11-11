@@ -7,7 +7,7 @@ using Windows.Storage;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
     public sealed partial class Help : ContentDialog
     {
@@ -21,7 +21,10 @@ namespace PackageCatalogViewer
 
             Loaded += (s, e) =>
             {
+                // XamlRoot is required, but not available until loaded
                 XamlRoot = MainWindow.RootElement.XamlRoot;
+
+                // Make the built-in close button go away
                 CloseButtonText = "";
             };
 
@@ -29,6 +32,8 @@ namespace PackageCatalogViewer
 
         static Help()
         {
+            // See if we're supposed to show the Help dialog on startup
+
             _localSettings = ApplicationData.Current.LocalSettings;
             if (_localSettings.Values.TryGetValue(nameof(ShowHelpOnStartup), out var showHelpOnStartup))
             {
@@ -40,7 +45,7 @@ namespace PackageCatalogViewer
 
         async void LoadMarkdownAsync()
         {
-            // bugbug (doc): Doesn't get copied to the output by default
+            // bugbug (doc): Doesn't get copied to the output by default, also has a BOM by default
             var uri = new Uri("ms-appx:///Assets/Help.md");
 
             var file = await StorageFile.GetFileFromApplicationUriAsync(uri);

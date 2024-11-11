@@ -1,31 +1,17 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
-
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
+    /// <summary>
+    /// A row in the PackageView
+    /// </summary>
     public sealed partial class PackageViewRow : UserControl
     {
         public PackageViewRow()
         {
             this.InitializeComponent();
         }
-
-
 
         public string Label
         {
@@ -37,6 +23,17 @@ namespace PackageCatalogViewer
 
 
 
+        public string Value
+        {
+            get { return (string)GetValue(ValueProperty); }
+            set { SetValue(ValueProperty, value); }
+        }
+        public static readonly DependencyProperty ValueProperty =
+            DependencyProperty.Register("Value", typeof(string), typeof(PackageViewRow), new PropertyMetadata(null));
+
+        /// <summary>
+        /// MinWidth to use for the label column. This keeps the first column all the same width
+        /// </summary>
         public double MinLabelWidth
         {
             get { return (double)GetValue(MinLabelWidthProperty); }
@@ -47,15 +44,9 @@ namespace PackageCatalogViewer
 
 
 
-
-        public string Value
-        {
-            get { return (string)GetValue(ValueProperty); }
-            set { SetValue(ValueProperty, value); }
-        }
-        public static readonly DependencyProperty ValueProperty =
-            DependencyProperty.Register("Value", typeof(string), typeof(PackageViewRow), new PropertyMetadata(null));
-
+        /// <summary>
+        /// Keep the global MinLabelWidth updated when any label width changes
+        /// </summary>
         private void LabelSizeChanged(object sender, SizeChangedEventArgs e)
         {
             if(_label.ActualWidth > PackageView.Instance.MinLabelWidth)

@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="PackageCatalogViewer.PackageView"
+    x:Class="ViewAppxPackage.PackageView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:PackageCatalogViewer"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:ViewAppxPackage"
     x:DefaultBindMode="OneWay"
-    mc:Ignorable="d">
+    >
 
     <ScrollViewer>
         <StackPanel x:Name="_root"
@@ -15,6 +13,7 @@
                 Padding="20"
                 Visibility="{x:Bind NotEmpty(Package)}">
 
+            <!-- Title area with display name and logo -->
             <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch" >
 
                 <TextBlock Text="{x:Bind Package.DisplayName}"
@@ -34,14 +33,20 @@
             </Grid>
 
             <TextBlock Text="{x:Bind Package.Description}" Margin="0,0,0,10"
+                       Style="{StaticResource BaseTextBlockStyle}"
+                       IsTextSelectionEnabled="True"
                        TextWrapping="Wrap"
                        local:CollapseIfEmpty.IsEnabled="True" />
 
-            <!--<TextBlock Margin="0,0,0,10" FontWeight="Bold">Highlights</TextBlock>-->
-
+            <!-- These are all rows of name/value pairs. There's logic to keep the first column width the same everywhere -->
+            <!-- For all of these if a Value is unset, the row is collapsed -->
+            
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
             <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
+            <local:PackageViewRow Label="Protocol" Value="{x:Bind Package.Protocol}"/>
+            <local:PackageViewRow Label="Aumid" Value="{x:Bind Package.Aumid}"/>
             <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
+            <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.Id.PublisherId}"/>
             <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Id.Architecture}"/>
             <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
             <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
@@ -55,26 +60,25 @@
             <local:PackageViewRow Label='MutablePath' Value='{x:Bind Package.MutablePath}'/>
             <local:PackageViewRow Label='UserExternalPath' Value='{x:Bind Package.UserExternalPath}'/>
             <local:PackageViewRow Label="Package Family Name" Value="{x:Bind Package.Id.FamilyName}"/>
-            <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.Id.PublisherId}"/>
             <local:PackageViewRow Label='Publisher' Value='{x:Bind Package.Publisher}'/>
             <local:PackageViewRow Label="User Information" Value="{x:Bind Package.PackageUserInformation}"/>
 
 
-            <!-- Non removeable? -->
-            <!-- Partially Staged? -->
+            <!-- bugbug: Non removeable? -->
+            <!-- butbug: Partially Staged? -->
 
             <local:PackageViewRow Label="Signature Kind" Value="{x:Bind Package.SignatureKind}"/>
             <local:PackageViewRow Label="True booleans" Value="{x:Bind GetTrueBooleans(Package)}" />
             <local:PackageViewRow Label="Status" Value="{x:Bind Package.Status}"/>
 
-            <StackPanel Margin="0,15,0,0" Visibility="{x:Bind CollapseIfEmpty(Package.Dependencies)}">
+            <!-- List of dependencies -->
+            <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependencies}">
                 <TextBlock FontWeight="Bold" Text="Dependencies"/>
                 <ListView ItemsSource="{x:Bind Package.Dependencies}" SelectionMode="None">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:PackageModel">
                             <TextBlock>
-                            <Hyperlink Click="GoToPackage" 
-                                       local:PackageView.MyTag="{x:Bind}">
+                            <Hyperlink Click="GoToPackage" local:PackageView.MyTag="{x:Bind}">
                                 <Run Text="{x:Bind Id.FullName}"/>
                             </Hyperlink>
                             </TextBlock>
@@ -83,8 +87,8 @@
                 </ListView>
             </StackPanel>
 
-
-            <StackPanel Margin="0,15,0,0" Visibility="{x:Bind CollapseIfEmpty(Package.Dependents)}">
+            <!-- List of dependents -->
+            <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependents}">
                 <TextBlock FontWeight="Bold" Text="Dependents"/>
                 <ListView ItemsSource="{x:Bind Package.Dependents}" SelectionMode="None">
                     <ListView.ItemTemplate>

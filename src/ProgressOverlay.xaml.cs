@@ -1,31 +1,18 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
-
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
+    /// <summary>
+    /// ContentDialog to use as an overlay during an async operation to show progress.
+    /// Use IsOpen property to open/close
+    /// </summary>
     public sealed partial class ProgressOverlay : ContentDialog
     {
         public ProgressOverlay()
         {
             this.InitializeComponent();
         }
-
-
 
         public bool IsOpen
         {
@@ -38,7 +25,6 @@ namespace PackageCatalogViewer
                 typeof(ProgressOverlay), 
                 new PropertyMetadata(false, (d,dp) => (d as ProgressOverlay).IsOpenChanged()));
 
-        bool _isShowing = false;
         void IsOpenChanged()
         {
             if(IsOpen && !_isShowing)
@@ -52,6 +38,8 @@ namespace PackageCatalogViewer
                 this.Hide();
             }
         }
+
+        bool _isShowing = false;
 
     }
 }

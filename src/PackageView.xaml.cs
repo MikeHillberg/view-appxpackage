@@ -1,19 +1,17 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using Windows.ApplicationModel;
-using Windows.System;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
+    /// <summary>
+    /// Viewre of a PackageModel
+    /// </summary>
     public sealed partial class PackageView : UserControl
     {
         public PackageView()
@@ -49,6 +47,9 @@ namespace PackageCatalogViewer
 
 
 
+        /// <summary>
+        /// The MinWidth to use for the labels (first column)
+        /// </summary>
         public double MinLabelWidth
         {
             get { return (double)GetValue(MinLabelWidthProperty); }
@@ -57,55 +58,59 @@ namespace PackageCatalogViewer
         public static readonly DependencyProperty MinLabelWidthProperty =
             DependencyProperty.Register("MinLabelWidth", typeof(double), typeof(PackageView), new PropertyMetadata(0.0));
 
-        Visibility CollapseIfEmpty(object value)
-        {
-            if(value == null)
-            {
-                return Visibility.Collapsed;
-            }
+        //Visibility CollapseIfEmpty(object value)
+        //{
+        //    if(value == null)
+        //    {
+        //        return Visibility.Collapsed;
+        //    }
 
-            if(value is IEnumerable<object> enumerable)
-            {
-                if (!enumerable.Any())
-                {
-                    return Visibility.Collapsed;
-                }
-            }
+        //    if(value is IEnumerable<object> enumerable)
+        //    {
+        //        if (!enumerable.Any())
+        //        {
+        //            return Visibility.Collapsed;
+        //        }
+        //    }
 
-            return Visibility.Visible;
-        }
+        //    return Visibility.Visible;
+        //}
 
-        static string SafeDisplayName(object value)
-        {
-            var package = value as Package;
-            try
-            {
-                return package.DisplayName;
-            }
-            catch(Exception)
-            {
-                return package.InstalledPath;
-            }
-        }
+        //static string SafeDisplayName(object value)
+        //{
+        //    var package = value as Package;
+        //    try
+        //    {
+        //        return package.DisplayName;
+        //    }
+        //    catch(Exception)
+        //    {
+        //        return package.InstalledPath;
+        //    }
+        //}
 
 
-        private void DependencyClicked(PackageModel package)
-        {
-
-        }
-
-        private void GoToPackage(Microsoft.UI.Xaml.Documents.Hyperlink sender, Microsoft.UI.Xaml.Documents.HyperlinkClickEventArgs args)
+        /// <summary>
+        /// Navigate to a package
+        /// </summary>
+        private void GoToPackage(Hyperlink sender, HyperlinkClickEventArgs args)
         {
             var package = GetMyTag(sender) as PackageModel;
             MainWindow.Instance.SelectPackage(package);
         }
 
+        /// <summary>
+        /// Get a string with a list of the boolean properties that are set
+        /// </summary>
         string GetTrueBooleans(PackageModel package)
         {
             return PackageModel.GetTrueBooleans(package);
         }
 
 
+        /// <summary>
+        /// Helper to hold state to make the hyperlink work
+        /// </summary>
         public static object GetMyTag(DependencyObject obj)
         {
             return (object)obj.GetValue(MyTagProperty);
@@ -118,16 +123,6 @@ namespace PackageCatalogViewer
         public static readonly DependencyProperty MyTagProperty =
             DependencyProperty.RegisterAttached("MyTag", typeof(object), typeof(PackageView), new PropertyMetadata(null));
 
-        //private void OpenStore(object sender, RoutedEventArgs e)
-        //{
-        //    if (Package == null)
-        //    {
-        //        Debug.Assert(false);
-        //        return;
-        //    }
-
-        //    Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={Package.Id.FamilyName}"));
-        //}
     }
 
 }

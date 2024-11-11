@@ -1,22 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ContentDialog
-    x:Class="PackageCatalogViewer.Help"
+    x:Class="ViewAppxPackage.Help"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:PackageCatalogViewer"
+    xmlns:local="using:ViewAppxPackage"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     mc:Ignorable="d">
+    
     <ContentDialog.Resources>
+        <!-- ContentDialog is the right UX for the job here except that it's not allowed to go very wide
+             So override that restriction -->
         <x:Double x:Key="ContentDialogMaxWidth">1000</x:Double>
     </ContentDialog.Resources>
 
+    <!-- Two row Grid with content in the center and buttons at the bottom -->
     <Grid RowDefinitions="*,Auto" Padding="10" RowSpacing="30">
-        <ScrollViewer  
-                  MaxWidth="800" 
-                  Background="{ThemeResource SystemControlPageBackgroundChromeMediumLowBrush}"
-                  HorizontalAlignment="Center">
+        <ScrollViewer  MaxWidth="800" 
+                       Background="{ThemeResource SystemControlPageBackgroundChromeMediumLowBrush}"
+                       HorizontalAlignment="Center">
 
             <StackPanel>
                 <!-- Use the community toolkit's markdown reader -->
@@ -27,11 +30,13 @@
         </ScrollViewer>
 
         <StackPanel Grid.Row="1" Spacing="5" HorizontalAlignment="Center">
-            <!-- Bugbug: referene this property as an instance property and get a random error -->
+            <!-- Bugbug: reference this property as an instance property and get a random error -->
             <CheckBox IsChecked="{x:Bind local:Help.ShowHelpOnStartup, Mode=TwoWay}">
                 Show on startup
             </CheckBox>
 
+            <!-- Custom close button to align with the checkbox, and because
+                 with this ContentDialog being extra wide, the built-in button looks weird -->
             <Button Click="CloseClick" HorizontalAlignment="Stretch">Close</Button>
         </StackPanel>
     </Grid>

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
     internal class Utils
     {
@@ -22,6 +22,11 @@ namespace PackageCatalogViewer
         internal static bool Not(bool value)
         {
             return !value;
+        }
+
+        internal static bool NotAny(bool value1, bool value2)
+        {
+            return !(value1 || value2);
         }
 
         internal static bool IsntEmpty(string s)

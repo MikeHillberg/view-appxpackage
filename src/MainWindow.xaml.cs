@@ -1,4 +1,3 @@
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
@@ -15,92 +14,63 @@ using Windows.ApplicationModel;
 using Windows.Management.Deployment;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
-using WinRT;
 using System.IO;
 using Windows.System;
 using System.IO.Compression;
 using Microsoft.Win32;
-using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
-using System.Security.Principal;
-using System.Threading;
+using Microsoft.UI.Xaml.Input;
 
 
 
-namespace PackageCatalogViewer
+namespace ViewAppxPackage
 {
-    /// <summary>
-    /// An empty window that can be used on its own or navigated to within a Frame.
-    /// </summary>
     public sealed partial class MainWindow : Window, INotifyPropertyChanged
     {
         public MainWindow()
         {
-
             ProcessCommandLineArguments();
-
-            if (PipeInputPackages != null)
-            {
-                _filter = "$input";
-            }
-
             StartLoadPackages();
 
             this.InitializeComponent();
 
-            RootElement = this._root;
-            Instance = this;
+            RootElement = _root;
+            _root.Loaded += OnLoaded;
 
-            RootElement.Loaded += (s, e) =>
-            {
-                _filterBox.Focus(FocusState.Programmatic);
-            };
+            Instance = this;
 
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
             _packageCatalog.PackageInstalling += (s, e)
-                => UpdateDeployment(e.IsComplete, e.Package, true);
+                => OnCatalogUpdate(e.IsComplete, e.Package, true);
 
             _packageCatalog.PackageUninstalling += (s, e)
-                => UpdateDeployment(e.IsComplete, e.Package, false);
-
-            _root.Loaded += (_, __) =>
-            {
-                SetMicaBackdrop();
-
-                if (_commandLineProvided)
-                {
-                    _lv.SelectedIndex = 0;
-                }
-                else
-                {
-                    Random random = new();
-                    _lv.SelectedIndex = random.Next(0, _lv.Items.Count - 1);
-                }
-
-                if (Help.ShowHelpOnStartup)
-                {
-                    ShowHelp();
-                }
-
-            };
-
-            //var ctrlF = new KeyboardAccelerator()
-            //{
-            //    Key = Windows.System.VirtualKey.F,
-            //    Modifiers = Windows.System.VirtualKeyModifiers.Control,
-            //};
-            //ctrlF.Invoked += GoToFilter;
-            //_root.KeyboardAccelerators.Add(ctrlF);
+                => OnCatalogUpdate(e.IsComplete, e.Package, false);
 
             SetWindowIcon();
             SetWindowTitle();
         }
 
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            SetMicaBackdrop();
+
+            _filterBox.Focus(FocusState.Programmatic);
+
+            if (_commandLineProvided)
+            {
+                _lv.SelectedIndex = 0;
+            }
+
+            if (Help.ShowHelpOnStartup)
+            {
+                ShowHelp();
+            }
+        }
+
+
         void ShowHelp()
         {
-            //_help.ShowAsync(ContentDialogPlacement.InPlace);
-
             Help help = new()
             {
                 XamlRoot = _lv.XamlRoot,
@@ -129,21 +99,12 @@ namespace PackageCatalogViewer
 
         string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
 
-        bool? _isElevated = null;
-        public bool IsElevated
-        {
-            get
-            {
-                if (_isElevated == null)
-                {
-                    _isElevated = App.IsProcessElevated();
-                }
+        public bool IsElevated => App.IsProcessElevated();
 
-                return _isElevated.Value;
-            }
-        }
 
-        bool _isAllUsers = false;
+        /// <summary>
+        /// Indicates if in all-users mode (vs current user only mode)
+        /// </summary>
         internal bool IsAllUsers
         {
             get => _isAllUsers;
@@ -151,9 +112,15 @@ namespace PackageCatalogViewer
             {
                 _isAllUsers = value;
                 RaisePropertyChanged();
+
+                // Need to re-load packages
                 StartLoadPackages();
+
+                // Show what mode we're in in the window title
+                SetWindowTitle();
             }
         }
+        bool _isAllUsers = false;
 
 
         bool _commandLineProvided = false;
@@ -167,15 +134,17 @@ namespace PackageCatalogViewer
                 return;
             }
 
-            if (!Console.IsInputRedirected)
-            {
-                return;
-            }
+            // Read input from the console, which will have content if this was launched
+            // from a PowerShell pipe.
+            // The pipe input comes in just like the output of get-appxpackage, so we're looking for e.g.
+            //
+            //   PackageFamilyName : view-appxpackage_9exbdrchsqpwm
 
             using (StreamReader reader = new(Console.OpenStandardInput()))
             {
                 List<string> names = new();
                 string line;
+                var found = false;
                 while ((line = reader.ReadLine()) != null)
                 {
                     var parts = line.Split(':');
@@ -186,18 +155,30 @@ namespace PackageCatalogViewer
 
                     if (parts[0].Trim() == "PackageFullName")
                     {
+                        found = true;
                         names.Add(parts[1].Trim());
                     }
                 }
 
-                if (names.Count > 0)
+                if (found)
                 {
                     PipeInputPackages = names.ToArray();
+
+                    // Set the filter box to "$input" indicating we should use this list of names
+                    _filter = PipeInputFilterString;
                 }
             }
         }
 
+        /// <summary>
+        /// List of package names that we got from stdin
+        /// </summary>
         static public string[] PipeInputPackages = null;
+
+        /// <summary>
+        /// Magic value for the filter string that means we're using the input from the stdin
+        /// </summary>
+        static public string PipeInputFilterString = "$input";
 
         internal static FrameworkElement RootElement { get; private set; }
 
@@ -226,17 +207,31 @@ namespace PackageCatalogViewer
             }
         }
 
-
-        void UpdateDeployment(bool isComplete, PackageModel package, bool isInstalling)
+        /// <summary>
+        /// Update after receiving a notification that a package has been added or removed
+        /// </summary>
+        void OnCatalogUpdate(bool isComplete, PackageModel package, bool isInstalling)
         {
+
             if (!isComplete)
             {
                 return;
             }
 
+            if(package.IsBundle)
+            {
+                // I don't understand bundles yet. When a package is added, two install notifications
+                // come in. One is a normal package that will show up again on enumeration.
+                // The other is a bundle that doesn't, and that throws a lot of exceptions
+                return;
+            }
+
+            Debug.WriteLine($"Catalog update: {package.Name} {isInstalling}");
+
             if (Packages == null)
             {
-                // bugbug: race
+                // bugbug: seems like a race condition where the package catalog is updated
+                // while we're enumerating it
                 return;
             }
 
@@ -244,9 +239,11 @@ namespace PackageCatalogViewer
             {
                 if (isInstalling)
                 {
+                    // Shouldn't be necessary but playing it safe
+                    RemoveFromCache(package);
+
                     _originalpackages.Add(package);
-                    _originalpackages = new ObservableCollection<PackageModel>(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
-                    FilterAndSearchPackages();
+                    _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
                 }
                 else
                 {
@@ -255,26 +252,51 @@ namespace PackageCatalogViewer
                         CurrentItem = null;
                     }
 
-                    var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
-                    _originalpackages.Remove(existing);
-                    FilterAndSearchPackages();
+                    RemoveFromCache(package);
                 }
+
+                FilterAndSearchPackages();
+                RaisePropertyChanged(nameof(NoPackagesFound));
             });
         }
 
 
-        PackageCatalog _packageCatalog;
-        ObservableCollection<PackageModel> _originalpackages;
-        static ObservableCollection<PackageModel> _packages;
-        public ObservableCollection<PackageModel> Packages
+        void RemoveFromCache(PackageModel package)
         {
-            get { return _packages; }
-            private set { _packages = value; RaisePropertyChanged(); }
+            var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
+            if (existing != null)
+            {
+                _originalpackages.Remove(existing);
+            }
         }
 
 
+        PackageCatalog _packageCatalog;
 
-        bool _isMultiSelect = false;
+        List<PackageModel> _originalpackages;
+        static List<PackageModel> _packages;
+        public List<PackageModel> Packages
+        {
+            get { return _packages; }
+            private set
+            {
+                _packages = value;
+
+                RaisePropertyChanged();
+                RaisePropertyChanged(nameof(NoPackagesFound));
+
+                // This has to be after raising property changes so that the ListView is updated
+                EnsureItemSelected();
+            }
+        }
+
+        bool NoPackagesFound => Packages == null || Packages.Count == 0;
+
+
+
+        /// <summary>
+        /// True if SelectedItems.Count > 1
+        /// </summary>
         public bool IsMultiSelect
         {
             get { return _isMultiSelect; }
@@ -284,8 +306,11 @@ namespace PackageCatalogViewer
                 RaisePropertyChanged();
             }
         }
+        bool _isMultiSelect = false;
 
-
+        /// <summary>
+        /// True if the current package is in the Store
+        /// </summary>
         private bool CanOpenStore(bool isMultiSelect)
         {
             if (isMultiSelect)
@@ -296,32 +321,27 @@ namespace PackageCatalogViewer
             return CurrentItem != null && CurrentItem.SignatureKind == PackageSignatureKind.Store;
         }
 
+        /// <summary>
+        /// Open the Store to this package
+        /// </summary>
         private void OpenStore()
         {
-            if (IsMultiSelect || CurrentItem == null)
+            if (!CanOpenStore(IsMultiSelect))
             {
+                Debug.Assert(false);
                 return;
             }
 
-            var package = CurrentItem;
-            if (package.SignatureKind != PackageSignatureKind.Store)
-            {
-                return;
-            }
-
-            _ = Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={package.Id.FamilyName}"));
+            _ = Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CurrentItem.Id.FamilyName}"));
         }
 
         private void OpenManifest()
         {
-            if (IsMultiSelect || CurrentItem == null)
-            {
-                return;
-            }
+            Debug.Assert(CanOpenManifest(IsMultiSelect));
 
             var path = CurrentItem.InstalledPath;
 
-            // bugbug: I think there's a Win32 API to get this out?
+            // bugbug: use https://learn.microsoft.com/windows/win32/api/appxpackaging/nf-appxpackaging-iappxpackagereader-getmanifest
             path = Path.Combine(path, "AppxManifest.xml");
             if (Path.Exists(path))
             {
@@ -366,39 +386,37 @@ namespace PackageCatalogViewer
 
         async void StartLoadPackages()
         {
-            //App.WaitForDebugger();
-
             IsLoading = true;
+
+            // After loading is complete we need some time to get search cached
             IsSearchEnabled = false;
 
-            var isElevated = App.IsProcessElevated() && IsAllUsers;
+            var isAllUsers = App.IsProcessElevated() && IsAllUsers;
             IEnumerable<PackageModel> packageModels = null;
 
             try
             {
                 await Task.Run(() =>
                 {
-                    Debug.WriteLine("Inside Run");
-
                     IEnumerable<Package> packages = null;
-                    if (isElevated)
+                    if (isAllUsers)
                     {
-                        packages = _packageManager.FindPackages();
+                        packages = PackageManager.FindPackages();
 
                     }
                     else
                     {
-                        packages = _packageManager.FindPackagesForUser(string.Empty);
+                        packages = PackageManager.FindPackagesForUser(string.Empty);
                     }
 
                     var sorted = from p in packages
                                  where !p.IsResourcePackage
                                  let name = p.Id.Name // DisplayName throws a lot
-                                 orderby string.IsNullOrEmpty(name) ? "zzz" : name
+                                 orderby name
                                  select (PackageModel)p;
                     packageModels = sorted.ToList();
 
-                    _originalpackages = new ObservableCollection<PackageModel>(packageModels);
+                    _originalpackages = new(packageModels);
                 });
             }
             finally
@@ -408,30 +426,42 @@ namespace PackageCatalogViewer
 
             Packages = _originalpackages;
 
-
-            if (!string.IsNullOrEmpty(_filter))
-            {
-                FilterAndSearchPackages();
-            }
+            // Process Packages with the filter & search text boxes
+            FilterAndSearchPackages();
 
             PackageModel.StartCalculateDependents(_originalpackages);
 
+            // Call Find on a background thread to warm the caches
             await Task.Run(() =>
             {
                 // Make a copy in case packages are added/deleted during the Find
                 List<PackageModel> packagesCopy = new(_originalpackages);
-                _ = PackageModel.Find("hello world", packagesCopy);
+                _ = PackageModel.FindPackages("hello world", packagesCopy);
 
                 Debug.WriteLine("Done initializing cache");
             });
+
+            // After that FindPackages, search will be fast now
             IsSearchEnabled = true;
 
             return;
         }
 
 
-        // bugbug
-        static internal PackageManager _packageManager = new PackageManager();
+        void EnsureItemSelected()
+        {
+            if (_lv.Items.Count == 0)
+            {
+                return;
+            }
+
+            // Pick an item at random from the packages (after filtering and searching)
+            Random random = new();
+            var index = random.Next(0, _lv.Items.Count - 1);
+            SelectPackage(_lv.Items[index] as PackageModel);
+        }
+
+        static internal PackageManager PackageManager = new PackageManager();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -440,7 +470,9 @@ namespace PackageCatalogViewer
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        double _minListWidth = 200;
+        /// <summary>
+        /// MinWidth for the list column, based on calculated width of the widest item
+        /// </summary>
         double MinListWidth
         {
             get => _minListWidth;
@@ -450,25 +482,33 @@ namespace PackageCatalogViewer
                 RaisePropertyChanged();
             }
         }
+        double _minListWidth = 200;
 
+        /// <summary>
+        /// Remove an appx package
+        /// </summary>
         async private void RemovePackage(object sender, RoutedEventArgs e)
         {
             var package = _lv.SelectedItem as PackageModel;
             if (package == null)
             {
+                Debug.Assert(false);
                 return;
             }
 
-            var result = await MyMessageBox.Show(package.DisplayName, title: "Remove?", isOKEnabled: true, closeButtonText: "Cancel");
+            // Get confirmation
+            var result = await MyMessageBox.Show(
+                                package.DisplayName, title: "Remove?", 
+                                isOKEnabled: true, 
+                                closeButtonText: "Cancel");
             if (result != ContentDialogResult.Primary)
             {
                 return;
             }
 
-
             try
             {
-                var removing = _packageManager.RemovePackageAsync(package.Id.FullName);
+                var removing = PackageManager.RemovePackageAsync(package.Id.FullName);
 
                 // bugbug: is there something to check in the return DeploymentResult?
                 _ = await CallWithProgress(removing, "Removing ...");
@@ -481,8 +521,9 @@ namespace PackageCatalogViewer
         }
 
 
-
-        string _filter;
+        /// <summary>
+        /// Package name filter, e.g. *App*
+        /// </summary>
         public string Filter
         {
             get { return _filter; }
@@ -493,8 +534,12 @@ namespace PackageCatalogViewer
                 FilterAndSearchPackages();
             }
         }
+        string _filter;
 
-        string _searchText;
+
+        /// <summary>
+        ///  Search text, regex form
+        /// </summary>
         public string SearchText
         {
             get { return _searchText; }
@@ -505,13 +550,16 @@ namespace PackageCatalogViewer
                 FilterAndSearchPackages();
             }
         }
+        string _searchText;
 
 
+        /// <summary>
+        /// Use the filter and search text to reduce the _originalPackages list into Packages
+        /// </summary>
         void FilterAndSearchPackages()
         {
             if (Packages == null)
             {
-                // bugbug: race
                 return;
             }
 
@@ -519,51 +567,46 @@ namespace PackageCatalogViewer
 
             if (!string.IsNullOrEmpty(_filter))
             {
+                // Convert wildcard syntax into regex
                 var updatedFilter = $"^{_filter.Trim()}$";
                 updatedFilter = updatedFilter.Replace("?", ".");
                 updatedFilter = updatedFilter.Replace("*", ".*");
 
+                Regex filterRegex = new(updatedFilter, RegexOptions.IgnoreCase);
 
-                Regex regex = new(updatedFilter, RegexOptions.IgnoreCase);
+                List<PackageModel> filteredPackages = new();
 
-                List<PackageModel> packages2 = new();
-                //packages = from p in packages
-                //           let matches = regex.Matches(p.Id.Name)
-                //           where matches.Count > 0
-                //           select (PackageModel)p;
+                // If the filter is "$input", then we're using the list of names from stdin, which is stored in PipeInputPackages
+                var isInput = _filter.Trim() == MainWindow.PipeInputFilterString;
 
-                var isInput = _filter.Trim() == "$input";
                 foreach (var p in packages)
                 {
                     if (isInput)
                     {
                         if (PipeInputPackages.Contains(p.Id.FullName))
                         {
-                            packages2.Add(p);
+                            filteredPackages.Add(p);
                         }
-                        continue;
                     }
-
-                    var matches = regex.Matches(p.Id.Name);
-                    if (matches.Count > 0)
+                    else
                     {
-                        packages2.Add(p);
+                        var matches = filterRegex.Matches(p.Id.Name);
+                        if (matches.Count > 0)
+                        {
+                            filteredPackages.Add(p);
+                        }
                     }
                 }
-                packages = packages2;
+
+                packages = filteredPackages;
             }
 
             if (!string.IsNullOrEmpty(_searchText))
             {
-                packages = PackageModel.Find(_searchText, packages);
+                packages = PackageModel.FindPackages(_searchText, packages);
             }
 
-            Packages = new ObservableCollection<PackageModel>(packages);
-        }
-
-        private void TestClick(object sender, RoutedEventArgs e)
-        {
-
+            Packages = new(packages);
         }
 
         private void SelectionChanged(object sender, Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs e)
@@ -577,13 +620,13 @@ namespace PackageCatalogViewer
             IsMultiSelect = _lv.SelectedItems != null && _lv.SelectedItems.Count > 1;
         }
 
-        async private void AddClick(object sender, RoutedEventArgs e)
+        async private void AddPackage(object sender, RoutedEventArgs e)
         {
             var picker = new FileOpenPicker();
             var hwnd = WindowNative.GetWindowHandle(this);
             InitializeWithWindow.Initialize(picker, hwnd);
 
-
+            // bugbug: handle bundles
             picker.FileTypeFilter.Add(".appx");
             picker.FileTypeFilter.Add(".msix");
             var storageFile = await picker.PickSingleFileAsync();
@@ -594,27 +637,41 @@ namespace PackageCatalogViewer
 
             var fileUri = new Uri(storageFile.Path);
 
-            _ = _packageManager.AddPackageAsync(fileUri, null, DeploymentOptions.None);
+            try
+            {
+                _ = PackageManager.AddPackageAsync(fileUri, null, DeploymentOptions.None);
+            }
+            catch(Exception e2)
+            {
+                _ = MyMessageBox.Show(e2.Message, "Failed to add package");
+            }
         }
+
 
         private void ListSizeChanged(object sender, SizeChangedEventArgs e)
         {
+            // Keep track of the max width of the List we've seen.
+            // This is then set as the MinWidth so that the list doesn't wiggle
             if (_lv.ActualWidth > MinListWidth)
             {
                 MinListWidth = _lv.ActualWidth;
             }
         }
 
+        /// <summary>
+        /// Launch an app from its package
+        /// </summary>
         private void LaunchClick(object sender, RoutedEventArgs e)
         {
             var package = _lv.SelectedItem as PackageModel;
             if (package == null)
             {
+                Debug.Assert(false);
                 return;
             }
 
             // shell:AppsFolder\$($(get-appxpackage $app | select PackageFamilyName).PackageFamilyName)!app
-
+            // bugbug: use package.Aumid
             ProcessStartInfo si = new();
             si.FileName = $@"shell:AppsFolder\{package.FamilyName}!app";
             si.UseShellExecute = true;
@@ -630,7 +687,6 @@ namespace PackageCatalogViewer
 
         internal void SelectPackage(PackageModel package)
         {
-
             var matchingPackage = Packages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
             if (matchingPackage != null)
             {
@@ -644,19 +700,29 @@ namespace PackageCatalogViewer
             CurrentItem = package;
         }
 
+        internal void SelectPackage(int index)
+        {
+            var package = _lv.Items[index] as PackageModel;
+            _lv.ScrollIntoView(index); // bugbug: why isn't this automatic?
+            CurrentItem = package;
+        }
 
 
 
-        private void GoToFilter(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+        private void GoToFilter(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
             _filterBox.Focus(FocusState.Keyboard);
         }
-        private void GoToSearch(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender, Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+
+        private void GoToSearch(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
             _searchBox.Focus(FocusState.Keyboard);
         }
 
-        private async void AddUnsigned(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Register a package, either from an appxmanifest.xml or from an appx/msix
+        /// </summary>
+        private async void RegisterPackage(object sender, RoutedEventArgs e)
         {
             if (!IsDeveloperModeEnabled())
             {
@@ -665,6 +731,8 @@ namespace PackageCatalogViewer
                                  "Developer mode required",
                                  isOKEnabled: true,
                                  isCancelEnabled: false);
+                // bugbug: link to ms-settings:developers
+
                 return;
             }
 
@@ -691,15 +759,21 @@ namespace PackageCatalogViewer
             }
             else
             {
-                var directoryPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
-                var directoryPathT = directoryPath;
-                int i = 1;
-                while (Path.Exists(directoryPathT))
-                {
-                    directoryPathT = $"{directoryPath}.{i++}";
-                }
-                directoryPath = directoryPathT;
+                // Expand the package zip file to a directory
+                // If the package is p.msix, expand to a directory named p, p1, p2, ... whatever's available
 
+                var directoryPath = Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path));
+                var directoryPathCheck = directoryPath;
+
+                // Loop with a counter until we find a directory name not in use
+                int i = 1;
+                while (Path.Exists(directoryPathCheck))
+                {
+                    directoryPathCheck = $"{directoryPath}.{i++}";
+                }
+                directoryPath = directoryPathCheck;
+
+                // Get confirmation
                 var result = await MyMessageBox.Show(
                                     "Package will be expanded to the following directory\n\n" +
                                     "Note that this directory will remain even after the package is removed\n\n" +
@@ -732,19 +806,29 @@ namespace PackageCatalogViewer
                 DeveloperMode = true
             };
 
-            // bugbug: update the docs
-            // Requires <rescap:Capability Name="packageManagement"/>
-            // or results in
-            // "The filename, directory name, or volume label syntax is incorrect."
-            var registering = _packageManager.RegisterPackageByUriAsync(manifestUri, options);
-
-            var addResult = await CallWithProgress(registering, "Adding ...");
-            if (!addResult.IsRegistered)
+            try
             {
-                _ = MyMessageBox.Show($"{addResult.ErrorText}", "Failed to add package", isOKEnabled: true);
+                // bugbug: update the docs
+                // Requires <rescap:Capability Name="packageManagement"/>
+                // or results in
+                // "The filename, directory name, or volume label syntax is incorrect."
+                var registering = PackageManager.RegisterPackageByUriAsync(manifestUri, options);
+
+                var addResult = await CallWithProgress(registering, "Adding ...");
+                if (!addResult.IsRegistered)
+                {
+                    _ = MyMessageBox.Show($"{addResult.ErrorText}", "Failed to add package", isOKEnabled: true);
+                }
+            }
+            catch (Exception e2)
+            {
+                _ = MyMessageBox.Show(e2.Message, "Failed to add package", isOKEnabled: true);
             }
         }
 
+        /// <summary>
+        /// Handle progress notifications on an IAsyncWithProgress
+        /// </summary>
         private async Task<DeploymentResult> CallWithProgress(
             IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation,
             string message)
@@ -771,7 +855,9 @@ namespace PackageCatalogViewer
             }
         }
 
-        string _busyMessage;
+        /// <summary>
+        /// Setting this causes a progress overlay message to show to the user
+        /// </summary>
         string BusyMessage
         {
             get => _busyMessage;
@@ -781,9 +867,12 @@ namespace PackageCatalogViewer
                 RaisePropertyChanged();
             }
         }
+        string _busyMessage;
 
 
-        double _progressPercentage = 0;
+        /// <summary>
+        /// Drives a progress bar
+        /// </summary>
         double ProgressPercentage
         {
             get => _progressPercentage;
@@ -793,6 +882,7 @@ namespace PackageCatalogViewer
                 RaisePropertyChanged();
             }
         }
+        double _progressPercentage = 0;
 
         Visibility CalculateVisibility(string s)
         {
@@ -822,8 +912,6 @@ namespace PackageCatalogViewer
             }
 
             return false;
-
-
         }
 
         private void ShowHelpClick(object sender, RoutedEventArgs e)
@@ -831,51 +919,5 @@ namespace PackageCatalogViewer
             ShowHelp();
         }
     }
-
-    /// <summary>
-    /// Helper for use with SetMicaBackrop
-    /// </summary>
-    /// 
-    class WindowsSystemDispatcherQueueHelper
-    {
-        // This class opied from WinUI Gallery
-        // https://github.com/microsoft/WinUI-Gallery/blob/260cb720ef83b3d134bc4805cffcfac9461dce33/WinUIGallery/SamplePages/SampleSystemBackdropsWindow.xaml.cs
-
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct DispatcherQueueOptions
-        {
-            internal int dwSize;
-            internal int threadType;
-            internal int apartmentType;
-        }
-
-        [DllImport("CoreMessaging.dll")]
-        private static extern int CreateDispatcherQueueController([In] DispatcherQueueOptions options, [In, Out, MarshalAs(UnmanagedType.IUnknown)] ref object dispatcherQueueController);
-
-        object m_dispatcherQueueController = null;
-        public void EnsureWindowsSystemDispatcherQueueController()
-        {
-            if (Windows.System.DispatcherQueue.GetForCurrentThread() != null)
-            {
-                // one already exists, so we'll just use it.
-                return;
-            }
-
-            if (m_dispatcherQueueController == null)
-            {
-                DispatcherQueueOptions options;
-                options.dwSize = Marshal.SizeOf(typeof(DispatcherQueueOptions));
-                options.threadType = 2;    // DQTYPE_THREAD_CURRENT
-                options.apartmentType = 2; // DQTAT_COM_STA
-
-                CreateDispatcherQueueController(options, ref m_dispatcherQueueController);
-            }
-        }
-
-
-
-    }
-
 
 }

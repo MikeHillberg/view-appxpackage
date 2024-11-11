@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="PackageCatalogViewer.PackageViewRow"
+    x:Class="ViewAppxPackage.PackageViewRow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:PackageCatalogViewer"
+    xmlns:local="using:ViewAppxPackage"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     x:DefaultBindMode="OneWay"
@@ -16,12 +16,14 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock x:Name="_label" 
+                   Style="{StaticResource BaseTextBlockStyle}"
                    FontWeight="Bold"
                    Text="{x:Bind Label}" 
                    MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}"
                    SizeChanged="LabelSizeChanged"
                    IsTextSelectionEnabled="True"/>
         <TextBlock Grid.Column="1" 
+                   Style="{StaticResource BaseTextBlockStyle}"
                    Text="{x:Bind Value}" 
                    TextWrapping="Wrap"
                    Margin="10,0,0,0"
