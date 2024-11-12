@@ -212,6 +212,8 @@ namespace ViewAppxPackage
         /// </summary>
         void OnCatalogUpdate(bool isComplete, PackageModel package, bool isInstalling)
         {
+            // bugbug: there's a race condition where packages are being installed/removed
+            // while we're in the middle of package enumeration
 
             if (!isComplete)
             {
@@ -508,9 +510,18 @@ namespace ViewAppxPackage
 
             try
             {
-                var removing = PackageManager.RemovePackageAsync(package.Id.FullName);
+                IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> removing;
+                if (IsAllUsers)
+                {
+                    removing = PackageManager.RemovePackageAsync(package.Id.FullName, RemovalOptions.RemoveForAllUsers);
+                }
+                else
+                {
+                    removing = PackageManager.RemovePackageAsync(package.Id.FullName);
+                }
 
                 // bugbug: is there something to check in the return DeploymentResult?
+                // bugbug: not seeing progress notifications
                 _ = await CallWithProgress(removing, "Removing ...");
             }
             catch (Exception e2)
@@ -639,11 +650,20 @@ namespace ViewAppxPackage
 
             try
             {
-                _ = PackageManager.AddPackageAsync(fileUri, null, DeploymentOptions.None);
+                var adding = PackageManager.AddPackageAsync(fileUri, null, DeploymentOptions.None);
+                _ = await CallWithProgress(adding, "Adding ...");
+
             }
-            catch(Exception e2)
+            catch (Exception e2)
             {
-                _ = MyMessageBox.Show(e2.Message, "Failed to add package");
+                var message = e2.Message;
+
+                if(e2 is COMException comException && (uint)comException.HResult == 0x800b0100)
+                {
+                    message += "\n\nNote: you can use the Register button to add an unsigned package";
+                }
+
+                _ = MyMessageBox.Show(message, "Failed to add package");
             }
         }
 
@@ -727,8 +747,8 @@ namespace ViewAppxPackage
             if (!IsDeveloperModeEnabled())
             {
                 _ = await MyMessageBox.Show(
-                                 "Developer mode must be enabled in Settings to add an unsigned package",
-                                 "Developer mode required",
+                                 "Developer Mode must be enabled in Settings to add an unsigned package",
+                                 "Developer Mode required",
                                  isOKEnabled: true,
                                  isCancelEnabled: false);
                 // bugbug: link to ms-settings:developers
