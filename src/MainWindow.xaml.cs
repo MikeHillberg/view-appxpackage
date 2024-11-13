@@ -210,7 +210,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Update after receiving a notification that a package has been added or removed
         /// </summary>
-        void OnCatalogUpdate(bool isComplete, PackageModel package, bool isInstalling)
+        void OnCatalogUpdate(bool isComplete, Package wamPackage, bool isInstalling)
         {
 
             if (!isComplete)
@@ -218,7 +218,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            if(package.IsBundle)
+            if(wamPackage.IsBundle)
             {
                 // I don't understand bundles yet. When a package is added, two install notifications
                 // come in. One is a normal package that will show up again on enumeration.
@@ -226,7 +226,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            Debug.WriteLine($"Catalog update: {package.Name} {isInstalling}");
+            Debug.WriteLine($"Catalog update: {wamPackage.Id.Name} {isInstalling}");
 
             if (Packages == null)
             {
@@ -237,6 +237,8 @@ namespace ViewAppxPackage
 
             this.DispatcherQueue.TryEnqueue(() =>
             {
+                var package = PackageModel.FromWamPackage(wamPackage);
+
                 if (isInstalling)
                 {
                     // Shouldn't be necessary but playing it safe
@@ -268,6 +270,8 @@ namespace ViewAppxPackage
             {
                 _originalpackages.Remove(existing);
             }
+
+            PackageModel.ClearCache(package);
         }
 
 
@@ -413,7 +417,7 @@ namespace ViewAppxPackage
                                  where !p.IsResourcePackage
                                  let name = p.Id.Name // DisplayName throws a lot
                                  orderby name
-                                 select (PackageModel)p;
+                                 select PackageModel.FromWamPackage(p);
                     packageModels = sorted.ToList();
 
                     _originalpackages = new(packageModels);
