@@ -33,7 +33,7 @@
                     DefaultLabelPosition="Right"
                     Margin="0,10,0,10">
 
-                    <AppBarButton Click="LaunchClick" Icon="Play" Label="Launch"
+                    <AppBarButton Click="LaunchPackage" Icon="Play" Label="Launch"
                           IsEnabled="{x:Bind CanLaunch(IsMultiSelect)}"/>
 
                     <AppBarButton Click="{x:Bind OpenStore}" Icon="Shop" 

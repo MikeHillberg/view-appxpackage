@@ -370,9 +370,12 @@ namespace ViewAppxPackage
                 return false;
             }
 
-            return CurrentItem != null
-                && !CurrentItem.IsResourcePackage
-                && !CurrentItem.IsFramework;
+            if( CurrentItem == null)
+            {
+                return false;
+            }
+
+            return !string.IsNullOrEmpty(CurrentItem.Aumids);
         }
 
         bool _isLoading = false;
@@ -681,7 +684,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Launch an app from its package
         /// </summary>
-        private void LaunchClick(object sender, RoutedEventArgs e)
+        private void LaunchPackage(object sender, RoutedEventArgs e)
         {
             var package = _lv.SelectedItem as PackageModel;
             if (package == null)
@@ -690,10 +693,11 @@ namespace ViewAppxPackage
                 return;
             }
 
-            // shell:AppsFolder\$($(get-appxpackage $app | select PackageFamilyName).PackageFamilyName)!app
-            // bugbug: use package.Aumid
+            // bugbug: handle the case of a package with multiple Applications (multiple Aumids)
+            var firstAumid = package.Aumids.Split(',').FirstOrDefault().Trim();
+
             ProcessStartInfo si = new();
-            si.FileName = $@"shell:AppsFolder\{package.FamilyName}!app";
+            si.FileName = $@"shell:AppsFolder\{firstAumid}";
             si.UseShellExecute = true;
 
             try

@@ -488,6 +488,31 @@ namespace ViewAppxPackage
                     }
                     _appExecutionAlias = sb == null ? "" : sb.ToString();
                 }
+
+
+                XNamespace foundation = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+                var applications = doc.Descendants(foundation + "Application");
+                sb = null;
+                foreach (var application in applications)
+                {
+                    var attribute = application.Attribute("Id");
+                    if (attribute != null)
+                    {
+                        if (sb == null)
+                        {
+                            sb = new StringBuilder();
+                        }
+                        else
+                        {
+                            sb.Append(", ");
+                        }
+
+                        sb.Append($"{FamilyName}!{attribute.Value}");
+                    }
+                    _aumids = sb == null ? "" : sb.ToString();
+                }
+
+
             }
             catch (Exception)
             {
@@ -498,49 +523,52 @@ namespace ViewAppxPackage
         /// <summary>
         /// App User Model ID
         /// </summary>
-        public string Aumid
+        public string Aumids
         {
             get
             {
-                if (_aumid == null)
-                {
-                    _aumid = "";
+                // bugbug: some apps have an Application.Id but don't show up in GetAppListEntries() API
+                // So read the XML instead
+                // E.g. c5e2524a-ea46-4f67-841f-6a9465d9d515
 
-                    try
-                    {
-                        // bugbug: some packages have an App but not showing up here (no aumid here)
-                        // E.g. c5e2524a-ea46-4f67-841f-6a9465d9d515
+                EnsureManifestProperties();
 
-                        var entries = _package.GetAppListEntries();
-                        if (entries.Count > 0)
-                        {
-                            StringBuilder sb = null;
-                            foreach (var entry in entries)
-                            {
-                                if (sb == null)
-                                {
-                                    sb = new StringBuilder();
-                                }
-                                else
-                                {
-                                    sb.Append(", ");
-                                }
+                //if (_aumid == null)
+                //{
+                //    _aumid = "";
 
-                                sb.Append(entry.AppUserModelId);
-                            }
-                            _aumid = sb.ToString();
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        _aumid = "";
-                    }
-                }
+                //    try
+                //    {
+                //        var entries = _package.GetAppListEntries();
+                //        if (entries.Count > 0)
+                //        {
+                //            StringBuilder sb = null;
+                //            foreach (var entry in entries)
+                //            {
+                //                if (sb == null)
+                //                {
+                //                    sb = new StringBuilder();
+                //                }
+                //                else
+                //                {
+                //                    sb.Append(", ");
+                //                }
 
-                return _aumid;
+                //                sb.Append(entry.AppUserModelId);
+                //            }
+                //            _aumid = sb.ToString();
+                //        }
+                //    }
+                //    catch (Exception)
+                //    {
+                //        _aumid = "";
+                //    }
+                //}
+
+                return _aumids;
             }
         }
-        string _aumid = null;
+        string _aumids = null;
 
     }
 }
