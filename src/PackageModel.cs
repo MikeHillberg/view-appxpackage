@@ -22,6 +22,11 @@ namespace ViewAppxPackage
     {
         Package _package;
 
+        public override string ToString()
+        {
+            return _package == null ? base.ToString() : this.Name;
+        }
+
         // Cache Package instances to ensure that == works
         // Deleted entries aren't cleaned up, but you'd have to delete a lot of packages from the system for that to be an issue
         static Dictionary<string, PackageModel> _modelCache = new Dictionary<string, PackageModel>();
@@ -29,7 +34,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Cast a Package to a PackageModel
         /// </summary>
-        public static implicit operator PackageModel(Package package)
+        public static PackageModel FromWamPackage(Package package)
         {
             if (_modelCache.TryGetValue(package.Id.FullName, out var model))
             {
@@ -40,6 +45,12 @@ namespace ViewAppxPackage
             _modelCache.Add(package.Id.FullName, model);
             return model;
         }
+
+        internal static void ClearCache(PackageModel package)
+        {
+            _modelCache.Remove(package.Id.FullName);
+        }
+
 
         PackageModel(Package package)
         {
@@ -302,7 +313,7 @@ namespace ViewAppxPackage
                     try
                     {
                         _dependencies = (from p in copy
-                                         select (PackageModel)p)
+                                         select PackageModel.FromWamPackage(p))
                                          .ToList();
                     }
                     catch (Exception)
