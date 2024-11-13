@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
@@ -213,6 +214,21 @@ namespace ViewAppxPackage
             {
                 try
                 {
+                    // If we're running AllUsers, and a package for another user is removed, we won't get a notification for it
+                    // In that state the Package.SignatureKind throws an error. 
+                    // Special-case that error and invent a new status
+                    // bugbug: there must be a better way?
+                    // bugbug: this doesn't handle when a package is _added_ for another user
+                    // bugbug: respond to this error by re-reading the package list
+                    try
+                    {
+                        var signatureKind = _package.SignatureKind;
+                    }
+                    catch (COMException comException) when ((uint)comException.HResult == 0x80071130)
+                    {
+                        return "Removed?";
+                    }
+
                     var status = _package.Status;
 
                     if (status.VerifyIsOK())

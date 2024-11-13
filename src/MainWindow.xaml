@@ -58,7 +58,7 @@
                         <ToolTipService.ToolTip>
                             <local:ComplexToolTip
                                 Title="Register unsigned package"
-                                Subtitle="Add a package that's unsigned, and either an appx/msix or just a directory. Requires that Developer mode be enabled" />
+                                Subtitle="Add a package that's unsigned, and either an appx/msix or just a directory. Requires that Developer Mode be enabled" />
                         </ToolTipService.ToolTip>
                     </AppBarButton>
 
