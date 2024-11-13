@@ -16,4 +16,4 @@ view-appxpackage *calculator*
 get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 ```
 
-[Full help info](./src/Assets/Help.md)
+[Full help info](./Package/Assets/Help.md)
