@@ -68,7 +68,7 @@
             <!-- butbug: Partially Staged? -->
 
             <local:PackageViewRow Label="Signature Kind" Value="{x:Bind Package.SignatureKind}"/>
-            <local:PackageViewRow Label="True booleans" Value="{x:Bind GetTrueBooleans(Package)}" />
+            <local:PackageViewRow Label="Flags" Value="{x:Bind GetTrueBooleans(Package)}" />
             <local:PackageViewRow Label="Status" Value="{x:Bind Package.Status}"/>
 
             <!-- List of dependencies -->
