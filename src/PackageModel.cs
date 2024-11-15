@@ -441,6 +441,7 @@ namespace ViewAppxPackage
             _appxManifestContent = "";
             _protocol = "";
             _appExecutionAlias = "";
+            _capabilities = "";
 
             try
             {
@@ -515,15 +516,54 @@ namespace ViewAppxPackage
                         }
                         else
                         {
-                            sb.Append(", ");
+                            sb.AppendLine();
                         }
 
                         sb.Append($"{FamilyName}!{attribute.Value}");
                     }
-                    _aumids = sb == null ? "" : sb.ToString();
+
+
+                    // Add in the App.Executable attribute value too
+                    var executable = application.Attribute("Executable");
+                    if (executable != null)
+                    {
+                        if (sb == null)
+                        {
+                            Debug.Assert(false); // Can't have an Application without an Id, right?
+                            sb = new StringBuilder();
+                        }
+
+                        sb.Append($" ({executable.Value})");
+                    }
                 }
 
 
+                _aumids = sb == null ? "" : sb.ToString();
+
+                // bugbug: The <Capability> element in <Capabilities> is in at least two different xmlns
+                // So quick fix here is to just find unqualified Capability elements
+                // Better would be to figure out the actual namespaces (or at least restrict to <Capabilities> elements)
+                var capabilities = doc.Descendants().Where(e => e.Name.LocalName == "Capability");
+                sb = null;
+                foreach (var capability in capabilities)
+                {
+                    var attribute = capability.Attribute("Name");
+                    if (attribute != null)
+                    {
+                        if (sb == null)
+                        {
+                            sb = new StringBuilder();
+                        }
+                        else
+                        {
+                            sb.Append(", ");
+                        }
+
+                        sb.Append($"{attribute.Value}");
+                    }
+                }
+
+                _capabilities = sb == null ? "" : sb.ToString();
             }
             catch (Exception)
             {
@@ -580,6 +620,19 @@ namespace ViewAppxPackage
             }
         }
         string _aumids = null;
+
+        /// <summary>
+        /// Capabilities from the appx manifest
+        /// </summary>
+        public string Capabilities
+        {
+            get
+            {
+                EnsureManifestProperties();
+                return _capabilities;
+            }
+        }
+        string _capabilities = null;
 
     }
 }
