@@ -36,19 +36,20 @@ namespace ViewAppxPackage
         /// </summary>
         public static PackageModel FromWamPackage(Package package)
         {
-            if (_modelCache.TryGetValue(package.Id.FullName, out var model))
+            if (_modelCache.TryGetValue(package.Id.Name, out var model))
             {
                 return model;
             }
 
+            // Cache by Name, not FullName, because a package can be updated to a new version, which changes the FullName
             model = new PackageModel(package);
-            _modelCache.Add(package.Id.FullName, model);
+            _modelCache.Add(package.Id.Name, model);
             return model;
         }
 
         internal static void ClearCache(PackageModel package)
         {
-            _modelCache.Remove(package.Id.FullName);
+            _modelCache.Remove(package.Id.Name);
         }
 
 

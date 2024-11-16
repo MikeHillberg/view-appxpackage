@@ -2,7 +2,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -42,10 +41,16 @@ namespace ViewAppxPackage
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
             _packageCatalog.PackageInstalling += (s, e)
-                => OnCatalogUpdate(e.IsComplete, e.Package, true);
+                => OnCatalogUpdate(e.IsComplete, e.Package, PackageUpdateNotification.Install);
 
             _packageCatalog.PackageUninstalling += (s, e)
-                => OnCatalogUpdate(e.IsComplete, e.Package, false);
+                => OnCatalogUpdate(e.IsComplete, e.Package, PackageUpdateNotification.Uninstall);
+
+            _packageCatalog.PackageUpdating += (s, e) 
+                => OnCatalogUpdate(e.IsComplete, e.TargetPackage, PackageUpdateNotification.Update);
+
+            _packageCatalog.PackageStatusChanged += (s, e)
+                => OnCatalogUpdate(true, e.Package, PackageUpdateNotification.Status);
 
             SetWindowIcon();
             SetWindowTitle();
@@ -207,10 +212,19 @@ namespace ViewAppxPackage
             }
         }
 
+        enum PackageUpdateNotification
+        {
+            Install,
+            Uninstall,
+            Update,
+            Status
+        }
+
+
         /// <summary>
         /// Update after receiving a notification that a package has been added or removed
         /// </summary>
-        void OnCatalogUpdate(bool isComplete, Package wamPackage, bool isInstalling)
+        void OnCatalogUpdate(bool isComplete, Package wamPackage, PackageUpdateNotification updateKind)
         {
             // bugbug: there's a race condition where packages are being installed/removed
             // while we're in the middle of package enumeration
@@ -228,7 +242,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            Debug.WriteLine($"Catalog update: {wamPackage.Id.Name} {isInstalling}");
+            Debug.WriteLine($"Catalog update: {wamPackage.Id.Name}, {wamPackage.InstalledPath}, {updateKind}");
 
             if (Packages == null)
             {
@@ -241,7 +255,7 @@ namespace ViewAppxPackage
             {
                 var package = PackageModel.FromWamPackage(wamPackage);
 
-                if (isInstalling)
+                if (updateKind == PackageUpdateNotification.Install)
                 {
                     // Shouldn't be necessary but playing it safe
                     RemoveFromCache(package);
@@ -249,7 +263,7 @@ namespace ViewAppxPackage
                     _originalpackages.Add(package);
                     _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
                 }
-                else
+                else if(updateKind == PackageUpdateNotification.Uninstall)
                 {
                     if (CurrentItem == package)
                     {
@@ -257,6 +271,24 @@ namespace ViewAppxPackage
                     }
 
                     RemoveFromCache(package);
+                }
+                else if(updateKind == PackageUpdateNotification.Update)
+                {
+                    RemoveFromCache(package);
+
+                    // Get a new model wrapper
+                    package = PackageModel.FromWamPackage(wamPackage);
+
+                    _originalpackages.Add(package);
+                    _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                }
+                else if(updateKind == PackageUpdateNotification.Status)
+                {
+                    package.UpdateStatus();
+                }
+                else
+                {
+                    Debug.Assert(false);
                 }
 
                 FilterAndSearchPackages();
@@ -267,11 +299,8 @@ namespace ViewAppxPackage
 
         void RemoveFromCache(PackageModel package)
         {
-            var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
-            if (existing != null)
-            {
-                _originalpackages.Remove(existing);
-            }
+
+            _originalpackages.Remove(package);
 
             PackageModel.ClearCache(package);
         }

@@ -738,7 +738,10 @@ namespace ViewAppxPackage
         PackageVersion _version;
         bool _versionCalculated;
 
-
-
+        internal void UpdateStatus()
+        {
+            _status = null;
+            RaisePropertyChanged(nameof(Status));
+        }
     }
 }
