@@ -77,18 +77,20 @@
                 <StackPanel Grid.Row="1">
 
                     <TextBox x:Name="_searchBox"
+                             Text="{x:Bind SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsSpellCheckEnabled="False"
                              IsEnabled="{x:Bind IsSearchEnabled}"
                              Padding="10"
                              HorizontalAlignment="Stretch"
-                             PlaceholderText="{x:Bind SearchPlaceholderText(IsSearchEnabled)}"
-                             Text="{x:Bind SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                             PlaceholderText="{x:Bind SearchPlaceholderText(IsSearchEnabled)}" />
 
                     <TextBox x:Name="_filterBox"
+                             Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsSpellCheckEnabled="False"
                              Grid.Row="1"
                              Padding="10"
                              HorizontalAlignment="Stretch"
-                             PlaceholderText="{x:Bind FilterPlaceholderText}" 
-                             Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                             PlaceholderText="{x:Bind FilterPlaceholderText}" />
                 </StackPanel>
 
                 <!-- List of packages. Transparent to make Mica work -->

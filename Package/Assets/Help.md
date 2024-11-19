@@ -21,7 +21,7 @@ Run elevated and the `All Users` toggle will become available.
 Check this to see all packages on the device.
 
 
-# Command line examples:
+# Command line examples
 
 ```
 view-appxpackage

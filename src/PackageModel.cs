@@ -443,6 +443,7 @@ namespace ViewAppxPackage
             _protocol = "";
             _appExecutionAlias = "";
             _capabilities = "";
+            _fileTypeAssociations = "";
 
             try
             {
@@ -466,6 +467,8 @@ namespace ViewAppxPackage
                     return;
                 }
 
+                // Protocols
+
                 XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
                 var protocolElements = doc.Descendants(uap + "Protocol");
                 StringBuilder sb = new();
@@ -479,6 +482,8 @@ namespace ViewAppxPackage
                     _protocol = sb == null ? "" : sb.ToString();
                 }
 
+
+                // Execution Aliases
 
                 XNamespace desktop = "http://schemas.microsoft.com/appx/manifest/desktop/windows10";
                 var executionAliases = doc.Descendants(desktop + "ExecutionAlias");
@@ -502,6 +507,8 @@ namespace ViewAppxPackage
                     _appExecutionAlias = sb == null ? "" : sb.ToString();
                 }
 
+
+                //  Aumids
 
                 XNamespace foundation = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
                 var applications = doc.Descendants(foundation + "Application");
@@ -538,9 +545,10 @@ namespace ViewAppxPackage
                     }
                 }
 
-
                 _aumids = sb == null ? "" : sb.ToString();
 
+                // Capabilities
+                //
                 // bugbug: The <Capability> element in <Capabilities> is in at least two different xmlns
                 // So quick fix here is to just find unqualified Capability elements
                 // Better would be to figure out the actual namespaces (or at least restrict to <Capabilities> elements)
@@ -565,6 +573,27 @@ namespace ViewAppxPackage
                 }
 
                 _capabilities = sb == null ? "" : sb.ToString();
+
+
+                // File Type Associations
+
+                var fileTypes = doc.Descendants(uap + "FileType");
+                sb = null;
+                foreach (var fileType in fileTypes)
+                {
+                    if (sb == null)
+                    {
+                        sb = new StringBuilder();
+                    }
+                    else
+                    {
+                        sb.Append(" ");
+                    }
+
+                    sb.Append(fileType.Value);
+                }
+                _fileTypeAssociations = sb == null ? "" : sb.ToString();
+
             }
             catch (Exception)
             {
@@ -634,6 +663,19 @@ namespace ViewAppxPackage
             }
         }
         string _capabilities = null;
+
+        /// <summary>
+        /// FTAs from the appx manifest
+        /// </summary>
+        public string FileTypeAssociations
+        {
+            get
+            {
+                EnsureManifestProperties();
+                return _fileTypeAssociations;
+            }
+        }
+        string _fileTypeAssociations = null;
 
     }
 }

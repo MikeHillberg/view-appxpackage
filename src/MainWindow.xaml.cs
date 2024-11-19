@@ -19,6 +19,7 @@ using System.IO.Compression;
 using Microsoft.Win32;
 using Windows.Foundation;
 using Microsoft.UI.Xaml.Input;
+using System.Collections.ObjectModel;
 
 
 
@@ -242,7 +243,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            Debug.WriteLine($"Catalog update: {wamPackage.Id.Name}, {wamPackage.InstalledPath}, {updateKind}");
+            Debug.WriteLine($"Catalog update: {updateKind}, {wamPackage.Id.Name}, {wamPackage.InstalledPath}");
 
             if (Packages == null)
             {
@@ -308,9 +309,9 @@ namespace ViewAppxPackage
 
         PackageCatalog _packageCatalog;
 
-        List<PackageModel> _originalpackages;
-        static List<PackageModel> _packages;
-        public List<PackageModel> Packages
+        ObservableCollection<PackageModel> _originalpackages;
+        static ObservableCollection<PackageModel> _packages;
+        public ObservableCollection<PackageModel> Packages
         {
             get { return _packages; }
             private set

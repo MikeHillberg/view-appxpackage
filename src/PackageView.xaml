@@ -44,6 +44,7 @@
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
             <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
             <local:PackageViewRow Label="Protocol" Value="{x:Bind Package.Protocol}"/>
+            <local:PackageViewRow Label="File Types" Value="{x:Bind Package.FileTypeAssociations}"/>
             <local:PackageViewRow Label="Aumid" Value="{x:Bind Package.Aumids}"/>
             <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
             <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.Id.PublisherId}"/>
