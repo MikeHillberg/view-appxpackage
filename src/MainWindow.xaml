@@ -16,6 +16,7 @@
                 <!-- bugbug: override this on the CommandBar? -->
                 <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="GoToFilter"/>
                 <KeyboardAccelerator Modifiers="Control" Key="E" Invoked="GoToSearch"/>
+                <KeyboardAccelerator Modifiers="Control,Shift" Key="G" Invoked="ShowDebugLog" />
             </Grid.KeyboardAccelerators>
 
             <!-- Two columns for the list and the detail -->
@@ -50,15 +51,11 @@
                     <AppBarButton Click="AddPackage" Icon="Add" Label="Add"
                                   ToolTipService.ToolTip="Add a package (must be signed with a trusted certificate)"/>
 
-                    <AppBarButton Click="RegisterPackage" Label="Register">
-                        <AppBarButton.Icon>
-                            <!-- Registered trademark symbol is the best icon I can think of so far for "register" -->
-                            <FontIcon FontFamily="Segoe UI Symbol" Glyph="&#x00AE;" />
-                        </AppBarButton.Icon>
+                    <AppBarButton Click="RegisterPackage" Label="Sideload" Icon="NewFolder">
                         <ToolTipService.ToolTip>
                             <local:ComplexToolTip
-                                Title="Register unsigned package"
-                                Subtitle="Add a package that's unsigned, and either an appx/msix or just a directory. Requires that Developer Mode be enabled" />
+                                Title="Developer sideload"
+                                Subtitle="Add a package that's unsigned, and either an appx/msix or an AppxManifest.xml file in a deployment directory. Requires that Developer Mode be enabled" />
                         </ToolTipService.ToolTip>
                     </AppBarButton>
 

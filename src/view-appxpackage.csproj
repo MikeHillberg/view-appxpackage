@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Remove="ComplexToolTip.xaml" />
+    <None Remove="DebugLogViewer.xaml" />
     <None Remove="Help.xaml" />
     <None Remove="PackageView.xaml" />
     <None Remove="PackageViewRow.xaml" />
@@ -65,6 +66,9 @@
     <None Update="Assets\Icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Page Update="DebugLogViewer.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="ComplexToolTip.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

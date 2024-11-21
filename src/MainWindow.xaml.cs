@@ -200,6 +200,8 @@ namespace ViewAppxPackage
                 {
                     _currentItem = null;
 
+                    DebugLog.Append("CurrentItem is null");
+
                     // Ignore the two-way binding where a resource package is selected,
                     // so the SelectedItem goes to null
                     return;
@@ -207,6 +209,8 @@ namespace ViewAppxPackage
 
                 if (_currentItem != value)
                 {
+                    DebugLog.Append($"CurrentItem is {value.Id.Name}");
+
                     _currentItem = value;
                     RaisePropertyChanged();
                 }
@@ -243,7 +247,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            Debug.WriteLine($"Catalog update: {updateKind}, {wamPackage.Id.Name}, {wamPackage.InstalledPath}");
+            DebugLog.Append($"Catalog update: {updateKind}, {wamPackage.Id.Name}, {wamPackage.InstalledPath}");
 
             if (Packages == null)
             {
@@ -300,8 +304,16 @@ namespace ViewAppxPackage
 
         void RemoveFromCache(PackageModel package)
         {
-
-            _originalpackages.Remove(package);
+            var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
+            if(existing != null)
+            {
+                _originalpackages.Remove(existing);
+                DebugLog.Append($"Removed {package.Id.Name} from cache");
+            }
+            else
+            {
+                DebugLog.Append($"Didn't remove {package.Id.Name} from cache");
+            }
 
             PackageModel.ClearCache(package);
         }
@@ -728,7 +740,7 @@ namespace ViewAppxPackage
             }
 
             // bugbug: handle the case of a package with multiple Applications (multiple Aumids)
-            var firstAumid = package.Aumids.Split(',').FirstOrDefault().Trim();
+            var firstAumid = package.Aumids.Split(' ').FirstOrDefault().Trim();
 
             ProcessStartInfo si = new();
             si.FileName = $@"shell:AppsFolder\{firstAumid}";
@@ -976,6 +988,12 @@ namespace ViewAppxPackage
         {
             ShowHelp();
         }
-    }
 
+        private void ShowDebugLog(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            args.Handled = true;
+            DebugLogViewer.Show();
+        }
+    }
+    
 }

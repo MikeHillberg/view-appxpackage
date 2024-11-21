@@ -242,6 +242,9 @@ namespace ViewAppxPackage
 
                         // If the package status isn't OK, there's a bool on PackageStatus to say what the problem is
                         // Search for the one that's true and return its name
+                        // bugbug: Sometimes VerifyIsOK() returns false, but none of the bools are set
+                        // (saw this when testing a packaged app that called AddPackageByUriAsync on itself with
+                        // DeferRegistrationWhenPackagesAreInUse set to install an update)
 
                         _status = "Not Ok";
                         foreach (var property in _statusProperties)
@@ -444,6 +447,7 @@ namespace ViewAppxPackage
             _appExecutionAlias = "";
             _capabilities = "";
             _fileTypeAssociations = "";
+            _aumids = "";
 
             try
             {
@@ -524,7 +528,9 @@ namespace ViewAppxPackage
                         }
                         else
                         {
-                            sb.AppendLine();
+                            // bugbug: add a space here to make it easier for LaunchPackage to pull out the first aumid
+                            // (See the bugbug there about how it shouldn't be pulling out just the first aumid)
+                            sb.AppendLine(" ");
                         }
 
                         sb.Append($"{FamilyName}!{attribute.Value}");

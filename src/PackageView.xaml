@@ -19,6 +19,7 @@
                 <TextBlock Text="{x:Bind Package.DisplayName}"
                            Style="{StaticResource SubheaderTextBlockStyle}"
                            TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True"
                            Margin="0,0,0,10" />
 
                 <Image Grid.Column="1" 

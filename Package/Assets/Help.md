@@ -36,6 +36,6 @@ get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 * **Open** a package's AppxManifest
 * **Remove** a package
 * **Add** a package
-* **Register** a package (can be used to add **unsigned** packages)
+* **Sideload** a package (requires Developer Mode, can be used to add **unsigned** packages)
 * **Open in Store** to go to the Store page
 
