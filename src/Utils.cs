@@ -33,5 +33,10 @@ namespace ViewAppxPackage
         {
             return !string.IsNullOrEmpty(s);
         }
+
+        internal static string PluralS(int count)
+        {
+            return count == 1 ? "" : "s";
+        }
     }
 }

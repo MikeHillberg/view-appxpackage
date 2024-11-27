@@ -47,13 +47,13 @@ namespace ViewAppxPackage
             _packageCatalog.PackageUninstalling += (s, e)
                 => OnCatalogUpdate(e.IsComplete, e.Package, PackageUpdateNotification.Uninstall);
 
-            _packageCatalog.PackageUpdating += (s, e) 
+            _packageCatalog.PackageUpdating += (s, e)
                 => OnCatalogUpdate(e.IsComplete, e.TargetPackage, PackageUpdateNotification.Update);
 
             _packageCatalog.PackageStatusChanged += (s, e)
                 => OnCatalogUpdate(true, e.Package, PackageUpdateNotification.Status);
 
-            SetWindowIcon();
+            SetWindowIcon(this);
             SetWindowTitle();
         }
 
@@ -239,7 +239,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            if(wamPackage.IsBundle)
+            if (wamPackage.IsBundle)
             {
                 // I don't understand bundles yet. When a package is added, two install notifications
                 // come in. One is a normal package that will show up again on enumeration.
@@ -268,7 +268,7 @@ namespace ViewAppxPackage
                     _originalpackages.Add(package);
                     _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
                 }
-                else if(updateKind == PackageUpdateNotification.Uninstall)
+                else if (updateKind == PackageUpdateNotification.Uninstall)
                 {
                     if (CurrentItem == package)
                     {
@@ -277,7 +277,7 @@ namespace ViewAppxPackage
 
                     RemoveFromCache(package);
                 }
-                else if(updateKind == PackageUpdateNotification.Update)
+                else if (updateKind == PackageUpdateNotification.Update)
                 {
                     RemoveFromCache(package);
 
@@ -287,7 +287,7 @@ namespace ViewAppxPackage
                     _originalpackages.Add(package);
                     _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
                 }
-                else if(updateKind == PackageUpdateNotification.Status)
+                else if (updateKind == PackageUpdateNotification.Status)
                 {
                     package.UpdateStatus();
                 }
@@ -305,7 +305,7 @@ namespace ViewAppxPackage
         void RemoveFromCache(PackageModel package)
         {
             var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
-            if(existing != null)
+            if (existing != null)
             {
                 _originalpackages.Remove(existing);
                 DebugLog.Append($"Removed {package.Id.Name} from cache");
@@ -330,13 +330,26 @@ namespace ViewAppxPackage
             {
                 _packages = value;
 
+                DebugLog.Append($"New Packages count: {PackageCount}");
+
+                var currentItem = CurrentItem;
                 RaisePropertyChanged();
+
+                if (currentItem != null && Packages.Contains(currentItem))
+                {
+                    CurrentItem = currentItem;
+                }
+
                 RaisePropertyChanged(nameof(NoPackagesFound));
+                RaisePropertyChanged(nameof(PackageCount));
 
                 // This has to be after raising property changes so that the ListView is updated
                 EnsureItemSelected();
             }
         }
+
+
+        int PackageCount => Packages == null ? 0 : Packages.Count;
 
         bool NoPackagesFound => Packages == null || Packages.Count == 0;
 
@@ -416,7 +429,7 @@ namespace ViewAppxPackage
                 return false;
             }
 
-            if( CurrentItem == null)
+            if (CurrentItem == null)
             {
                 return false;
             }
@@ -506,6 +519,12 @@ namespace ViewAppxPackage
                 return;
             }
 
+            // If something's already selected, don't change it
+            if (CurrentItem != null)
+            {
+                return;
+            }
+
             // Pick an item at random from the packages (after filtering and searching)
             Random random = new();
             var index = random.Next(0, _lv.Items.Count - 1);
@@ -549,8 +568,8 @@ namespace ViewAppxPackage
 
             // Get confirmation
             var result = await MyMessageBox.Show(
-                                package.DisplayName, title: "Remove?", 
-                                isOKEnabled: true, 
+                                package.DisplayName, title: "Remove?",
+                                isOKEnabled: true,
                                 closeButtonText: "Cancel");
             if (result != ContentDialogResult.Primary)
             {
@@ -707,7 +726,7 @@ namespace ViewAppxPackage
             {
                 var message = e2.Message;
 
-                if(e2 is COMException comException && (uint)comException.HResult == 0x800b0100)
+                if (e2 is COMException comException && (uint)comException.HResult == 0x800b0100)
                 {
                     message += "\n\nNote: you can use the Register button to add an unsigned package";
                 }
@@ -767,6 +786,8 @@ namespace ViewAppxPackage
                 _lv.SelectedIndex = -1;
             }
 
+            // The current package isn't always in the Packages list,
+            // e.g. a dependency package of something that _is_ in the list
             CurrentItem = package;
         }
 
@@ -994,6 +1015,12 @@ namespace ViewAppxPackage
             args.Handled = true;
             DebugLogViewer.Show();
         }
+
+        private void ShowAppxLog(object sender, RoutedEventArgs e)
+        {
+            AppxLogViewer.Show();
+        }
+
     }
-    
+
 }

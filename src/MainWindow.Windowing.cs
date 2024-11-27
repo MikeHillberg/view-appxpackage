@@ -23,13 +23,13 @@ namespace ViewAppxPackage
         /// <summary>
         /// Set an ICO to the AppWindow
         /// </summary>
-        async void SetWindowIcon()
+        internal static async void SetWindowIcon(Window window)
         {
             // This call is really slow, so don't wait on it
             var installedPath = await Task.Run<string>(() => Windows.ApplicationModel.Package.Current.InstalledLocation.Path);
 
             // Get the AppWindow
-            var hwnd = WindowNative.GetWindowHandle(this);
+            var hwnd = WindowNative.GetWindowHandle(window);
             var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
 

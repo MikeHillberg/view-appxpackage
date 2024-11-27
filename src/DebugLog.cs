@@ -11,22 +11,12 @@ namespace ViewAppxPackage
     {
         static List<string> _log = new List<string>();
 
-        public static void Start(string message)
-        {
-            lock (_log)
-            {
-                // Sanity check for robustness
-                if (_log.Count > 50000)
-                    _log.Clear();
-
-                _log.Add("\r\n" + Thread + message);
-            }
-        }
-
         public static void Append(string message)
         {
             lock (_log)
             {
+                var now = DateTime.Now.ToString("HH:mm:ss");
+                message = $"{now} {message}";
                 Debug.WriteLine(message);
                 _log.Add(Thread + message);
             }

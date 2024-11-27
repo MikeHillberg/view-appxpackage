@@ -36,20 +36,26 @@ namespace ViewAppxPackage
         /// </summary>
         public static PackageModel FromWamPackage(Package package)
         {
-            if (_modelCache.TryGetValue(package.Id.Name, out var model))
+            var id = GetVersionIndependentId(package);
+            if (_modelCache.TryGetValue(id, out var model))
             {
                 return model;
             }
 
-            // Cache by Name, not FullName, because a package can be updated to a new version, which changes the FullName
             model = new PackageModel(package);
-            _modelCache.Add(package.Id.Name, model);
+            _modelCache.Add(id, model);
             return model;
         }
 
         internal static void ClearCache(PackageModel package)
         {
-            _modelCache.Remove(package.Id.Name);
+            var id = GetVersionIndependentId(package._package);
+            _modelCache.Remove(id);
+        }
+
+        static string GetVersionIndependentId(Package wamPackage)
+        {
+            return $"{wamPackage.Id.Name}%{wamPackage.Id.ResourceId}";
         }
 
 
@@ -169,7 +175,7 @@ namespace ViewAppxPackage
             StringBuilder sb = null;
             foreach (var p in _packageModelPropertyInfos)
             {
-                if(p.PropertyType != typeof(bool))
+                if (p.PropertyType != typeof(bool))
                 {
                     continue;
                 }

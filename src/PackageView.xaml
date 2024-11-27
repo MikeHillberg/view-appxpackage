@@ -43,6 +43,7 @@
             <!-- For all of these if a Value is unset, the row is collapsed -->
             
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
+            <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
             <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
             <local:PackageViewRow Label="Protocol" Value="{x:Bind Package.Protocol}"/>
             <local:PackageViewRow Label="File Types" Value="{x:Bind Package.FileTypeAssociations}"/>
@@ -63,7 +64,6 @@
             <local:PackageViewRow Label='UserExternalPath' Value='{x:Bind Package.UserExternalPath}'/>
             <local:PackageViewRow Label='Publisher' Value='{x:Bind Package.Publisher}'/>
             <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
-            <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
             <local:PackageViewRow Label="User Information" Value="{x:Bind Package.PackageUserInformation}"/>
 
 
@@ -77,34 +77,37 @@
             <!-- List of dependencies -->
             <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependencies}">
                 <TextBlock FontWeight="Bold" Text="Dependencies"/>
-                <ListView ItemsSource="{x:Bind Package.Dependencies}" SelectionMode="None">
-                    <ListView.ItemTemplate>
+                
+                <!-- Want a DataTemplate, don't want the full UX of a "list", so just use ItemsControl -->
+                <ItemsControl ItemsSource="{x:Bind Package.Dependencies}" >
+                    <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="local:PackageModel">
-                            <TextBlock>
+                            <TextBlock Margin="10,5,0,0">
                             <Hyperlink Click="GoToPackage" local:PackageView.MyTag="{x:Bind}">
                                 <Run Text="{x:Bind Id.FullName}"/>
                             </Hyperlink>
                             </TextBlock>
                         </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
             </StackPanel>
 
             <!-- List of dependents -->
             <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependents}">
                 <TextBlock FontWeight="Bold" Text="Dependents"/>
-                <ListView ItemsSource="{x:Bind Package.Dependents}" SelectionMode="None">
-                    <ListView.ItemTemplate>
+                <ItemsControl ItemsSource="{x:Bind Package.Dependents}" >
+                    <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="local:PackageModel">
-                            <TextBlock>
+                            <TextBlock Margin="10,5,0,0">
                                 <Hyperlink Click="GoToPackage" 
                                            local:PackageView.MyTag="{x:Bind}">
                                     <Run Text="{x:Bind Id.FullName}"/>
                                 </Hyperlink>
                             </TextBlock>
                         </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
 
         </StackPanel>

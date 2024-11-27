@@ -8,7 +8,7 @@
 
     <!-- Disable the whole window if an overlay is showing -->
     <UserControl IsEnabled="{x:Bind local:Utils.NotAny(_progressOverlay.IsOpen, IsLoading)}">
-        
+
         <Grid ColumnDefinitions="*" RowDefinitions="*"
               KeyboardAcceleratorPlacementMode="Hidden" >
             <Grid.KeyboardAccelerators>
@@ -27,6 +27,7 @@
                   RowDefinitions="Auto,Auto,*" 
                   ColumnSpacing="20">
 
+                <!-- DefaultLabelPosition is set to 'Right' because that's the only way to keep the label visible -->
                 <CommandBar Grid.Row="0"
                     Grid.Column="0"
                     HorizontalAlignment="Left"
@@ -60,7 +61,13 @@
                     </AppBarButton>
 
                     <AppBarSeparator/>
-                    
+
+                    <AppBarButton Label="Log" Click="ShowAppxLog" >
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="48"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+
                     <AppBarToggleButton Label="All users"
                                     IsChecked="{x:Bind IsAllUsers, Mode=TwoWay}"
                                     Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" 
@@ -92,9 +99,9 @@
 
                 <!-- List of packages. Transparent to make Mica work -->
                 <!-- The ListSizeChanged handler is to make this list wide enough for the longest package name -->
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="2" RowDefinitions="*,Auto">
                     <TextBlock Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}" >No packages found</TextBlock>
-                    
+
                     <ListView x:Name="_lv" 
                           Background="Transparent"
                           ItemsSource="{x:Bind Packages, Mode=OneWay}"
@@ -109,6 +116,17 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
+
+                    <Grid Grid.Row="1"
+                          Margin="0,0,-20,0"
+                          Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
+
+                        <!-- Status bar showing the package count -->
+                        <TextBlock Grid.Row="1" Margin="5,5,0,5" FontStyle="Italic">
+                            <Run Text="{x:Bind PackageCount}" 
+                                 /> package<Run Text="{x:Bind local:Utils.PluralS(PackageCount)}"/>
+                        </TextBlock>
+                    </Grid>
                 </Grid>
 
                 <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
