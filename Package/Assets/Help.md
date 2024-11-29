@@ -12,9 +12,9 @@ It's a live list, so it will update automatically if packages are added to or re
 * **Filter** (Ctrl+F) to filter the list of packages, just like `get-appxpackage`
 * **Search** (Ctrl+E) to search all properties of a package, not just the Name.
 
-You can search for any package property, including **Name**, **Publisher**, and **Version**. 
-Boolean properties like **IsFramework** and **IsDevelopmentMode** are also searchable. 
-If you get unexpected matches, check the **AppxManifest** as they might be hidden there. 
+You can search for any package property, including _Name_, _Publisher_, and _Version_. 
+Boolean properties like _IsFramework_ and _IsDevelopmentMode_ are also searchable. 
+If you get unexpected matches, check the AppxManifest as they might be hidden there. 
 Note: there’s a slight delay on startup before the search functionality becomes available.
 
 Run elevated and the `All Users` toggle will become available.
@@ -37,5 +37,6 @@ get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 * **Remove** a package
 * **Add** a package
 * **Sideload** a package (requires Developer Mode, can be used to add **unsigned** packages)
+* View the **appx log** of system MSIX activity (same as get-appxlog)
 * **Open in Store** to go to the Store page
-
+* Run **PowerShell** with package identity (see [`Invoke-CommandInDesktopPackage`](https://learn.microsoft.com/powershell/module/appx/invoke-commandindesktoppackage) for more info)

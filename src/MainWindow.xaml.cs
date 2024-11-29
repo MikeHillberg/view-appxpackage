@@ -1021,6 +1021,73 @@ namespace ViewAppxPackage
             AppxLogViewer.Show();
         }
 
+        /// <summary>
+        /// Run Powershell with package identity on the process
+        /// </summary>
+        private void RunPowershellAsPackage(object sender, RoutedEventArgs e)
+        {
+            if(CurrentItem == null)
+            {
+                return;
+            }
+
+            // Putting this in a try/catch because I'm not sure if PS can raise
+            // And then not being super careful about the possibility of a package
+            // being configured in a way I don't understand and throwing somewhere
+            try
+            {
+                // Run a Powershell window and call Invoke-CommandInDesktopPackage in it,
+                // which will run in a new powershell window.
+                // The first will be hidden though and go away
+
+                // bugbug: how to figure out if this should be powershell or pwsh?
+
+                ProcessStartInfo psi = new();
+                psi.FileName = "powershell.exe";
+                psi.UseShellExecute = false;
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
+
+                // This uses just the first Aumid (Praid), though there could be many.
+                // But that should be OK because all the aumid have the same package identity.
+                // Not sure why any aumid is even necessary?
+                var aumid = CurrentItem.Aumids.Split(' ').FirstOrDefault().Trim();
+                if(string.IsNullOrEmpty(aumid))
+                {
+                    return;
+                }
+                var praid = aumid.Split('!')[1];
+
+                // This is the package path of _this_ app, not the CurrentItem package.
+                // That's where the script is that we're going to call
+                var myPackagePath = Package.Current.InstalledPath;
+
+                // These are the args for the outer PS, to call Invoke
+                var message = $"Invoke-CommandInDesktopPackage -PackageFamilyName {CurrentItem.FamilyName} -AppId {praid} -Command powershell";
+
+                // These are the args that will be passed to the nested PS that's created by the
+                // Invoke script. The parameters passed to runaspackage.ps1 are just for a message
+                var invokedPsArgs = @$"-NoExit ""{myPackagePath}\Assets\RunAsPackage.ps1 ''{message}'' """;
+
+                var arguments = $"{message} -Args '{invokedPsArgs}' ";
+                psi.Arguments = arguments;
+
+                DebugLog.Append($"Running as Package:");
+                DebugLog.Append(arguments);
+
+
+                Process process = new();
+                process.StartInfo = psi;
+                process.Start();
+
+                // bugbug: this takes several seconds to show anything, should show some kind of progress UI
+                // process.Exited doesn't get raised for some reason,
+                // but that's not the right process anyway
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Append($"Failed RunAsPackage: {ex.Message}");
+            }
+        }
     }
 
 }

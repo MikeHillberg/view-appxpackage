@@ -2,7 +2,9 @@ using CommunityToolkit.WinUI.Helpers;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Diagnostics;
 using Windows.Storage;
+using Windows.System;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -62,5 +64,17 @@ namespace ViewAppxPackage
         }
 
         public static bool ShowHelpOnStartup = true;
+
+        private void _markdown_LinkClicked(
+            object sender, 
+            CommunityToolkit.WinUI.UI.Controls.LinkClickedEventArgs e)
+        {
+            Uri uri = new(e.Link);
+            _ = Launcher.LaunchUriAsync(uri);
+        }
+
+        private void _markdown_MarkdownRendered(object sender, CommunityToolkit.WinUI.UI.Controls.MarkdownRenderedEventArgs e)
+        {
+        }
     }
 }

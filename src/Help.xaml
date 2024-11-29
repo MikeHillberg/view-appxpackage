@@ -21,12 +21,14 @@
                        Background="{ThemeResource SystemControlPageBackgroundChromeMediumLowBrush}"
                        HorizontalAlignment="Center">
 
-            <StackPanel>
+            <Grid>
                 <!-- Use the community toolkit's markdown reader -->
                 <!-- Help text is in help.md -->
-                <controls:MarkdownTextBlock x:Name="_markdown" Background="Transparent"/>
-
-            </StackPanel>
+                <controls:MarkdownTextBlock x:Name="_markdown" 
+                                            Background="Transparent"
+                                            LinkClicked="_markdown_LinkClicked"
+                                            MarkdownRendered="_markdown_MarkdownRendered"/>
+            </Grid>
         </ScrollViewer>
 
         <StackPanel Grid.Row="1" Spacing="5" HorizontalAlignment="Center">

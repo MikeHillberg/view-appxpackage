@@ -28,7 +28,8 @@
                   ColumnSpacing="20">
 
                 <!-- DefaultLabelPosition is set to 'Right' because that's the only way to keep the label visible -->
-                <CommandBar Grid.Row="0"
+                <CommandBar x:Name="_commandBar"
+                    Grid.Row="0"
                     Grid.Column="0"
                     HorizontalAlignment="Left"
                     Grid.ColumnSpan="2"
@@ -66,6 +67,18 @@
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="48"/>
                         </AppBarButton.Icon>
+                    </AppBarButton>
+
+                    <AppBarButton Label="PS as Package" Click="RunPowershellAsPackage">
+                        <AppBarButton.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
+                        </AppBarButton.Icon>
+                        
+                        <ToolTipService.ToolTip>
+                            <local:ComplexToolTip
+                                Title="Run PowerShell as package"
+                                Subtitle="This opens a new PowerShell window that's running with package identity. See help for more info." />
+                        </ToolTipService.ToolTip>
                     </AppBarButton>
 
                     <AppBarToggleButton Label="All users"
