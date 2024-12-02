@@ -20,6 +20,8 @@ using Microsoft.Win32;
 using Windows.Foundation;
 using Microsoft.UI.Xaml.Input;
 using System.Collections.ObjectModel;
+using Windows.Storage;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 
@@ -53,6 +55,7 @@ namespace ViewAppxPackage
             _packageCatalog.PackageStatusChanged += (s, e)
                 => OnCatalogUpdate(true, e.Package, PackageUpdateNotification.Status);
 
+            LoadSettings();
             SetWindowIcon(this);
             SetWindowTitle();
         }
@@ -72,6 +75,8 @@ namespace ViewAppxPackage
             {
                 ShowHelp();
             }
+
+            ScrollSelectedItemIntoView();
         }
 
 
@@ -550,6 +555,14 @@ namespace ViewAppxPackage
             {
                 _minListWidth = value;
                 RaisePropertyChanged();
+
+                // bugbug: This Grid has a TextBox next to a DropDownButton
+                // For some reason, when the column that the Grid is in resizes,
+                // the TextBox resizes correctly, but the DropDownButton doesn't mover over.
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    _test.InvalidateMeasure();
+                });
             }
         }
         double _minListWidth = 200;
@@ -685,6 +698,12 @@ namespace ViewAppxPackage
                 packages = PackageModel.FindPackages(_searchText, packages);
             }
 
+            // If it's not sort-by-date, it's sort-by-name, and the packages are already sorted by name
+            if (_sortByDate)
+            {
+                packages = packages.OrderByDescending((p) => p.InstalledDate);
+            }
+
             Packages = new(packages);
         }
 
@@ -697,6 +716,8 @@ namespace ViewAppxPackage
             }
 
             IsMultiSelect = _lv.SelectedItems != null && _lv.SelectedItems.Count > 1;
+
+            DispatcherQueue.TryEnqueue(() => ScrollSelectedItemIntoView());
         }
 
         async private void AddPackage(object sender, RoutedEventArgs e)
@@ -776,19 +797,20 @@ namespace ViewAppxPackage
 
         internal void SelectPackage(PackageModel package)
         {
+            // Note that the current package isn't always in the Packages list,
+            // e.g. a dependency package of something that _is_ in the list
+            CurrentItem = package;
+
             var matchingPackage = Packages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
             if (matchingPackage != null)
             {
-                _lv.ScrollIntoView(package); // bugbug: why isn't this automatic?
+                ScrollSelectedItemIntoView();
             }
             else
             {
                 _lv.SelectedIndex = -1;
             }
 
-            // The current package isn't always in the Packages list,
-            // e.g. a dependency package of something that _is_ in the list
-            CurrentItem = package;
         }
 
         internal void SelectPackage(int index)
@@ -1026,7 +1048,7 @@ namespace ViewAppxPackage
         /// </summary>
         private void RunPowershellAsPackage(object sender, RoutedEventArgs e)
         {
-            if(CurrentItem == null)
+            if (CurrentItem == null)
             {
                 return;
             }
@@ -1051,7 +1073,7 @@ namespace ViewAppxPackage
                 // But that should be OK because all the aumid have the same package identity.
                 // Not sure why any aumid is even necessary?
                 var aumid = CurrentItem.Aumids.Split(' ').FirstOrDefault().Trim();
-                if(string.IsNullOrEmpty(aumid))
+                if (string.IsNullOrEmpty(aumid))
                 {
                     return;
                 }
@@ -1088,6 +1110,83 @@ namespace ViewAppxPackage
                 DebugLog.Append($"Failed RunAsPackage: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Scroll CurrentItem into view
+        /// </summary>
+        // bugbug: 
+        // This shouldn't be necessary, ListView should be doing this, but for some reason it often doesn't
+        // Current workaround is sprinkle calls to this
+        void ScrollSelectedItemIntoView()
+        {
+            if (_lv.SelectedItem == null)
+            {
+                return;
+            }
+
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                _lv.ScrollIntoView(_lv.SelectedItem);
+            });
+        }
+
+        /// <summary>
+        /// Sort package results by name
+        /// </summary>
+        bool SortByName
+        {
+            get => _sortByName;
+            set
+            {
+                _sortByName = value;
+                _sortByDate = !value;
+
+                RaisePropertyChanged(nameof(SortByDate));
+                RaisePropertyChanged(nameof(SortByName));
+
+                FilterAndSearchPackages();
+                SaveSettings();
+            }
+        }
+        bool _sortByName = true;
+
+
+        const string _sortSettingName = "Sort";
+        void SaveSettings()
+        {
+            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+            localSettings.Values[_sortSettingName] = SortByDate;
+        }
+
+        void LoadSettings()
+        {
+            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+            if (localSettings.Values.TryGetValue(_sortSettingName, out object value))
+            {
+                SortByDate = (bool)value;
+            }
+        }
+
+        /// <summary>
+        /// Sort package list by installed date
+        /// </summary>
+        bool SortByDate
+        {
+            get => _sortByDate;
+            set
+            {
+                _sortByDate = value;
+                _sortByName = !value;
+
+                RaisePropertyChanged(nameof(SortByDate));
+                RaisePropertyChanged(nameof(SortByName));
+
+                FilterAndSearchPackages();
+                SaveSettings();
+            }
+        }
+        bool _sortByDate = false;
+
     }
 
 }
