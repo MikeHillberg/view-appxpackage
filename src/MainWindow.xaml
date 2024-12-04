@@ -106,7 +106,7 @@
 
                     <!-- Filter box next to a sort button -->
                     <Grid Grid.Row="1"
-                          x:Name="_test"
+                          x:Name="_workaroundGrid"
                           ColumnDefinitions="*,Auto" 
                           HorizontalAlignment="Stretch" >
                         <TextBox x:Name="_filterBox"

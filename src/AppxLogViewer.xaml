@@ -7,14 +7,20 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="Appx Log">
+    Title="MSIX event Log">
 
-    <ScrollViewer Padding="10">
-        <TextBlock Text="{x:Bind Text}"
+    <Grid RowDefinitions="Auto,*"  Padding="10">
+        <TextBlock Margin="0,0,0,20">
+            MSIX event log. Most recent event first. Select text to copy to clipboard
+        </TextBlock>
+
+        <ScrollViewer Grid.Row="1" >
+            <TextBlock Text="{x:Bind Text}"
                    FontFamily="Courier New"
                    FontSize="12"
                    TextWrapping="Wrap"                 
                    IsTextSelectionEnabled="True"/>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
 
 </Window>

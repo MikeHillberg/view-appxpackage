@@ -493,7 +493,14 @@ namespace ViewAppxPackage
                 IsLoading = false;
             }
 
-            Packages = _originalpackages;
+            if (SortByDate)
+            {
+                Packages = new(_originalpackages.OrderByDescending((p) => p.InstalledDate));
+            }
+            else
+            {
+                Packages = _originalpackages;
+            }
 
             // Process Packages with the filter & search text boxes
             FilterAndSearchPackages();
@@ -531,9 +538,18 @@ namespace ViewAppxPackage
             }
 
             // Pick an item at random from the packages (after filtering and searching)
-            Random random = new();
-            var index = random.Next(0, _lv.Items.Count - 1);
-            SelectPackage(_lv.Items[index] as PackageModel);
+            if (SortByName)
+            {
+                Random random = new();
+                var index = random.Next(0, _lv.Items.Count - 1);
+                SelectPackage(_lv.Items[index] as PackageModel);
+            }
+            else
+            {
+                //_lv.SelectedIndex = 0;
+                _lv.SelectedItem = _lv.Items[0];
+            }
+
         }
 
         static internal PackageManager PackageManager = new PackageManager();
@@ -561,7 +577,7 @@ namespace ViewAppxPackage
                 // the TextBox resizes correctly, but the DropDownButton doesn't mover over.
                 DispatcherQueue.TryEnqueue(() =>
                 {
-                    _test.InvalidateMeasure();
+                    _workaroundGrid.InvalidateMeasure();
                 });
             }
         }

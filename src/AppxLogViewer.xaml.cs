@@ -77,7 +77,11 @@ namespace ViewAppxPackage
                 // Header line
                 var timeCreated = record.TimeCreated?.ToString("MM/dd/yyyy HH:mm:ss");
                 var activityId = record.ActivityId.ToString();
-                sb.AppendLine($"    {timeCreated} {activityId}, {record.LevelDisplayName}");
+                if(!string.IsNullOrEmpty(activityId))
+                {
+                    activityId = $", ActivityID={activityId}";
+                }
+                sb.AppendLine($"    {timeCreated}{activityId}, {record.LevelDisplayName}");
 
                 // Description
                 sb.AppendLine(record.FormatDescription());
