@@ -56,7 +56,7 @@
     <Content Include="Assets\original.png" />
     <Content Include="Assets\OT.png" />
     <Content Include="Assets\package2.png" />
-    <Content Include="Assets\RunAsPackage.ps1">
+    <Content Include="Assets\RunAs Package.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\SmallTile.scale-100.png" />

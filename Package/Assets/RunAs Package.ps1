@@ -7,6 +7,7 @@ write-host $message
 [Windows.Storage.ApplicationData]::Current.LocalFolder.Path | cd
 
 write-host ""
+write-host ""
 write-host "** Windows.ApplicationModel.Package.Current **"
 [Windows.ApplicationModel.Package,Windows.ApplicationModel.Package,ContentType=WindowsRuntime] | out-null
 [Windows.ApplicationModel.Package]::Current

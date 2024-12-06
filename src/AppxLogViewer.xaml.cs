@@ -59,10 +59,10 @@ namespace ViewAppxPackage
 
             // Get the most recent 100 entries from the event logs
             // Note that this won't be 50/50 from the two logs, as we're just getting the most recent 100
-            // bugbug: add a "More" button to get more than 100
+            
 
             StringBuilder sb = new();
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 200; i++) // bugbug: add a "More" button rather than a random number
             {
                 using var record = GetNextEvent();
                 if (record == null)

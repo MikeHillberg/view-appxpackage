@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.UI.Text;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -12,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.ApplicationModel;
+using Windows.UI.Text;
 
 namespace ViewAppxPackage
 {
@@ -21,6 +23,22 @@ namespace ViewAppxPackage
     public partial class PackageModel : INotifyPropertyChanged
     {
         Package _package;
+
+        /// <summary>
+        /// Most recent InstalledDate of all the packages
+        /// </summary>
+        internal static DateTimeOffset LastInstalledDateOnRefresh = DateTimeOffset.MaxValue;
+
+        /// <summary>
+        /// Indicates if this was installed after the last refresh
+        /// </summary>
+        public bool IsNew => InstalledDate > LastInstalledDateOnRefresh;
+
+        /// <summary>
+        /// UI helper to make text of new packages bold
+        /// </summary>
+        public FontWeight BoldIfNew => IsNew ? FontWeights.Bold : FontWeights.Normal;
+
 
         public override string ToString()
         {
@@ -102,18 +120,7 @@ namespace ViewAppxPackage
             string searchRegex,
             IEnumerable<PackageModel> packages)
         {
-            if (_packageModelPropertyInfos == null)
-            {
-                // Cache the PropertyInfos
-
-                // Skip some that we don't want included in a search
-                string[] _ignore = { "InstallDate", "Dependencies" };
-
-                _packageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
-                                              where !_ignore.Contains(property.Name)
-                                              select property).ToList();
-            }
-
+            EnsurePackageModelPropertyInfos();
 
             List<PackageModel> finds = new();
 
@@ -154,7 +161,24 @@ namespace ViewAppxPackage
 
             return finds;
         }
+
+        private static void EnsurePackageModelPropertyInfos()
+        {
+            if (_packageModelPropertyInfos == null)
+            {
+                // Cache the PropertyInfos
+
+                // Skip some that we don't want included in a search
+                string[] _ignore = { "InstallDate", "Dependencies", "IsNew" };
+
+                _packageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
+                                              where !_ignore.Contains(property.Name)
+                                              select property).ToList();
+            }
+        }
         static List<PropertyInfo> _packageModelPropertyInfos = null;
+
+
 
         void RaisePropertyChanged(string propertyName)
         {
@@ -172,6 +196,7 @@ namespace ViewAppxPackage
                 return "";
             }
 
+            EnsurePackageModelPropertyInfos();
             StringBuilder sb = null;
             foreach (var p in _packageModelPropertyInfos)
             {

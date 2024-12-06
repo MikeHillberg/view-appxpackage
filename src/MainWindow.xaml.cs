@@ -22,6 +22,7 @@ using Microsoft.UI.Xaml.Input;
 using System.Collections.ObjectModel;
 using Windows.Storage;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using ColorCode.Compilation.Languages;
 
 
 
@@ -484,6 +485,9 @@ namespace ViewAppxPackage
                                  orderby name
                                  select PackageModel.FromWamPackage(p);
                     packageModels = sorted.ToList();
+
+                    // Calc the most recent InstalledDate
+                    PackageModel.LastInstalledDateOnRefresh = packageModels.Max(packageModels => packageModels.InstalledDate);
 
                     _originalpackages = new(packageModels);
                 });
@@ -1074,18 +1078,23 @@ namespace ViewAppxPackage
             // being configured in a way I don't understand and throwing somewhere
             try
             {
-                // Run a Powershell window and call Invoke-CommandInDesktopPackage in it,
-                // which will run in a new powershell window.
-                // The first will be hidden though and go away
+                // Run a Powershell process and call Invoke-CommandInDesktopPackage in it,
+                // and have that create a second PowerShell process.
+                // The first will be hidden though and go away, the second will be left for the user
+
+                // This is an example of the final argument string that will be passed to
+                // the first PowerShell:
+                //
+                // Invoke-CommandInDesktopPackage -PackageFamilyName Microsoft.PowerAutomateDesktop_8wekyb3d8bbwe -AppId PAD.Console -Command powershell -Args '-NoExit -Command "& ''C:\Users\mike\source\repos\MikeHillberg\view-appxpackage\Package\bin\x64\Debug\AppX\Assets\RunAs Package.ps1'' ''Invoke-CommandInDesktopPackage -PackageFamilyName Microsoft.PowerAutomateDesktop_8wekyb3d8bbwe -AppId PAD.Console -Command powershell''" '
 
                 // bugbug: how to figure out if this should be powershell or pwsh?
-
                 ProcessStartInfo psi = new();
                 psi.FileName = "powershell.exe";
                 psi.UseShellExecute = false;
                 psi.WindowStyle = ProcessWindowStyle.Hidden;
 
-                // This uses just the first Aumid (Praid), though there could be many.
+                // We need a Praid for the call to Invoke-CommandInDesktopPackage
+                // This gets the Praid from the first Aumid, though there could be many.
                 // But that should be OK because all the aumid have the same package identity.
                 // Not sure why any aumid is even necessary?
                 var aumid = CurrentItem.Aumids.Split(' ').FirstOrDefault().Trim();
@@ -1096,22 +1105,32 @@ namespace ViewAppxPackage
                 var praid = aumid.Split('!')[1];
 
                 // This is the package path of _this_ app, not the CurrentItem package.
-                // That's where the script is that we're going to call
+                // That's where the script is that we're going to run in the second PowerShell,
+                // which displays some messages to the user
                 var myPackagePath = Package.Current.InstalledPath;
 
-                // These are the args for the outer PS, to call Invoke
-                var message = $"Invoke-CommandInDesktopPackage -PackageFamilyName {CurrentItem.FamilyName} -AppId {praid} -Command powershell";
+                // This is the first part of the command that the first PowerShell will run,
+                // to call Invoke-CommandInDesktopPackage, giving it the PFN and Praid and
+                // telling it to run the second PowerShell
+                var invokeCommandBase = @$"Invoke-CommandInDesktopPackage -PackageFamilyName {CurrentItem.FamilyName} -AppId {praid} -Command powershell";
+
 
                 // These are the args that will be passed to the nested PS that's created by the
                 // Invoke script. The parameters passed to runaspackage.ps1 are just for a message
-                var invokedPsArgs = @$"-NoExit ""{myPackagePath}\Assets\RunAsPackage.ps1 ''{message}'' """;
+                // The nested PowerShell will run the "RunAs Package.ps1" script.
+                // Getting all the quotes correct is complicated, there's a lot of string nesting going on, but it works.
+                // A difficult part is allowing for spaces in the script name, 
+                // it would be a lot easier to remove it, but when this is run as the actual Store-installed app
+                // it has a space because it's in "Program Files". So the script name has a space to test that in inner loop.
+                // The `invokeCommandBase` is used as the base of the arguments to the second PowerShell, and also
+                // passed to the script, so the script can show a message to the user of what just happened.
 
-                var arguments = $"{message} -Args '{invokedPsArgs}' ";
-                psi.Arguments = arguments;
+                psi.Arguments = $@"{invokeCommandBase} -Args '-NoExit -Command ""& ''{myPackagePath}\Assets\RunAs Package.ps1'' ''{invokeCommandBase}''"" '";
+
+
 
                 DebugLog.Append($"Running as Package:");
-                DebugLog.Append(arguments);
-
+                DebugLog.Append(psi.Arguments);
 
                 Process process = new();
                 process.StartInfo = psi;
