@@ -44,6 +44,7 @@
             
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
             <local:PackageViewRow Label="Installed Date" Value="{x:Bind Package.InstalledDate}"/>
+            <local:PackageViewRow Label="Size" Value="{x:Bind Package.Size}"/>
             <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
             <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
             <local:PackageViewRow Label="Protocol" Value="{x:Bind Package.Protocol}"/>
@@ -57,7 +58,8 @@
             <local:PackageViewRow Label='Author' Value='{x:Bind Package.Author}'/>
             <local:PackageViewRow Label="Capabilities" Value="{x:Bind Package.Capabilities}"/>
             <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Id.Architecture}"/>
-            <local:PackageViewRow Label="Install Location" Value="{x:Bind Package.InstalledPath}"/>
+            <local:PackageViewRow Label="Installed Path" Value="{x:Bind Package.InstalledPath}"/>
+            <local:PackageViewRow Label="Application Data" Value="{x:Bind Package.ApplicationDataPath}"/>
             <local:PackageViewRow Label='EffectiveExternalPath' Value='{x:Bind Package.EffectiveExternalPath}'/>
             <local:PackageViewRow Label='EffectivePath' Value='{x:Bind Package.EffectivePath}'/>
             <local:PackageViewRow Label='MachineExternalPath' Value='{x:Bind Package.MachineExternalPath}'/>

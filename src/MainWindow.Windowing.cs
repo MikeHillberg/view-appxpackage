@@ -5,6 +5,8 @@ using WinRT.Interop;
 using System.IO;
 using WinRT;
 using System.Runtime.InteropServices;
+using Windows.UI.Notifications;
+using Windows.Data.Xml.Dom;
 
 namespace ViewAppxPackage
 {
@@ -131,6 +133,30 @@ namespace ViewAppxPackage
                 case ElementTheme.Default: m_configurationSource.Theme = Microsoft.UI.Composition.SystemBackdrops.SystemBackdropTheme.Default; break;
             }
         }
+
+        /// <summary>
+        /// Set a number as a badge on the app icon in the task bar, indicating the number of new packages
+        /// </summary>
+        public void SetBadgeNumber(int count)
+        {
+            // Get the blank badge XML payload for a badge number
+            XmlDocument badgeXml =
+                BadgeUpdateManager.GetTemplateContent(BadgeTemplateType.BadgeNumber);
+
+            // Set the value of the badge in the XML to the count of new packages
+            XmlElement badgeElement = badgeXml.SelectSingleNode("/badge") as XmlElement;
+            badgeElement.SetAttribute("value", count.ToString());
+
+            // Create the badge notification
+            BadgeNotification badge = new BadgeNotification(badgeXml);
+
+            // Create the badge updater for the application
+            var badgeUpdater = BadgeUpdateManager.CreateBadgeUpdaterForApplication();
+
+            // And update the badge
+            badgeUpdater.Update(badge);
+        }
+
     }
 
 

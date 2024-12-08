@@ -28,16 +28,13 @@ namespace ViewAppxPackage
             set { SetValue(PackageProperty, value); }
         }
         public static readonly DependencyProperty PackageProperty =
-            DependencyProperty.Register("Package", typeof(PackageModel), typeof(PackageView), 
-                new PropertyMetadata(null, (d,dp) => (d as PackageView).PackageChanged()));
+            DependencyProperty.Register("Package", typeof(PackageModel), typeof(PackageView),
+                new PropertyMetadata(null, (d, dp) => (d as PackageView).PackageChanged()));
 
         private void PackageChanged()
         {
-            if(Package == null)
-            {
-                // bugbug: this should be happening already with the x:Bind
-                _root.Visibility = Visibility.Collapsed;
-            }
+            // bugbug: this should be happening already with the x:Bind
+            _root.Visibility = Package == null ? Visibility.Collapsed : Visibility.Visible;
         }
 
         Visibility NotEmpty(PackageModel package)

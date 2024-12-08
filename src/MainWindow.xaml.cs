@@ -33,6 +33,9 @@ namespace ViewAppxPackage
         public MainWindow()
         {
             ProcessCommandLineArguments();
+
+            // bugbug: there's a race where we load the initial set here but
+            // haven't set up the change event listeners yet
             StartLoadPackages();
 
             this.InitializeComponent();
@@ -45,20 +48,30 @@ namespace ViewAppxPackage
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
             _packageCatalog.PackageInstalling += (s, e)
-                => OnCatalogUpdate(e.IsComplete, e.Package, PackageUpdateNotification.Install);
+                => OnCatalogUpdate(e.IsComplete, e.Package, null, PackageUpdateNotification.Install);
 
             _packageCatalog.PackageUninstalling += (s, e)
-                => OnCatalogUpdate(e.IsComplete, e.Package, PackageUpdateNotification.Uninstall);
+                => OnCatalogUpdate(e.IsComplete, e.Package, null, PackageUpdateNotification.Uninstall);
 
             _packageCatalog.PackageUpdating += (s, e)
-                => OnCatalogUpdate(e.IsComplete, e.TargetPackage, PackageUpdateNotification.Update);
+                => OnCatalogUpdate(e.IsComplete, e.TargetPackage, e.SourcePackage, PackageUpdateNotification.Update);
 
             _packageCatalog.PackageStatusChanged += (s, e)
-                => OnCatalogUpdate(true, e.Package, PackageUpdateNotification.Status);
+                => OnCatalogUpdate(true, e.Package, null, PackageUpdateNotification.Status);
 
             LoadSettings();
+
             SetWindowIcon(this);
             SetWindowTitle();
+
+            // On close, remove the badge; it's only useful when the app is open
+            this.Closed += (s, e) =>
+            {
+                SetBadgeNumber(0);
+            };
+
+            // On start, clear the badge number too, just in case the last session didn't cleanly close
+            SetBadgeNumber(0);
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -77,7 +90,7 @@ namespace ViewAppxPackage
                 ShowHelp();
             }
 
-            ScrollSelectedItemIntoView();
+            PostScrollSelectedItemIntoView();
         }
 
 
@@ -202,20 +215,16 @@ namespace ViewAppxPackage
             get => _currentItem;
             set
             {
-                if (value == null)
-                {
-                    _currentItem = null;
-
-                    DebugLog.Append("CurrentItem is null");
-
-                    // Ignore the two-way binding where a resource package is selected,
-                    // so the SelectedItem goes to null
-                    return;
-                }
-
                 if (_currentItem != value)
                 {
-                    DebugLog.Append($"CurrentItem is {value.Id.Name}");
+                    if (value == null)
+                    {
+                        DebugLog.Append("CurrentItem is null");
+                    }
+                    else
+                    {
+                        DebugLog.Append($"CurrentItem is {value.Id.Name}");
+                    }
 
                     _currentItem = value;
                     RaisePropertyChanged();
@@ -235,7 +244,11 @@ namespace ViewAppxPackage
         /// <summary>
         /// Update after receiving a notification that a package has been added or removed
         /// </summary>
-        void OnCatalogUpdate(bool isComplete, Package wamPackage, PackageUpdateNotification updateKind)
+        void OnCatalogUpdate(
+            bool isComplete, 
+            Package wamPackage, 
+            Package wamPackage2, // For updates
+            PackageUpdateNotification updateKind)
         {
             // bugbug: there's a race condition where packages are being installed/removed
             // while we're in the middle of package enumeration
@@ -268,11 +281,16 @@ namespace ViewAppxPackage
 
                 if (updateKind == PackageUpdateNotification.Install)
                 {
-                    // Shouldn't be necessary but playing it safe
-                    RemoveFromCache(package);
+                    // We don't track resource pakcages in the package list
+                    // (FindPackages and get-appxpackage don't return these either)
+                    if (!wamPackage.IsResourcePackage)
+                    {
+                        // Shouldn't be necessary but playing it safe
+                        RemoveFromCache(package);
 
-                    _originalpackages.Add(package);
-                    _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                        _originalpackages.Add(package);
+                        _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                    }
                 }
                 else if (updateKind == PackageUpdateNotification.Uninstall)
                 {
@@ -285,7 +303,9 @@ namespace ViewAppxPackage
                 }
                 else if (updateKind == PackageUpdateNotification.Update)
                 {
-                    RemoveFromCache(package);
+                    // Remove the old package from the cache and _originalPackages
+                    var package2 = PackageModel.FromWamPackage(wamPackage2);
+                    RemoveFromCache(package2);
 
                     // Get a new model wrapper
                     package = PackageModel.FromWamPackage(wamPackage);
@@ -304,6 +324,10 @@ namespace ViewAppxPackage
 
                 FilterAndSearchPackages();
                 RaisePropertyChanged(nameof(NoPackagesFound));
+
+                // Update the badge number on the task bar icon of new packages since refresh
+                var newPackageCount = Packages.Sum((p) => p.IsNew ? 1 : 0);
+                SetBadgeNumber(newPackageCount);
             });
         }
 
@@ -338,12 +362,13 @@ namespace ViewAppxPackage
 
                 DebugLog.Append($"New Packages count: {PackageCount}");
 
-                var currentItem = CurrentItem;
                 RaisePropertyChanged();
 
-                if (currentItem != null && Packages.Contains(currentItem))
+                // When Packages is replaced ListView clears the selected item,
+                // so restore it to CurrentItem (if it's in the list)
+                if (CurrentItem != null && Packages.Contains(CurrentItem))
                 {
-                    CurrentItem = currentItem;
+                    _lv.SelectedItem = CurrentItem;
                 }
 
                 RaisePropertyChanged(nameof(NoPackagesFound));
@@ -510,6 +535,8 @@ namespace ViewAppxPackage
             FilterAndSearchPackages();
 
             PackageModel.StartCalculateDependents(_originalpackages);
+
+            PackageModel.StartCalculatingSizes(_originalpackages);
 
             // Call Find on a background thread to warm the caches
             await Task.Run(() =>
@@ -729,15 +756,22 @@ namespace ViewAppxPackage
 
         private void SelectionChanged(object sender, Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs e)
         {
-            if (_lv.SelectedItem == null)
+            // Using SelectionChanged to update CurrentItem, rather than a TwoWay binding,
+            // because sometimes they're not in sync (CurrentItem can be a resource package,
+            // but resource packages aren't in the ListView).
+
+            // SelectedItem goes null every time Packages changes, so in those cases we want to
+            // restore selection to CurrentItem. It also goes null if the PackageView is showing
+            // a resource package.
+
+            if(_lv.SelectedItem != null)
             {
-                // bugbug: why isn't the x:Bind doing this?
-                _detail.Package = null;
+                CurrentItem = _lv.SelectedItem as PackageModel;
+                PostScrollSelectedItemIntoView();
             }
 
-            IsMultiSelect = _lv.SelectedItems != null && _lv.SelectedItems.Count > 1;
 
-            DispatcherQueue.TryEnqueue(() => ScrollSelectedItemIntoView());
+            IsMultiSelect = _lv.SelectedItems != null && _lv.SelectedItems.Count > 1;
         }
 
         async private void AddPackage(object sender, RoutedEventArgs e)
@@ -824,7 +858,7 @@ namespace ViewAppxPackage
             var matchingPackage = Packages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
             if (matchingPackage != null)
             {
-                ScrollSelectedItemIntoView();
+                PostScrollSelectedItemIntoView();
             }
             else
             {
@@ -1152,15 +1186,15 @@ namespace ViewAppxPackage
         // bugbug: 
         // This shouldn't be necessary, ListView should be doing this, but for some reason it often doesn't
         // Current workaround is sprinkle calls to this
-        void ScrollSelectedItemIntoView()
+        void PostScrollSelectedItemIntoView()
         {
-            if (_lv.SelectedItem == null)
-            {
-                return;
-            }
-
             DispatcherQueue.TryEnqueue(() =>
             {
+                if (_lv.SelectedItem == null)
+                {
+                    return;
+                }
+
                 _lv.ScrollIntoView(_lv.SelectedItem);
             });
         }

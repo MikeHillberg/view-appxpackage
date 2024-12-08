@@ -133,10 +133,11 @@
                 <Grid Grid.Row="2" RowDefinitions="*,Auto">
                     <TextBlock Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}" >No packages found</TextBlock>
 
+                    <!-- OneWay binding on SelectedItem rather than TwoWay, with code instead in SelectionChanged -->
                     <ListView x:Name="_lv" 
                           Background="Transparent"
                           ItemsSource="{x:Bind Packages, Mode=OneWay}"
-                          SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=TwoWay}"
+                          SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"
                           SelectionChanged="SelectionChanged"
                           SizeChanged="ListSizeChanged"
                           SelectionMode="Extended"

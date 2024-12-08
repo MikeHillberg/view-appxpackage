@@ -7,12 +7,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.ApplicationModel;
+using Windows.Management.Core;
 using Windows.UI.Text;
 
 namespace ViewAppxPackage
@@ -54,7 +56,7 @@ namespace ViewAppxPackage
         /// </summary>
         public static PackageModel FromWamPackage(Package package)
         {
-            var id = GetVersionIndependentId(package);
+            var id = GetCacheId(package);
             if (_modelCache.TryGetValue(id, out var model))
             {
                 return model;
@@ -67,19 +69,110 @@ namespace ViewAppxPackage
 
         internal static void ClearCache(PackageModel package)
         {
-            var id = GetVersionIndependentId(package._package);
+            var id = GetCacheId(package._package);
             _modelCache.Remove(id);
         }
 
-        static string GetVersionIndependentId(Package wamPackage)
+        static string GetCacheId(Package wamPackage)
         {
-            return $"{wamPackage.Id.Name}%{wamPackage.Id.ResourceId}";
+            return wamPackage.Id.FullName;
         }
 
 
         PackageModel(Package package)
         {
             _package = package;
+        }
+
+        /// <summary>
+        /// Calculate all the package sizes on a background thread.
+        /// Size is defined as the package directory plus the application data directory.
+        /// </summary>
+        static internal async void StartCalculatingSizes(IEnumerable<PackageModel> packages)
+        {
+            packages = packages.ToList();
+            await Task.Run(() =>
+            {
+                // Calculate sizes (and set into the PackageModel) on the background thread
+                foreach (var package in packages)
+                {
+                    var totalSize = GetDirectorySize(package.InstalledPath);
+                    totalSize += GetDirectorySize(package.ApplicationDataPath);
+                    package._size = totalSize.ToString("N0");
+                }
+            });
+
+            // Raise change notifications on the UI thread
+            foreach(var package in packages)
+            {
+                package.RaisePropertyChanged(nameof(Size));
+            }
+        }
+
+
+        public string ApplicationDataPath
+        {
+            get
+            {
+                if (_applicationDataPath == null)
+                {
+                    _applicationDataPath = "";
+                    try
+                    {
+                        // This throws a lot
+                        var applicationData = ApplicationDataManager.CreateForPackageFamily(this.FamilyName);
+
+                        // There's no API (that I can find) for the package's directory of LocalFolder, Settings, etc.
+                        // So use take LocalFolder and use its parent directory
+                        _applicationDataPath = Path.GetDirectoryName(applicationData.LocalFolder.Path);
+                    }
+                    catch (Exception e)
+                    {
+                        DebugLog.Append($"Failed getting ApplicationDataPath for {FullName}: {e.Message}");
+                    }
+                }
+
+                return _applicationDataPath;
+            }
+        }
+        string _applicationDataPath = null;
+
+        public string Size
+        {
+            get => _size;
+            private set
+            {
+                _size = value;
+                RaisePropertyChanged();
+            }
+        }
+        string _size = "";
+
+        private static long GetDirectorySize(string path)
+        {
+            long totalSize = 0;
+
+            // Copilot suggested this be in a try/catch
+            try
+            {
+                if (!Directory.Exists(path))
+                {
+                    return 0;
+                }
+
+                var files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+                foreach (var file in files)
+                {
+                    var fileInfo = new FileInfo(file);
+                    totalSize += fileInfo.Length;
+                }
+            }
+            catch(Exception e)
+            {
+                DebugLog.Append($"Failed calculating directory size: {e.Message}");
+            }
+
+            return totalSize;
         }
 
         /// <summary>
@@ -169,7 +262,7 @@ namespace ViewAppxPackage
                 // Cache the PropertyInfos
 
                 // Skip some that we don't want included in a search
-                string[] _ignore = { "InstallDate", "Dependencies", "IsNew" };
+                string[] _ignore = { "InstallDate", "Dependencies", "IsNew", "Size" };
 
                 _packageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
                                               where !_ignore.Contains(property.Name)
@@ -180,7 +273,7 @@ namespace ViewAppxPackage
 
 
 
-        void RaisePropertyChanged(string propertyName)
+        void RaisePropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -232,7 +325,10 @@ namespace ViewAppxPackage
             get
             {
                 var ver = _package.Id.Version;
-                return $"{ver.Major}.{ver.Minor}.{ver.Revision}.{ver.Build}";
+
+                // bugbug: why does get-appxpackage do Major.Minor.Build.Revision rather than
+                // ...Revision.Build?
+                return $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
             }
         }
 
