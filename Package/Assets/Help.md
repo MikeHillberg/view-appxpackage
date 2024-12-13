@@ -39,4 +39,4 @@ get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 * **Sideload** a package (requires Developer Mode, can be used to add **unsigned** packages)
 * View the **appx log** of system MSIX activity (same as get-appxlog)
 * **Open in Store** to go to the Store page
-* Run **PowerShell** with package identity (see [`Invoke-CommandInDesktopPackage`](https://learn.microsoft.com/powershell/module/appx/invoke-commandindesktoppackage) for more info)
+* Run **PowerShell** with package identity. Note that it runs Medium IL; it doesn't run in AppContainer for an AppContainer package. See [`Invoke-CommandInDesktopPackage`](https://learn.microsoft.com/powershell/module/appx/invoke-commandindesktoppackage) for more info.

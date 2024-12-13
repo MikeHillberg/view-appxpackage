@@ -34,7 +34,23 @@ namespace ViewAppxPackage
         /// <summary>
         /// Indicates if this was installed after the last refresh
         /// </summary>
-        public bool IsNew => InstalledDate > LastInstalledDateOnRefresh;
+        public bool IsNew => !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
+
+
+        public bool IsNewCleared
+        {
+            get => _isNewCleared;
+            set
+            {
+                _isNewCleared = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged(nameof(IsNew));
+                RaisePropertyChanged(nameof(BoldIfNew));
+            }
+
+        }
+
+        bool _isNewCleared = false;
 
         /// <summary>
         /// UI helper to make text of new packages bold
@@ -96,14 +112,12 @@ namespace ViewAppxPackage
                 // Calculate sizes (and set into the PackageModel) on the background thread
                 foreach (var package in packages)
                 {
-                    var totalSize = GetDirectorySize(package.InstalledPath);
-                    totalSize += GetDirectorySize(package.ApplicationDataPath);
-                    package._size = totalSize.ToString("N0");
+                    package.StartCalculateSize(raiseChangeNotification: false);
                 }
             });
 
             // Raise change notifications on the UI thread
-            foreach(var package in packages)
+            foreach (var package in packages)
             {
                 package.RaisePropertyChanged(nameof(Size));
             }
@@ -139,7 +153,15 @@ namespace ViewAppxPackage
 
         public string Size
         {
-            get => _size;
+            get
+            {
+                if (_size == "")
+                {
+                    StartCalculateSize(raiseChangeNotification: true);
+                }
+
+                return _size;
+            }
             private set
             {
                 _size = value;
@@ -147,6 +169,27 @@ namespace ViewAppxPackage
             }
         }
         string _size = "";
+
+        async void StartCalculateSize(bool raiseChangeNotification)
+        {
+            await Task.Run(() =>
+            {
+                // E.g. "C:\Program Files\WindowsApps\Microsoft.Windows.Photos_2024.11120.5010.0_x64__8wekyb3d8bbwe"
+                var installSize = GetDirectorySize(InstalledPath);
+
+                // E.g. "C:\Users\mikehill\AppData\Local\Packages\Microsoft.Windows.Photos_8wekyb3d8bbwe"
+                var dataSize = GetDirectorySize(ApplicationDataPath);
+
+                var totalSize = installSize + dataSize;
+
+                _size = $"{Utils.FormatByteSize(totalSize)} ({Utils.FormatByteSize(installSize)} install and {Utils.FormatByteSize(dataSize)} data)";
+            });
+
+            if(raiseChangeNotification)
+            {
+                RaisePropertyChanged(nameof(Size));
+            }
+        }
 
         private static long GetDirectorySize(string path)
         {
@@ -167,7 +210,7 @@ namespace ViewAppxPackage
                     totalSize += fileInfo.Length;
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 DebugLog.Append($"Failed calculating directory size: {e.Message}");
             }
@@ -262,7 +305,7 @@ namespace ViewAppxPackage
                 // Cache the PropertyInfos
 
                 // Skip some that we don't want included in a search
-                string[] _ignore = { "InstallDate", "Dependencies", "IsNew", "Size" };
+                string[] _ignore = { nameof(InstallDate), nameof(Dependencies), nameof(IsNew), nameof(IsNewCleared), nameof(Size) };
 
                 _packageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
                                               where !_ignore.Contains(property.Name)

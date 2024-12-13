@@ -188,8 +188,9 @@ namespace ViewAppxPackage
                     {
                         _installeddate = _package.InstalledDate;
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        DebugLog.Append($"Exception on InstalledDate: {e.Message}");
                         _installeddate = default(DateTimeOffset);
                     }
                     _installeddateCalculated = true;
@@ -211,8 +212,9 @@ namespace ViewAppxPackage
                     {
                         _installedpath = _package.InstalledPath;
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        DebugLog.Append($"Exception on InstalledPath: {e.Message}");
                         _installedpath = default(String);
                     }
                     _installedpathCalculated = true;

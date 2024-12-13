@@ -45,6 +45,17 @@ namespace ViewAppxPackage
 
             Instance = this;
 
+            InitializePackageCatalog();
+
+            LoadSettings();
+
+            SetWindowIcon(this);
+            SetWindowTitle();
+            SetUpBadging();
+        }
+
+        private void InitializePackageCatalog()
+        {
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
             _packageCatalog.PackageInstalling += (s, e)
@@ -58,12 +69,10 @@ namespace ViewAppxPackage
 
             _packageCatalog.PackageStatusChanged += (s, e)
                 => OnCatalogUpdate(true, e.Package, null, PackageUpdateNotification.Status);
+        }
 
-            LoadSettings();
-
-            SetWindowIcon(this);
-            SetWindowTitle();
-
+        private void SetUpBadging()
+        {
             // On close, remove the badge; it's only useful when the app is open
             this.Closed += (s, e) =>
             {
@@ -72,6 +81,13 @@ namespace ViewAppxPackage
 
             // On start, clear the badge number too, just in case the last session didn't cleanly close
             SetBadgeNumber(0);
+
+            this.Activated += (s, e) =>
+            {
+                // Clear badge when switching to or away from the window
+                SetBadgeNumber(0);
+                DebugLog.Append($"Activated: {e.WindowActivationState}");
+            };
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -226,6 +242,12 @@ namespace ViewAppxPackage
                         DebugLog.Append($"CurrentItem is {value.Id.Name}");
                     }
 
+                    if (value != null)
+                    {
+                        // Once a package has been viewed, don't show it bold'd anymore
+                        value.IsNewCleared = true;
+                    }
+
                     _currentItem = value;
                     RaisePropertyChanged();
                 }
@@ -245,8 +267,8 @@ namespace ViewAppxPackage
         /// Update after receiving a notification that a package has been added or removed
         /// </summary>
         void OnCatalogUpdate(
-            bool isComplete, 
-            Package wamPackage, 
+            bool isComplete,
+            Package wamPackage,
             Package wamPackage2, // For updates
             PackageUpdateNotification updateKind)
         {
@@ -266,7 +288,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            DebugLog.Append($"Catalog update: {updateKind}, {wamPackage.Id.Name}, {wamPackage.InstalledPath}");
+            DebugLog.Append($"Catalog update: {updateKind}, {wamPackage.Id.FullName}, {wamPackage.InstalledPath}");
 
             if (Packages == null)
             {
@@ -277,6 +299,7 @@ namespace ViewAppxPackage
 
             this.DispatcherQueue.TryEnqueue(() =>
             {
+                bool doBadgeUpdate = false;
                 var package = PackageModel.FromWamPackage(wamPackage);
 
                 if (updateKind == PackageUpdateNotification.Install)
@@ -290,28 +313,36 @@ namespace ViewAppxPackage
 
                         _originalpackages.Add(package);
                         _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+
+                        doBadgeUpdate = true;
                     }
                 }
                 else if (updateKind == PackageUpdateNotification.Uninstall)
                 {
-                    if (CurrentItem == package)
+                    // The underlying package is coming as a different instance,
+                    // so check the PFullName
+                    if (CurrentItem.FullName == package.FullName)
                     {
                         CurrentItem = null;
                     }
 
                     RemoveFromCache(package);
+                    doBadgeUpdate = true;
                 }
                 else if (updateKind == PackageUpdateNotification.Update)
                 {
-                    // Remove the old package from the cache and _originalPackages
-                    var package2 = PackageModel.FromWamPackage(wamPackage2);
-                    RemoveFromCache(package2);
+                    if (!wamPackage.IsResourcePackage)
+                    {
+                        // Remove the old package from the cache and _originalPackages
+                        var package2 = PackageModel.FromWamPackage(wamPackage2);
+                        RemoveFromCache(package2);
 
-                    // Get a new model wrapper
-                    package = PackageModel.FromWamPackage(wamPackage);
+                        // Get a new model wrapper
+                        package = PackageModel.FromWamPackage(wamPackage);
 
-                    _originalpackages.Add(package);
-                    _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                        _originalpackages.Add(package);
+                        _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                    }
                 }
                 else if (updateKind == PackageUpdateNotification.Status)
                 {
@@ -326,8 +357,11 @@ namespace ViewAppxPackage
                 RaisePropertyChanged(nameof(NoPackagesFound));
 
                 // Update the badge number on the task bar icon of new packages since refresh
-                var newPackageCount = Packages.Sum((p) => p.IsNew ? 1 : 0);
-                SetBadgeNumber(newPackageCount);
+                if (doBadgeUpdate)
+                {
+                    var newPackageCount = Packages.Sum((p) => p.IsNew ? 1 : 0);
+                    SetBadgeNumber(newPackageCount);
+                }
             });
         }
 
@@ -764,7 +798,7 @@ namespace ViewAppxPackage
             // restore selection to CurrentItem. It also goes null if the PackageView is showing
             // a resource package.
 
-            if(_lv.SelectedItem != null)
+            if (_lv.SelectedItem != null)
             {
                 CurrentItem = _lv.SelectedItem as PackageModel;
                 PostScrollSelectedItemIntoView();
@@ -1212,6 +1246,7 @@ namespace ViewAppxPackage
 
                 RaisePropertyChanged(nameof(SortByDate));
                 RaisePropertyChanged(nameof(SortByName));
+                RaisePropertyChanged(nameof(SortLabel));
 
                 FilterAndSearchPackages();
                 SaveSettings();
@@ -1249,12 +1284,21 @@ namespace ViewAppxPackage
 
                 RaisePropertyChanged(nameof(SortByDate));
                 RaisePropertyChanged(nameof(SortByName));
+                RaisePropertyChanged(nameof(SortLabel));
 
                 FilterAndSearchPackages();
                 SaveSettings();
             }
         }
         bool _sortByDate = false;
+
+        /// <summary>
+        /// Label for the Sort button
+        /// </summary>
+        string SortLabel
+        {
+            get => SortByDate ? "Date" : "Name";
+        }
 
     }
 

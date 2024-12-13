@@ -104,20 +104,32 @@
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind SearchPlaceholderText(IsSearchEnabled)}" />
 
-                    <!-- Filter box next to a sort button -->
-                    <Grid Grid.Row="1"
-                          x:Name="_workaroundGrid"
-                          ColumnDefinitions="*,Auto" 
-                          HorizontalAlignment="Stretch" >
-                        <TextBox x:Name="_filterBox"
+                    <TextBox x:Name="_filterBox"
                              Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              IsSpellCheckEnabled="False"
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind FilterPlaceholderText}" />
+
+                    <!-- Message showing the package count, next to a sort button -->
+                    <Grid x:Name="_workaroundGrid"
+                          ColumnDefinitions="*,Auto" 
+                          HorizontalAlignment="Stretch"
+                          BorderBrush="{StaticResource SystemAccentColor}"
+                          BorderThickness="0,0,0,1"
+                          Padding="0,0,0,4">
                         
+                        <!-- bugbug: had to eyeball the margin to get things to line up OK -->
+                        <TextBlock Margin="8,6,0,5" FontStyle="Italic">
+                            (<Run Text="{x:Bind PackageCount}" 
+                                 /> package<Run Text="{x:Bind local:Utils.PluralS(PackageCount)}"/>)
+                        </TextBlock>
+
                         <DropDownButton Grid.Column="1" Margin="5,0,0,0"
-                                        ToolTipService.ToolTip="Sort packages by date or by installed date">
-                            <SymbolIcon>Sort</SymbolIcon>
+                                        ToolTipService.ToolTip="Sort packages by name or by installed date">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <SymbolIcon>Sort</SymbolIcon>
+                                <TextBlock Text="{x:Bind SortLabel}"/>
+                            </StackPanel>
                             <DropDownButton.Flyout>
                                 <MenuFlyout>
                                     <ToggleMenuFlyoutItem Text="A-Z"            IsChecked="{x:Bind SortByName, Mode=TwoWay}"/>
@@ -130,7 +142,7 @@
 
                 <!-- List of packages. Transparent to make Mica work -->
                 <!-- The ListSizeChanged handler is to make this list wide enough for the longest package name -->
-                <Grid Grid.Row="2" RowDefinitions="*,Auto">
+                <Grid Grid.Row="2" RowDefinitions="*,Auto" Margin="0,4,0,0">
                     <TextBlock Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}" >No packages found</TextBlock>
 
                     <!-- OneWay binding on SelectedItem rather than TwoWay, with code instead in SelectionChanged -->
@@ -150,16 +162,6 @@
                         </ListView.ItemTemplate>
                     </ListView>
 
-                    <Grid Grid.Row="1"
-                          Margin="0,0,-20,0"
-                          Background="{ThemeResource SystemControlBackgroundAltHighBrush}">
-
-                        <!-- Status bar showing the package count -->
-                        <TextBlock Grid.Row="1" Margin="5,5,0,5" FontStyle="Italic">
-                            <Run Text="{x:Bind PackageCount}" 
-                                 /> package<Run Text="{x:Bind local:Utils.PluralS(PackageCount)}"/>
-                        </TextBlock>
-                    </Grid>
                 </Grid>
 
                 <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"

@@ -43,7 +43,7 @@
             <!-- For all of these if a Value is unset, the row is collapsed -->
             
             <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
-            <local:PackageViewRow Label="Installed Date" Value="{x:Bind Package.InstalledDate}"/>
+            <local:PackageViewRow Label="Installed Date" Value="{x:Bind local:Utils.FormatDate(Package.InstalledDate)}"/>
             <local:PackageViewRow Label="Size" Value="{x:Bind Package.Size}"/>
             <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
             <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>

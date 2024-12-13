@@ -38,5 +38,47 @@ namespace ViewAppxPackage
         {
             return count == 1 ? "" : "s";
         }
+
+        /// <summary>
+        /// Formats a date to a string. If the date is today, only the time is shown. Otherwise, the date and time are shown.
+        /// </summary>
+        public static string FormatDate(DateTimeOffset date)
+        {
+            TimeSpan timeDifference = DateTime.Now - date;
+
+            //if (timeDifference.TotalHours < 24)
+            if (date.Date == DateTime.Now.Date)
+            {
+                return date.ToString("t"); // Just the time
+            }
+            else
+            {
+                return date.ToString("g"); // 6/15/2009 1:45 PM
+            }
+        }
+
+        /// <summary>
+        /// Formats a byte size to a human-readable string.
+        /// </summary>
+        public static string FormatByteSize(long byteCount)
+        {
+            string[] suffixes = { "Bytes", "KB", "MB", "GB", "TB", "PB", "EB" };
+            int index = 0;
+            double bytes = byteCount;
+
+            while (bytes >= 1024 && index < suffixes.Length - 1)
+            {
+                index++;
+                bytes /= 1024;
+            }
+
+            var suffix = "";
+            if(index < suffixes.Length)
+            {
+                suffix = suffixes[index];
+            }
+
+            return $"{bytes:0} {suffix}";
+        }
     }
 }
