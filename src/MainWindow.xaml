@@ -119,7 +119,7 @@
                           Padding="0,0,0,4">
                         
                         <!-- bugbug: had to eyeball the margin to get things to line up OK -->
-                        <TextBlock Margin="8,6,0,5" FontStyle="Italic">
+                        <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" FontStyle="Italic">
                             (<Run Text="{x:Bind PackageCount}" 
                                  /> package<Run Text="{x:Bind local:Utils.PluralS(PackageCount)}"/>)
                         </TextBlock>

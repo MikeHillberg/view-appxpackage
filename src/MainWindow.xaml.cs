@@ -374,10 +374,10 @@ namespace ViewAppxPackage
                 _originalpackages.Remove(existing);
                 DebugLog.Append($"Removed {package.Id.Name} from cache");
             }
-            else
-            {
-                DebugLog.Append($"Didn't remove {package.Id.Name} from cache");
-            }
+            //else
+            //{
+            //    DebugLog.Append($"Didn't remove {package.Id.Name} from cache");
+            //}
 
             PackageModel.ClearCache(package);
         }
@@ -1252,10 +1252,10 @@ namespace ViewAppxPackage
                 SaveSettings();
             }
         }
-        bool _sortByName = true;
+        bool _sortByName = false;
 
 
-        const string _sortSettingName = "Sort";
+        const string _sortSettingName = "Sort2";
         void SaveSettings()
         {
             ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
@@ -1290,7 +1290,7 @@ namespace ViewAppxPackage
                 SaveSettings();
             }
         }
-        bool _sortByDate = false;
+        bool _sortByDate = true;
 
         /// <summary>
         /// Label for the Sort button

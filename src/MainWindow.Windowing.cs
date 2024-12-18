@@ -7,6 +7,7 @@ using WinRT;
 using System.Runtime.InteropServices;
 using Windows.UI.Notifications;
 using Windows.Data.Xml.Dom;
+using System;
 
 namespace ViewAppxPackage
 {
@@ -139,9 +140,21 @@ namespace ViewAppxPackage
         /// </summary>
         public void SetBadgeNumber(int count)
         {
-            // Get the blank badge XML payload for a badge number
-            XmlDocument badgeXml =
-                BadgeUpdateManager.GetTemplateContent(BadgeTemplateType.BadgeNumber);
+            XmlDocument badgeXml;
+            try
+            {
+                // Seeing in telemetry that this is failing sometimes,
+                // but haven't gotten enough data to figure out why
+
+                // Get the blank badge XML payload for a badge number
+                badgeXml = BadgeUpdateManager.GetTemplateContent(BadgeTemplateType.BadgeNumber);
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Append($"Exception on BadgeUpdateManager.GetTempalteContent: {ex.Message}");
+                return;
+            }
+
 
             // Set the value of the badge in the XML to the count of new packages
             XmlElement badgeElement = badgeXml.SelectSingleNode("/badge") as XmlElement;
