@@ -39,8 +39,12 @@
                     <AppBarButton Icon="Help" Label="Help" Click="ShowHelpClick"/>
                     <AppBarSeparator/>
 
-                    <AppBarButton Click="LaunchPackage" Icon="Play" Label="Launch"
-                          IsEnabled="{x:Bind CanLaunch(IsMultiSelect)}"/>
+                    <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
+                    <AppBarButton x:Name="_launchButton" 
+                                  Icon="Play" Label="Launch2"
+                                  IsEnabled="{x:Bind CanLaunch(IsMultiSelect)}"
+                                  Click="LaunchPackage2">
+                    </AppBarButton>
 
                     <AppBarButton Click="{x:Bind OpenStore}" Icon="Shop" 
                           Label="Open in Store" 
@@ -76,7 +80,7 @@
                         <AppBarButton.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
                         </AppBarButton.Icon>
-                        
+
                         <ToolTipService.ToolTip>
                             <local:ComplexToolTip
                                 Title="Run PowerShell as package"
@@ -117,7 +121,7 @@
                           BorderBrush="{StaticResource SystemAccentColor}"
                           BorderThickness="0,0,0,1"
                           Padding="0,0,0,4">
-                        
+
                         <!-- bugbug: had to eyeball the margin to get things to line up OK -->
                         <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" FontStyle="Italic">
                             (<Run Text="{x:Bind PackageCount}" 

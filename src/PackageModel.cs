@@ -687,6 +687,7 @@ namespace ViewAppxPackage
                 XNamespace foundation = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
                 var applications = doc.Descendants(foundation + "Application");
                 sb = null;
+                _aumidsList = new();
                 foreach (var application in applications)
                 {
                     var attribute = application.Attribute("Id");
@@ -703,7 +704,9 @@ namespace ViewAppxPackage
                             sb.AppendLine(" ");
                         }
 
-                        sb.Append($"{FamilyName}!{attribute.Value}");
+                        var aumid = $"{FamilyName}!{attribute.Value}";
+                        _aumidsList.Add(aumid);
+                        sb.Append(aumid);
                     }
 
 
@@ -723,12 +726,14 @@ namespace ViewAppxPackage
 
                 _aumids = sb == null ? "" : sb.ToString();
 
+
+
                 // Capabilities
                 //
                 // bugbug: The <Capability> element in <Capabilities> is in at least two different xmlns
                 // So quick fix here is to just find unqualified Capability elements
                 // Better would be to figure out the actual namespaces (or at least restrict to <Capabilities> elements)
-                var capabilities = doc.Descendants().Where(e => e.Name.LocalName == "Capability");
+                var capabilities = doc.Descendants().Where(e => e.Name.LocalName == "Capability").OrderBy(e => e.Name);
                 sb = null;
                 foreach (var capability in capabilities)
                 {
@@ -778,7 +783,7 @@ namespace ViewAppxPackage
 
 
         /// <summary>
-        /// App User Model ID
+        /// App User Model ID (as a string)
         /// </summary>
         public string Aumids
         {
@@ -790,42 +795,24 @@ namespace ViewAppxPackage
 
                 EnsureManifestProperties();
 
-                //if (_aumid == null)
-                //{
-                //    _aumid = "";
-
-                //    try
-                //    {
-                //        var entries = _package.GetAppListEntries();
-                //        if (entries.Count > 0)
-                //        {
-                //            StringBuilder sb = null;
-                //            foreach (var entry in entries)
-                //            {
-                //                if (sb == null)
-                //                {
-                //                    sb = new StringBuilder();
-                //                }
-                //                else
-                //                {
-                //                    sb.Append(", ");
-                //                }
-
-                //                sb.Append(entry.AppUserModelId);
-                //            }
-                //            _aumid = sb.ToString();
-                //        }
-                //    }
-                //    catch (Exception)
-                //    {
-                //        _aumid = "";
-                //    }
-                //}
-
                 return _aumids;
             }
         }
         string _aumids = null;
+
+        /// <summary>
+        /// App User Model ID (as a list of strings)
+        /// </summary>
+        public IReadOnlyList<string> AumidsList
+        {
+            get
+            {
+                EnsureManifestProperties();
+                return _aumidsList;
+            }
+        }
+        List<string> _aumidsList = null;
+
 
         /// <summary>
         /// Capabilities from the appx manifest

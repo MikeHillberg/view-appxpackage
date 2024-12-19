@@ -855,23 +855,10 @@ namespace ViewAppxPackage
             }
         }
 
-        /// <summary>
-        /// Launch an app from its package
-        /// </summary>
-        private void LaunchPackage(object sender, RoutedEventArgs e)
+        private static void LaunchPackage(string aumid)
         {
-            var package = _lv.SelectedItem as PackageModel;
-            if (package == null)
-            {
-                Debug.Assert(false);
-                return;
-            }
-
-            // bugbug: handle the case of a package with multiple Applications (multiple Aumids)
-            var firstAumid = package.Aumids.Split(' ').FirstOrDefault().Trim();
-
             ProcessStartInfo si = new();
-            si.FileName = $@"shell:AppsFolder\{firstAumid}";
+            si.FileName = $@"shell:AppsFolder\{aumid}";
             si.UseShellExecute = true;
 
             try
@@ -882,6 +869,58 @@ namespace ViewAppxPackage
             {
             }
         }
+
+        /// <summary>
+        /// Launch an app from its package
+        /// </summary>
+        private void LaunchPackage2(object sender, RoutedEventArgs e)
+        {
+            var package = _lv.SelectedItem as PackageModel;
+            if (package == null)
+            {
+                Debug.Assert(false);
+                return;
+            }
+
+            var aumidList = package.AumidsList;
+
+            // No aumids
+            if (aumidList.Count == 0)
+            {
+                return;
+            }
+
+            // One aumid means launch it
+            else if (aumidList.Count == 1)
+            {
+                LaunchPackage(aumidList[0]);
+                return;
+            }
+
+            // More than one aumid means show a menu
+            else
+            {
+                MenuFlyout flyout = new();
+                foreach (var aumid in aumidList)
+                {
+                    // E.g. Microsoft.Winget.Source_8wekyb3d8bbwe!SourceData
+                    var splitAumid = aumid.Split('!');
+                    if (splitAumid.Count() != 2)
+                    {
+                        DebugLog.Append($"Invalid Aumid: {aumid}");
+                        continue;
+                    }
+
+                    MenuFlyoutItem item = new();
+                    item.Text = splitAumid[1];
+                    item.Click += (s, e) => LaunchPackage(aumid);
+                    flyout.Items.Add(item);
+                }
+                _launchButton.Flyout = flyout;
+                flyout.ShowAt(_launchButton);
+            }
+        }
+
 
         internal void SelectPackage(PackageModel package)
         {
