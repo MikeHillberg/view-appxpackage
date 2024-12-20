@@ -41,7 +41,7 @@
 
                     <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
                     <AppBarButton x:Name="_launchButton" 
-                                  Icon="Play" Label="Launch2"
+                                  Icon="Play" Label="Launch"
                                   IsEnabled="{x:Bind CanLaunch(IsMultiSelect)}"
                                   Click="LaunchPackage2">
                     </AppBarButton>

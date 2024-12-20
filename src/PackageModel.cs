@@ -134,6 +134,8 @@ namespace ViewAppxPackage
                     try
                     {
                         // This throws a lot
+                        // Bugbug: is there a way to avoid it when it will throw?
+                        // Is FileNotFoundException expected for a framework package?
                         var applicationData = ApplicationDataManager.CreateForPackageFamily(this.FamilyName);
 
                         // There's no API (that I can find) for the package's directory of LocalFolder, Settings, etc.
@@ -185,7 +187,7 @@ namespace ViewAppxPackage
                 _size = $"{Utils.FormatByteSize(totalSize)} ({Utils.FormatByteSize(installSize)} install and {Utils.FormatByteSize(dataSize)} data)";
             });
 
-            if(raiseChangeNotification)
+            if (raiseChangeNotification)
             {
                 RaisePropertyChanged(nameof(Size));
             }
@@ -733,24 +735,30 @@ namespace ViewAppxPackage
                 // bugbug: The <Capability> element in <Capabilities> is in at least two different xmlns
                 // So quick fix here is to just find unqualified Capability elements
                 // Better would be to figure out the actual namespaces (or at least restrict to <Capabilities> elements)
-                var capabilities = doc.Descendants().Where(e => e.Name.LocalName == "Capability").OrderBy(e => e.Name);
-                sb = null;
-                foreach (var capability in capabilities)
-                {
-                    var attribute = capability.Attribute("Name");
-                    if (attribute != null)
-                    {
-                        if (sb == null)
-                        {
-                            sb = new StringBuilder();
-                        }
-                        else
-                        {
-                            sb.Append(", ");
-                        }
+                // bugbug: Microsoft.Windows.DevHome_0.1901.687.0_x64__8wekyb3d8bbwe has a <Capabilities><Capability> too
 
-                        sb.Append($"{attribute.Value}");
+                var nameAttributes = from descendantElement in doc.Descendants()
+                                     where descendantElement.Name.LocalName == "Capability"
+                                     let nameAttribute = descendantElement.Attribute("Name")
+                                     where nameAttribute != null
+                                     orderby nameAttribute.Value
+                                     select nameAttribute;
+                //var nameAttributes = capabilityElements.Where(element => element.Attribute("Name") != null)
+                //                                       .Select(element => element.Attribute("Name")).ToList();
+
+                sb = null;
+                foreach (var nameAttribute in nameAttributes)
+                {
+                    if (sb == null)
+                    {
+                        sb = new StringBuilder();
                     }
+                    else
+                    {
+                        sb.Append(", ");
+                    }
+
+                    sb.Append($"{nameAttribute.Value}");
                 }
 
                 _capabilities = sb == null ? "" : sb.ToString();
