@@ -9,25 +9,61 @@
     x:DefaultBindMode="OneWay"
     mc:Ignorable="d">
 
-    <Grid local:CollapseIfEmpty.IsEnabledFor="{x:Bind Value}" Margin="0,5,0,0">
+    <Grid Margin="0,5,0,0"
+          Visibility="{x:Bind RootVisibility(Value,LinkValue)}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="_label" 
+        <!-- The label and for links a button to copy to the clipboard -->
+        <Grid ColumnDefinitions="*,Auto"
+                   SizeChanged="LabelSizeChanged"
+                   MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}" >
+            <TextBlock x:Name="_label" 
                    Style="{StaticResource BaseTextBlockStyle}"
                    FontWeight="Bold"
                    Text="{x:Bind Label}" 
-                   MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}"
-                   SizeChanged="LabelSizeChanged"
                    IsTextSelectionEnabled="True"/>
+
+            <!-- This button is visible if the LinkValue is set -->
+            <HyperlinkButton x:Name="_copyLinkButton"
+                             FontSize="8"
+                             VerticalAlignment="Center" Margin="8,0,0,0" Padding="0"
+                             HorizontalAlignment="Right"
+                             local:CollapseIfEmpty.IsEnabledFor="{x:Bind LinkValue}"
+                             Click="CopyLinkValue">
+                
+                <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE8C8;" FontSize="13" />
+
+                <!-- Flyout to briefly show "Copied" after copying to the clipboard -->
+                <Flyout.AttachedFlyout>
+                    <Flyout x:Name="_copyLinkFlyout">
+                        <Border Padding="5">
+                            <TextBlock>Copied to clipboard</TextBlock>
+                        </Border>
+                    </Flyout>
+                </Flyout.AttachedFlyout>
+            </HyperlinkButton>
+        </Grid>
+
+        <!-- This shows if LinkValue property is set -->
         <TextBlock Grid.Column="1" 
+                   local:CollapseIfEmpty.IsEnabledFor="{x:Bind LinkValue}"
+                   Style="{StaticResource BaseTextBlockStyle}"
+                   TextWrapping="Wrap"
+                   Margin="10,0,0,0"
+                   IsTextSelectionEnabled="True">
+                <Hyperlink Click="LinkClick"><Run Text="{x:Bind LinkValue}"/></Hyperlink>
+        </TextBlock>
+
+        <!-- This shows if the LinkValue property is set -->
+        <TextBlock Grid.Column="1" 
+                   local:CollapseIfEmpty.IsEnabled="True"
                    Style="{StaticResource BaseTextBlockStyle}"
                    Text="{x:Bind Value}" 
                    TextWrapping="Wrap"
                    Margin="10,0,0,0"
                    IsTextSelectionEnabled="True"/>
-
     </Grid>
 </UserControl>

@@ -152,19 +152,13 @@ namespace ViewAppxPackage
                     return null;
                 }
 
-                var values = applicationData.LocalSettings.Values;
 
-                var settings = new List<PackageSetting>();
-                foreach (var value in values)
-                {
-                    settings.Add(new PackageSetting
-                    {
-                        Name = value.Key,
-                        Value = value.Value.ToString()
-                    });
-                }
+                var settings = from value in applicationData.LocalSettings.Values
+                               orderby value.Key
+                               select new PackageSetting() { Name = value.Key, Value = value.Value.ToString() };
 
-                return settings;
+                return settings.ToList();
+
             }
             catch (Exception e)
             {

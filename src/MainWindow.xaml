@@ -7,7 +7,12 @@
     x:DefaultBindMode="OneWay" >
 
     <!-- Disable the whole window if an overlay is showing -->
-    <UserControl IsEnabled="{x:Bind local:Utils.NotAny(_progressOverlay.IsOpen, IsLoading)}">
+    <UserControl  
+                 IsEnabled="{x:Bind local:Utils.NotAny(_progressOverlay.IsOpen, IsLoading)}">
+        <UserControl.Resources>
+            <!-- This is a hack to get a property from the code behind into a Binding -->
+            <local:XClassMapper x:Name="_xClassMapper"/>
+        </UserControl.Resources>
 
         <Grid ColumnDefinitions="*" RowDefinitions="*"
               KeyboardAcceleratorPlacementMode="Hidden" >
@@ -37,8 +42,14 @@
                     Margin="0,10,0,10">
 
                     <AppBarButton Icon="Help" Label="Help" Click="ShowHelpClick"/>
-                    <AppBarSeparator/>
 
+                    <AppBarToggleButton Label="All users"
+                                    IsChecked="{x:Bind IsAllUsers, Mode=TwoWay}"
+                                    Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" 
+                                    ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. This button only appears when the app is run elevated."/>
+
+                    <AppBarSeparator/>
+                    
                     <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
                     <AppBarButton x:Name="_launchButton" 
                                   Icon="Play" Label="Launch"
@@ -88,11 +99,6 @@
                         </ToolTipService.ToolTip>
                     </AppBarButton>
 
-                    <AppBarToggleButton Label="All users"
-                                    IsChecked="{x:Bind IsAllUsers, Mode=TwoWay}"
-                                    Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" 
-                                    ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. This button only appears when the app is run elevated."/>
-
                     <!--<AppBarButton Label="Test" Click="AppBarButton_Click"/>-->
 
                 </CommandBar>
@@ -100,7 +106,10 @@
                 <!-- Search and Filter text boxes -->
                 <StackPanel Grid.Row="1">
 
-                    <TextBox x:Name="_searchBox"
+                    <!-- Search and Find text boxes-->
+                    <!-- Limited to that they don't get wider than the ListView -->
+                    <StackPanel MaxWidth="{x:Bind MaxListWidth, Mode=OneWay}">
+                        <TextBox x:Name="_searchBox"
                              Text="{x:Bind SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              IsSpellCheckEnabled="False"
                              IsEnabled="{x:Bind IsSearchEnabled}"
@@ -108,12 +117,13 @@
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind SearchPlaceholderText(IsSearchEnabled)}" />
 
-                    <TextBox x:Name="_filterBox"
+                        <TextBox x:Name="_filterBox"
                              Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              IsSpellCheckEnabled="False"
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind FilterPlaceholderText}" />
-
+                    </StackPanel>
+                    
                     <!-- Message showing the package count, next to a sort button -->
                     <Grid x:Name="_workaroundGrid"
                           ColumnDefinitions="*,Auto" 
@@ -150,18 +160,46 @@
                     <TextBlock Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}" >No packages found</TextBlock>
 
                     <!-- OneWay binding on SelectedItem rather than TwoWay, with code instead in SelectionChanged -->
+                    <!-- MinWidth is set to be the widest ActualWidth, done by tracking SizeChanged,
+                         so that the width doesn't oscillate as you scroll -->
                     <ListView x:Name="_lv" 
+                          SizeChanged="List2SizeChanged"
                           Background="Transparent"
                           ItemsSource="{x:Bind Packages, Mode=OneWay}"
                           SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"
                           SelectionChanged="SelectionChanged"
-                          SizeChanged="ListSizeChanged"
                           SelectionMode="Extended"
-                          MinWidth="{x:Bind MinListWidth, Mode=OneWay}">
+                          MinWidth="{x:Bind MaxListWidth, Mode=OneWay}">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:PackageModel">
-                                <TextBlock Text="{x:Bind Id.Name}"
+                                <StackPanel Margin="0,6,0,6" Padding="0,2,0,2">
+                                    
+                                    <!-- Row with package name -->
+                                    <!-- The max ActualWidth of this TextBlock becomes the MaxWidth
+                                         of the row below. This is done using SizeChanged to track ActualWidth -->
+                                    <TextBlock Text="{x:Bind Id.Name}"
+                                           Style="{ThemeResource BodyTextBlockStyle}"
+                                           SizeChanged="NameSizeChanged"
                                            FontWeight="{x:Bind BoldIfNew}"/>
+
+                                    <!-- Row with display name and install date -->
+                                    <!-- Width is constrained to be no wider than the above unconstrained TextBlock -->
+                                    <!-- x:Bind in a DataTemplate still has a limitation that it can't reference the code behind.
+                                         So use a {Binding} to a Static Resource to get the MaxNameWidth property -->
+                                    <Grid ColumnDefinitions="*,Auto" Opacity="0.6"
+                                          Margin="0,3,0,0"
+                                          MaxWidth="{Binding XClass.MaxNameWidth, Source={StaticResource _xClassMapper}, Mode=OneWay}" >
+
+                                        <TextBlock Text="{x:Bind DisplayName}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1"
+                                                   Margin="5,0,0,0"
+                                                   Text="{x:Bind local:Utils.FormatDateOrTime(InstalledDate)}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" />
+                                    </Grid>
+                                </StackPanel>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>

@@ -39,6 +39,7 @@ namespace ViewAppxPackage
             StartLoadPackages();
 
             this.InitializeComponent();
+            _xClassMapper.XClass = this;
 
             RootElement = _root;
             _root.Loaded += OnLoaded;
@@ -627,14 +628,17 @@ namespace ViewAppxPackage
         }
 
         /// <summary>
-        /// MinWidth for the list column, based on calculated width of the widest item
+        /// The max ActualWidth of the package name TextBlock in the ListView
         /// </summary>
-        double MinListWidth
+        public double MaxNameWidth
         {
-            get => _minListWidth;
+            get => _maxNameWidth;
             set
             {
-                _minListWidth = value;
+                _maxNameWidth = value;
+
+                Debug.WriteLine($"ControllingWidth = {value}");
+
                 RaisePropertyChanged();
 
                 // bugbug: This Grid has a TextBox next to a DropDownButton
@@ -646,7 +650,7 @@ namespace ViewAppxPackage
                 });
             }
         }
-        double _minListWidth = 200;
+        double _maxNameWidth = 200;
 
         /// <summary>
         /// Remove an appx package
@@ -845,13 +849,12 @@ namespace ViewAppxPackage
         }
 
 
-        private void ListSizeChanged(object sender, SizeChangedEventArgs e)
+        private void NameSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // Keep track of the max width of the List we've seen.
-            // This is then set as the MinWidth so that the list doesn't wiggle
-            if (_lv.ActualWidth > MinListWidth)
+            var fe = sender as FrameworkElement;
+            if (fe.ActualWidth > MaxNameWidth)
             {
-                MinListWidth = _lv.ActualWidth;
+                MaxNameWidth = fe.ActualWidth;
             }
         }
 
@@ -1339,6 +1342,44 @@ namespace ViewAppxPackage
             get => SortByDate ? "Date" : "Name";
         }
 
+        /// <summary>
+        /// Listen to SizeChanged to track the max ActualWidth in the MaxListWidth property
+        /// </summary>
+        private void List2SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var fe = sender as FrameworkElement;
+            if(fe.ActualWidth > MaxListWidth)
+            {
+                MaxListWidth = fe.ActualWidth;
+            }
+        }
+
+
+        /// <summary>
+        /// Max ActualWidth of the ListView
+        /// </summary>
+        public double MaxListWidth
+        {
+            get => _maxListWidth;
+            set
+            {
+                _maxListWidth = value;
+                RaisePropertyChanged();
+            }
+        }
+        double _maxListWidth = 0;
+
+
     }
 
+    /// <summary>
+    /// Hack to help get the code behind available to a DataTemplate
+    /// This is set in a ResourceDictionary, making it accessible to {Binding}
+    /// (x:Bind in a DataTemplate doesn't have a way to reach out of the template unfortunately)
+    /// </summary>
+    public class XClassMapper
+    {
+        public MainWindow XClass { get; set; }
+
+    }
 }

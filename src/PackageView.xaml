@@ -62,13 +62,13 @@
                         <local:PackageViewRow Label='Author' Value='{x:Bind Package.Author}'/>
                         <local:PackageViewRow Label="Capabilities" Value="{x:Bind Package.Capabilities}"/>
                         <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Id.Architecture}"/>
-                        <local:PackageViewRow Label="Installed Path" Value="{x:Bind Package.InstalledPath}"/>
-                        <local:PackageViewRow Label="Application Data" Value="{x:Bind Package.ApplicationDataPath}"/>
-                        <local:PackageViewRow Label='EffectiveExternalPath' Value='{x:Bind Package.EffectiveExternalPath}'/>
-                        <local:PackageViewRow Label='EffectivePath' Value='{x:Bind Package.EffectivePath}'/>
-                        <local:PackageViewRow Label='MachineExternalPath' Value='{x:Bind Package.MachineExternalPath}'/>
-                        <local:PackageViewRow Label='MutablePath' Value='{x:Bind Package.MutablePath}'/>
-                        <local:PackageViewRow Label='UserExternalPath' Value='{x:Bind Package.UserExternalPath}'/>
+                        <local:PackageViewRow Label="Installed Path" LinkValue="{x:Bind Package.InstalledPath}"/>
+                        <local:PackageViewRow Label="Application Data" LinkValue="{x:Bind Package.ApplicationDataPath}"/>
+                        <local:PackageViewRow Label='EffectiveExternalPath' LinkValue='{x:Bind Package.EffectiveExternalPath}'/>
+                        <local:PackageViewRow Label='EffectivePath' LinkValue='{x:Bind Package.EffectivePath}'/>
+                        <local:PackageViewRow Label='MachineExternalPath' LinkValue='{x:Bind Package.MachineExternalPath}'/>
+                        <local:PackageViewRow Label='MutablePath' LinkValue='{x:Bind Package.MutablePath}'/>
+                        <local:PackageViewRow Label='UserExternalPath' LinkValue='{x:Bind Package.UserExternalPath}'/>
                         <local:PackageViewRow Label='Publisher' Value='{x:Bind Package.Publisher}'/>
                         <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
                         <local:PackageViewRow Label="User Information" Value="{x:Bind Package.PackageUserInformation}"/>

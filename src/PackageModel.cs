@@ -743,8 +743,6 @@ namespace ViewAppxPackage
                                      where nameAttribute != null
                                      orderby nameAttribute.Value
                                      select nameAttribute;
-                //var nameAttributes = capabilityElements.Where(element => element.Attribute("Name") != null)
-                //                                       .Select(element => element.Attribute("Name")).ToList();
 
                 sb = null;
                 foreach (var nameAttribute in nameAttributes)

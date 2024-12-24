@@ -19,6 +19,11 @@ namespace ViewAppxPackage
             return value ? Visibility.Collapsed : Visibility.Visible;
         }
 
+        internal static bool And(bool val1, bool val2)
+        {
+            return val1 && val2;
+        }
+
         internal static bool Not(bool value)
         {
             return !value;
@@ -54,6 +59,22 @@ namespace ViewAppxPackage
             else
             {
                 return date.ToString("g"); // 6/15/2009 1:45 PM
+            }
+        }
+
+
+        public static string FormatDateOrTime(DateTimeOffset date)
+        {
+            TimeSpan timeDifference = DateTime.Now - date;
+
+            //if (timeDifference.TotalHours < 24)
+            if (date.Date == DateTime.Now.Date)
+            {
+                return date.ToString("t"); // Just the time
+            }
+            else
+            {
+                return date.Date.ToShortDateString();
             }
         }
 
