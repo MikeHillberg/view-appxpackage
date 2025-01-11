@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.ApplicationModel;
@@ -255,12 +256,14 @@ namespace ViewAppxPackage
         /// Find packages that match a regex string
         /// </summary>
         public static List<PackageModel> FindPackages(
-            string searchRegex,
+            string search,
             IEnumerable<PackageModel> packages)
         {
             EnsurePackageModelPropertyInfos();
 
             List<PackageModel> finds = new();
+            Regex searchRegex = new Regex(search.Trim(),
+                RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
             foreach (var package in packages)
             {
@@ -278,7 +281,8 @@ namespace ViewAppxPackage
                     // For string property types, we check the property value
                     if (property.PropertyType == typeof(string))
                     {
-                        if (value.ToString().Contains(searchRegex, StringComparison.OrdinalIgnoreCase))
+                        //if (value.ToString().Contains(search, StringComparison.OrdinalIgnoreCase))
+                        if (searchRegex.IsMatch(value.ToString()))
                         {
                             finds.Add(package);
                             break;
@@ -288,7 +292,8 @@ namespace ViewAppxPackage
                     // For bool property types, if the property is true, we check the _name_ of the property
                     else if (property.PropertyType == typeof(bool))
                     {
-                        if ((bool)value && property.Name.Contains(searchRegex, StringComparison.OrdinalIgnoreCase))
+                        // if ((bool)value && property.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+                        if ((bool)value && searchRegex.IsMatch(property.Name))
                         {
                             finds.Add(package);
                             break;
@@ -429,8 +434,9 @@ namespace ViewAppxPackage
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    LogException(e);
                     Debug.Assert(false);
                     return default(string);
                 }
@@ -441,6 +447,11 @@ namespace ViewAppxPackage
         string _status;
         static Type _statusType = typeof(PackageStatus);
         static PropertyInfo[] _statusProperties = _statusType.GetProperties();
+
+        void LogException(Exception e, [CallerMemberName] string caller = null)
+        {
+            DebugLog.Append($"Exception in {caller} : {e}");
+        }
 
 
         /// <summary>
@@ -476,8 +487,9 @@ namespace ViewAppxPackage
                             copy = new(_package.Dependencies);
                             break;
                         }
-                        catch (InvalidOperationException)
+                        catch (InvalidOperationException e)
                         {
+                            LogException(e);
                         }
                     }
 
@@ -492,8 +504,9 @@ namespace ViewAppxPackage
                                          select PackageModel.FromWamPackage(p))
                                          .ToList();
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
+                        LogException(e);
                         _dependencies = new();
                     }
                 }
@@ -539,8 +552,9 @@ namespace ViewAppxPackage
                                         var account = (NTAccount)sid.Translate(typeof(NTAccount));
                                         sb.Append($"{account.Value}");
                                     }
-                                    catch (IdentityNotMappedException)
+                                    catch (IdentityNotMappedException e)
                                     {
+                                        LogException(e);
                                         sb.Append($"{user.UserSecurityId}");
                                     }
 
@@ -551,8 +565,9 @@ namespace ViewAppxPackage
 
                             _packageUserInformation = sb.ToString();
                         }
-                        catch (Exception)
+                        catch (Exception e)
                         {
+                            LogException(e);
                             Debug.Assert(false);
                             return default(string);
                         }
@@ -630,8 +645,9 @@ namespace ViewAppxPackage
                     _appxManifestContent = File.ReadAllText(path);
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                LogException(e);
                 return;
             }
 
@@ -782,8 +798,9 @@ namespace ViewAppxPackage
                 _fileTypeAssociations = sb == null ? "" : sb.ToString();
 
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                LogException(e);
             }
         }
 

@@ -14,13 +14,22 @@
             MSIX event log. Most recent event first. Select text to copy to clipboard
         </TextBlock>
 
-        <ScrollViewer Grid.Row="1" >
+        <ScrollViewer Grid.Row="1">
+            <RichTextBlock x:Name="_rtb"
+                       FontFamily="Courier New"
+                       FontSize="12"
+                         SelectionChanged="DocumentSelectionChanged"
+                       TextWrapping="Wrap" >
+            </RichTextBlock>
+        </ScrollViewer>
+
+        <!--<ScrollViewer Grid.Row="1" >
             <TextBlock Text="{x:Bind Text}"
                    FontFamily="Courier New"
                    FontSize="12"
                    TextWrapping="Wrap"                 
                    IsTextSelectionEnabled="True"/>
-        </ScrollViewer>
+        </ScrollViewer>-->
     </Grid>
 
 </Window>

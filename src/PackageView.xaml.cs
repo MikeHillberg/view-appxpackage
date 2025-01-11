@@ -136,35 +136,66 @@ namespace ViewAppxPackage
             // AplicationData.LocalSettings.Value has a tendency to throw out-of-range exceptions
             try
             {
-                ApplicationData applicationData = null;
-                try
-                {
-                    applicationData = ApplicationDataManager.CreateForPackageFamily(package.Id.FamilyName);
-                }
-                catch (Exception e)
-                {
-                    DebugLog.Append($"ApplicationDataManager.CreateForPackageFamily({package.Id.FamilyName}): {e.Message}");
-                }
-
+                ApplicationData applicationData = GetApplicationDataFor(package);
                 if (applicationData == null)
                 {
-                    DebugLog.Append($"Couldn't get ApplicationDatamnager for {package.Id.FamilyName}");
                     return null;
                 }
-
 
                 var settings = from value in applicationData.LocalSettings.Values
                                orderby value.Key
                                select new PackageSetting() { Name = value.Key, Value = value.Value.ToString() };
 
                 return settings.ToList();
-
             }
             catch (Exception e)
             {
                 DebugLog.Append($"ApplicationData exception in ReadSettings: {e.Message}");
                 return null;
             }
+        }
+
+        static ApplicationData GetApplicationDataFor(PackageModel package)
+        {
+            ApplicationData applicationData = null;
+            try
+            {
+                applicationData = ApplicationDataManager.CreateForPackageFamily(package.Id.FamilyName);
+            }
+            catch (Exception e)
+            {
+                DebugLog.Append($"ApplicationDataManager.CreateForPackageFamily({package.Id.FamilyName}): {e.Message}");
+            }
+
+            return applicationData;
+        }
+
+        private async void DeleteSetting(object sender, RoutedEventArgs e)
+        {
+            ApplicationData applicationData = GetApplicationDataFor(Package);
+            if (applicationData == null)
+            {
+                return;
+            }
+
+            var button = sender as Button;
+            var name = button.Tag as string;
+
+            var result = await MyMessageBox.Show(
+                                name, 
+                                title: "Remove?",
+                                isOKEnabled: true,
+                                closeButtonText: "Cancel");
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            var settingsValues = applicationData.LocalSettings.Values;
+            settingsValues.Remove(name);
+
+            // Re-read the settings, which should now not include {name}
+            ReadSettings();
         }
     }
 

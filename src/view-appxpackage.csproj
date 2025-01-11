@@ -24,6 +24,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Remove="AppxLogViewer.xaml" />
+    <None Remove="AppxLogWindow.xaml" />
     <None Remove="ComplexToolTip.xaml" />
     <None Remove="DebugLogViewer.xaml" />
     <None Remove="Help.xaml" />
@@ -63,6 +64,9 @@
   </ItemGroup>
   <ItemGroup>
     <Page Update="AppxLogViewer.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="AppxLogWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <None Update="Assets\Help.md">

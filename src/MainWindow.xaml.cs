@@ -87,7 +87,7 @@ namespace ViewAppxPackage
             {
                 // Clear badge when switching to or away from the window
                 SetBadgeNumber(0);
-                DebugLog.Append($"Activated: {e.WindowActivationState}");
+                // DebugLog.Append($"Activated: {e.WindowActivationState}");
             };
         }
 
