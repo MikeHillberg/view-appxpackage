@@ -9,12 +9,16 @@
     mc:Ignorable="d"
     Title="MSIX event Log">
 
-    <Grid RowDefinitions="Auto,*"  Padding="10">
-        <TextBlock Margin="0,0,0,20">
-            MSIX event log. Most recent event first. Select text to copy to clipboard
+    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Padding="10">
+        <Button Click="Reload" ToolTipService.ToolTip="Refresh">
+            <SymbolIcon Symbol="Refresh"/>
+        </Button>
+        
+        <TextBlock Grid.Row="1" FontStyle="Italic" TextWrapping="Wrap">
+            Most recent event first. Select text to copy to clipboard
         </TextBlock>
 
-        <ScrollViewer Grid.Row="1">
+        <ScrollViewer Grid.Row="2">
             <RichTextBlock x:Name="_rtb"
                        FontFamily="Courier New"
                        FontSize="12"

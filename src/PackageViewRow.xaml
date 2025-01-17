@@ -17,19 +17,21 @@
         </Grid.ColumnDefinitions>
 
         <!-- The label and for links a button to copy to the clipboard -->
-        <Grid ColumnDefinitions="*,Auto"
-                   SizeChanged="LabelSizeChanged"
-                   MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}" >
+        <Grid x:Name="_labelGrid"
+              ColumnDefinitions="*,Auto"
+              SizeChanged="LabelSizeChanged"
+              MinWidth="{x:Bind local:PackageView.Instance.MinLabelWidth, Mode=OneWay}" >
             <TextBlock x:Name="_label" 
+                   Text="{x:Bind Label}" 
                    Style="{StaticResource BaseTextBlockStyle}"
                    FontWeight="Bold"
-                   Text="{x:Bind Label}" 
                    IsTextSelectionEnabled="True"/>
 
             <!-- This button is visible if the LinkValue is set -->
             <HyperlinkButton x:Name="_copyLinkButton"
+                             Grid.Column="1"
                              FontSize="8"
-                             VerticalAlignment="Center" Margin="8,0,0,0" Padding="0"
+                             VerticalAlignment="Top" Margin="8,2,0,0" Padding="0"
                              HorizontalAlignment="Right"
                              local:CollapseIfEmpty.IsEnabledFor="{x:Bind LinkValue}"
                              Click="CopyLinkValue">

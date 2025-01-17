@@ -62,9 +62,9 @@ namespace ViewAppxPackage
         /// </summary>
         private void LabelSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if(_label.ActualWidth > PackageView.Instance.MinLabelWidth)
+            if(_labelGrid.ActualWidth > PackageView.Instance.MinLabelWidth)
             {
-                PackageView.Instance.MinLabelWidth = _label.ActualWidth;
+                PackageView.Instance.MinLabelWidth = _labelGrid.ActualWidth;
             }
         }
 

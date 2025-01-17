@@ -127,7 +127,8 @@
                                 <StackPanel Margin="0,8,0,8" Spacing="10" Orientation="Horizontal">
                                     <!-- Delete button to delete the setting -->
                                     <Button Tag="{x:Bind Name}" Click="DeleteSetting"
-                                            VerticalAlignment="Center"
+                                            VerticalAlignment="Top"
+                                            Margin="0,2,0,0"
                                             Padding="2">
                                         <!--<SymbolIcon Symbol="Delete"/>-->
                                         <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;" FontSize="12" />

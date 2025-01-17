@@ -43,7 +43,7 @@ namespace ViewAppxPackage
         static public void Show()
         {
             var window = new AppxLogViewer();
-            window.Initialize();
+            window.ReadLog();
             window.Activate();
         }
 
@@ -76,7 +76,7 @@ namespace ViewAppxPackage
             //_rtb.IsReadOnly = true;
         }
 
-        void Initialize()
+        void ReadLog()
         {
             _packagingEvents = new("Microsoft-Windows-AppxPackaging/Operational");
             _deploymentEvents = new("Microsoft-Windows-AppXDeploymentServer/Operational");
@@ -202,6 +202,11 @@ namespace ViewAppxPackage
             ////_rtb.Select(start, end);
             ////Debug.WriteLine($"Selected: '{_rtb.SelectedText}'");
             ////_rtb.Select(saveStartTextPointer, saveEndTextPointer);
+        }
+
+        private void Reload(object sender, RoutedEventArgs e)
+        {
+            ReadLog();
         }
     }
 }

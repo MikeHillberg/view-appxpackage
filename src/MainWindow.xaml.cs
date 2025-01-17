@@ -301,6 +301,7 @@ namespace ViewAppxPackage
             this.DispatcherQueue.TryEnqueue(() =>
             {
                 bool doBadgeUpdate = false;
+
                 var package = PackageModel.FromWamPackage(wamPackage);
 
                 if (updateKind == PackageUpdateNotification.Install)
@@ -338,11 +339,16 @@ namespace ViewAppxPackage
                         var package2 = PackageModel.FromWamPackage(wamPackage2);
                         RemoveFromCache(package2);
 
-                        // Get a new model wrapper
-                        package = PackageModel.FromWamPackage(wamPackage);
 
                         _originalpackages.Add(package);
                         _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+
+                        // If the old package was sselected, select the new one
+                        if (CurrentItem.FullName == package2.FullName)
+                        {
+                            CurrentItem = package;
+                        }
+
                     }
                 }
                 else if (updateKind == PackageUpdateNotification.Status)
@@ -365,7 +371,6 @@ namespace ViewAppxPackage
                 }
             });
         }
-
 
         void RemoveFromCache(PackageModel package)
         {
@@ -1348,7 +1353,7 @@ namespace ViewAppxPackage
         private void List2SizeChanged(object sender, SizeChangedEventArgs e)
         {
             var fe = sender as FrameworkElement;
-            if(fe.ActualWidth > MaxListWidth)
+            if (fe.ActualWidth > MaxListWidth)
             {
                 MaxListWidth = fe.ActualWidth;
             }

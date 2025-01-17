@@ -73,6 +73,9 @@ namespace ViewAppxPackage
         /// </summary>
         public static PackageModel FromWamPackage(Package package)
         {
+            // Bug workaround
+            package = FixVersionBug(package);
+
             var id = GetCacheId(package);
             if (_modelCache.TryGetValue(id, out var model))
             {
@@ -83,6 +86,51 @@ namespace ViewAppxPackage
             _modelCache.Add(id, model);
             return model;
         }
+
+        /// <summary>
+        /// Fixes a bug in the Windows API where the Version is all zeros.
+        /// </summary>
+        private static Package FixVersionBug(Package wamPackage)
+        {
+            // bugbug: open a bug
+            // When we get package in a notification, the Version is all zeros.
+            // There might be other problems too, but that's the one I've noticed.
+            // Re-reading the package from the system seems to fix it.
+
+            // Not sure if there are any null checks necessary, but being safe
+            var version = wamPackage?.Id?.Version;
+            if (version != null && version.HasValue)
+            {
+                var v = version.Value;
+                if (v.Major + v.Minor + v.Revision + v.Build == 0)
+                {
+                    try
+                    {
+                        // Re-read from the system
+                        var fullName = wamPackage.Id.FamilyName;
+                        var refindPackages = MainWindow.PackageManager.FindPackagesForUser("", fullName);
+
+                        // If we got something, replace the original value
+                        if (refindPackages != null)
+                        {
+                            var reloadedPackage = refindPackages.FirstOrDefault();
+                            if (reloadedPackage != null)
+                            {
+                                wamPackage = reloadedPackage;
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        DebugLog.Append($"Exception getting updated package: {e.Message}");
+                    }
+                }
+            }
+
+            return wamPackage;
+        }
+
+
 
         internal static void ClearCache(PackageModel package)
         {
