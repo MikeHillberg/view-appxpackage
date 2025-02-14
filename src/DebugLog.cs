@@ -15,9 +15,10 @@ namespace ViewAppxPackage
         {
             lock (_log)
             {
+                Debug.WriteLine(message);
+
                 var now = DateTime.Now.ToString("HH:mm:ss");
                 message = $"{now} {message}";
-                Debug.WriteLine(message);
                 _log.Add(Thread + message);
             }
         }

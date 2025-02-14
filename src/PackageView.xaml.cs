@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
@@ -116,6 +117,14 @@ namespace ViewAppxPackage
             Settings = null;
 
             var package = Package;
+
+            Debug.Assert(package != null);
+            if(package == null)
+            {
+                DebugLog.Append($"null package in ReadSettings");
+                return;
+            }
+
             var settings = await Task.Run(() =>
             {
                 return ReadSettingsHelper(package);
@@ -160,11 +169,11 @@ namespace ViewAppxPackage
             ApplicationData applicationData = null;
             try
             {
-                applicationData = ApplicationDataManager.CreateForPackageFamily(package.Id.FamilyName);
+                applicationData = ApplicationDataManager.CreateForPackageFamily(package.FamilyName);
             }
             catch (Exception e)
             {
-                DebugLog.Append($"ApplicationDataManager.CreateForPackageFamily({package.Id.FamilyName}): {e.Message}");
+                DebugLog.Append($"ApplicationDataManager.CreateForPackageFamily({package.FamilyName}): {e.Message}");
             }
 
             return applicationData;

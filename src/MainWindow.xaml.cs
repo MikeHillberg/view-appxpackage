@@ -14,7 +14,6 @@ using Windows.Management.Deployment;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using System.IO;
-using Windows.System;
 using System.IO.Compression;
 using Microsoft.Win32;
 using Windows.Foundation;
@@ -23,6 +22,9 @@ using System.Collections.ObjectModel;
 using Windows.Storage;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using ColorCode.Compilation.Languages;
+using System.Threading;
+using Microsoft.UI.Dispatching;
+using Windows.System;
 
 
 
@@ -32,31 +34,57 @@ namespace ViewAppxPackage
     {
         public MainWindow()
         {
+            Instance = this;
+            _uiThread = Thread.CurrentThread;
+
             ProcessCommandLineArguments();
+
+            // Need this before we start loading so that we know how/what to load
+            LoadSettings();
 
             // bugbug: there's a race where we load the initial set here but
             // haven't set up the change event listeners yet
             StartLoadPackages();
 
             this.InitializeComponent();
+
             _xClassMapper.XClass = this;
 
             RootElement = _root;
             _root.Loaded += OnLoaded;
 
-            Instance = this;
-
-            InitializePackageCatalog();
-
-            LoadSettings();
-
             SetWindowIcon(this);
             SetWindowTitle();
             SetUpBadging();
+
+            // Track if we're shutting the thread down so that we don't post new work to it
+            DispatcherQueue.ShutdownStarting += (s, e) =>
+            {
+                IsShuttingDown = true;
+            };
+
         }
 
-        private void InitializePackageCatalog()
+        // Dialog that shows until we have the bare minimum loaded
+        ContentDialog _loadingDialog;
+
+        static Thread _uiThread;
+        static internal bool CurrentIsUiThread => Thread.CurrentThread == _uiThread;
+
+        static Thread _workerThread;
+        static internal bool CurrentIsWorkerThread => Thread.CurrentThread == _workerThread;
+
+        // Goes true on DispatcherQueue.ShutdownStarting
+        static internal bool IsShuttingDown = false;
+
+
+        /// <summary>
+        /// Hook up event listeners to PackageCatalog
+        /// </summary>
+        private void InitializePackageCatalogEvents()
         {
+            Debug.Assert(MainWindow.CurrentIsWorkerThread);
+
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
             _packageCatalog.PackageInstalling += (s, e)
@@ -107,7 +135,24 @@ namespace ViewAppxPackage
                 ShowHelp();
             }
 
+            // Scrolling workaround
             PostScrollSelectedItemIntoView();
+
+            // Show a "Loading ..." dialog until we have the bare minimum loaded
+            if (IsLoading)
+            {
+                _loadingDialog = new ContentDialog()
+                {
+                    XamlRoot = _root.XamlRoot,
+                    Content = new TextBlock()
+                    {
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Text = "Loading"
+                    }
+                };
+                _ = _loadingDialog.ShowAsync();
+            }
         }
 
 
@@ -164,13 +209,22 @@ namespace ViewAppxPackage
         }
         bool _isAllUsers = false;
 
+        // Test/debug flag
+        internal static bool LazyPreload = false;
 
         bool _commandLineProvided = false;
+
         void ProcessCommandLineArguments()
         {
             var args = Environment.GetCommandLineArgs();
             if (args != null && args.Length > 1)
             {
+                if (args[1] == "-lazy")
+                {
+                    LazyPreload = true;
+                    return;
+                }
+
                 _commandLineProvided = true;
                 Filter = args[1];
                 return;
@@ -240,7 +294,7 @@ namespace ViewAppxPackage
                     }
                     else
                     {
-                        DebugLog.Append($"CurrentItem is {value.Id.Name}");
+                        DebugLog.Append($"CurrentItem is {value.Name}");
                     }
 
                     if (value != null)
@@ -273,6 +327,15 @@ namespace ViewAppxPackage
             Package wamPackage2, // For updates
             PackageUpdateNotification updateKind)
         {
+            // This gets raised on an MTA thread. Forward to the worker thread
+            if(!MainWindow.CurrentIsWorkerThread)
+            {
+                MainWindow.SendToWorker(() => OnCatalogUpdate(isComplete, wamPackage, wamPackage2, updateKind));
+                return;
+            }
+
+            // Now we're on the worker (not UI) thread
+
             // bugbug: there's a race condition where packages are being installed/removed
             // while we're in the middle of package enumeration
 
@@ -298,92 +361,131 @@ namespace ViewAppxPackage
                 return;
             }
 
-            this.DispatcherQueue.TryEnqueue(() =>
+            bool doBadgeUpdate = false;
+
+            var package = PackageModel.FromWamPackage(wamPackage);
+
+            if (updateKind == PackageUpdateNotification.Install)
             {
-                bool doBadgeUpdate = false;
-
-                var package = PackageModel.FromWamPackage(wamPackage);
-
-                if (updateKind == PackageUpdateNotification.Install)
+                // We don't track resource pakcages in the package list
+                // (FindPackages and get-appxpackage don't return these either)
+                if (!wamPackage.IsResourcePackage)
                 {
-                    // We don't track resource pakcages in the package list
-                    // (FindPackages and get-appxpackage don't return these either)
-                    if (!wamPackage.IsResourcePackage)
-                    {
-                        // Shouldn't be necessary but playing it safe
-                        RemoveFromCache(package);
+                    // Shouldn't be necessary but playing it safe
+                    RemoveFromCache(package);
 
-                        _originalpackages.Add(package);
-                        _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
+                    _originalPackages.Value.Add(package);
+                    _originalPackages.Value = SortPackages(_originalPackages.Value);
 
-                        doBadgeUpdate = true;
-                    }
+                    doBadgeUpdate = true;
                 }
-                else if (updateKind == PackageUpdateNotification.Uninstall)
+            }
+            else if (updateKind == PackageUpdateNotification.Uninstall)
+            {
+                // The underlying package is coming as a different instance,
+                // so check the PFullName
+                MainWindow.PostToUI(() =>
                 {
-                    // The underlying package is coming as a different instance,
-                    // so check the PFullName
                     if (CurrentItem.FullName == package.FullName)
                     {
                         CurrentItem = null;
                     }
+                });
 
-                    RemoveFromCache(package);
-                    doBadgeUpdate = true;
-                }
-                else if (updateKind == PackageUpdateNotification.Update)
+                RemoveFromCache(package);
+                doBadgeUpdate = true;
+            }
+            else if (updateKind == PackageUpdateNotification.Update)
+            {
+                if (!wamPackage.IsResourcePackage)
                 {
-                    if (!wamPackage.IsResourcePackage)
+                    // Remove the old package from the cache and _originalPackages
+                    var package2 = PackageModel.FromWamPackage(wamPackage2);
+                    DebugLog.Append($"Removing old package: {package2.FullName}");
+                    RemoveFromCache(package2, anyVersion: true);
+
+                    _originalPackages.Value.Add(package);
+                    _originalPackages.Value = new(_originalPackages.Value.OrderBy((p) => p.Name).ToList());
+
+                    // If the old package was selected, select the new one
+                    MainWindow.PostToUI(() =>
                     {
-                        // Remove the old package from the cache and _originalPackages
-                        var package2 = PackageModel.FromWamPackage(wamPackage2);
-                        RemoveFromCache(package2);
-
-
-                        _originalpackages.Add(package);
-                        _originalpackages = new(_originalpackages.OrderBy((p) => p.Id.Name).ToList());
-
-                        // If the old package was sselected, select the new one
                         if (CurrentItem.FullName == package2.FullName)
                         {
                             CurrentItem = package;
                         }
+                    });
+                }
+            }
+            else if (updateKind == PackageUpdateNotification.Status)
+            {
+                package.UpdateStatus();
+            }
+            else
+            {
+                Debug.Assert(false);
+            }
 
-                    }
-                }
-                else if (updateKind == PackageUpdateNotification.Status)
-                {
-                    package.UpdateStatus();
-                }
-                else
-                {
-                    Debug.Assert(false);
-                }
+            // Update the badge number on the task bar icon of new packages since refresh
+            if (doBadgeUpdate)
+            {
+                var newPackageCount = Packages.Sum((p) => p.IsNew ? 1 : 0);
+                SetBadgeNumber(newPackageCount);
+            }
 
+            // Update the UI
+            MainWindow.PostToUI(() =>
+            {
                 FilterAndSearchPackages();
                 RaisePropertyChanged(nameof(NoPackagesFound));
-
-                // Update the badge number on the task bar icon of new packages since refresh
-                if (doBadgeUpdate)
-                {
-                    var newPackageCount = Packages.Sum((p) => p.IsNew ? 1 : 0);
-                    SetBadgeNumber(newPackageCount);
-                }
             });
         }
 
-        void RemoveFromCache(PackageModel package)
+        /// <summary>
+        /// Sort the list in the UI by whatever the sort choice is
+        /// </summary>
+        /// <param name="packages"></param>
+        /// <returns></returns>
+        ObservableCollection<PackageModel> SortPackages(IEnumerable<PackageModel> packages)
         {
-            var existing = _originalpackages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
+            if (SortByDate)
+            {
+                return new(packages.OrderByDescending(p => p.InstalledDate));
+            }
+            else
+            {
+                return new(packages.OrderBy(p => p.Name));
+            }
+        }
+
+        /// <summary>
+        /// Compare two packgaes by value, maybe ignoring the version
+        /// </summary>
+        bool IsPackageEqual(PackageModel package1, PackageModel package2, bool includeVersion)
+        {
+            if (includeVersion)
+            {
+                return package1.FullName == package2.FullName;
+            }
+
+            return package1.FamilyName == package2.FamilyName
+                   && package1.PublisherId == package2.PublisherId
+                   && package1.ResourceId == package2.ResourceId
+                   && package1.Architecture == package2.Architecture;
+        }
+
+        void RemoveFromCache(PackageModel package, bool anyVersion = false)
+        {
+            var existing = _originalPackages.Value.FirstOrDefault(p => IsPackageEqual(p, package, !anyVersion));
             if (existing != null)
             {
-                _originalpackages.Remove(existing);
-                DebugLog.Append($"Removed {package.Id.Name} from cache");
+                _originalPackages.Value.Remove(existing);
+                DebugLog.Append($"Removed {existing.FullName} from cache");
             }
-            //else
-            //{
-            //    DebugLog.Append($"Didn't remove {package.Id.Name} from cache");
-            //}
+            else
+            {
+                DebugLog.Append($"Didn't remove {package.FullName} from cache");
+            }
 
             PackageModel.ClearCache(package);
         }
@@ -391,7 +493,10 @@ namespace ViewAppxPackage
 
         PackageCatalog _packageCatalog;
 
-        ObservableCollection<PackageModel> _originalpackages;
+        // This is the raw WAM package list.
+        // The wrapper class is to ensure we only use it from the worker thread
+        WorkerThreadChecker<ObservableCollection<PackageModel>> _originalPackages;
+
         static ObservableCollection<PackageModel> _packages;
         public ObservableCollection<PackageModel> Packages
         {
@@ -464,7 +569,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            _ = Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CurrentItem.Id.FamilyName}"));
+            _ = Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CurrentItem.FamilyName}"));
         }
 
         private void OpenManifest()
@@ -519,7 +624,9 @@ namespace ViewAppxPackage
             }
         }
 
-        async void StartLoadPackages()
+        static Microsoft.UI.Dispatching.DispatcherQueue _workerThreadDispatcher;
+
+        void StartLoadPackages()
         {
             IsLoading = true;
 
@@ -527,73 +634,190 @@ namespace ViewAppxPackage
             IsSearchEnabled = false;
 
             var isAllUsers = App.IsProcessElevated() && IsAllUsers;
-            IEnumerable<PackageModel> packageModels = null;
 
-            try
+            // Create the worker thread (STA)
+            var controller = Microsoft.UI.Dispatching.DispatcherQueueController.CreateOnDedicatedThread();
+            _workerThreadDispatcher = controller.DispatcherQueue;
+
+            // Do all the package loading on the worker thread
+            RunOnWorker(() => WorkerThread(isAllUsers));
+        }
+
+        /// <summary>
+        /// Queue to the UI thread
+        internal static void PostToUI(Microsoft.UI.Dispatching.DispatcherQueueHandler action)
+        {
+            Instance.DispatcherQueue.TryEnqueue(action);
+        }
+
+        /// <summary>
+        /// Queue to the worker thread
+        /// </summary>
+        /// <param name="action"></param>
+        internal static void PostToWorker(Action action)
+        {
+            _workerThreadDispatcher.TryEnqueue(() => action());
+        }
+
+        /// <summary>
+        /// Run on the worker thread. This is sync if already on the thread, a post otherwise
+        /// </summary>
+        /// <param name="action"></param>
+        internal static void RunOnWorker(Action action)
+        {
+            if (CurrentIsUiThread)
             {
-                await Task.Run(() =>
-                {
-                    IEnumerable<Package> packages = null;
-                    if (isAllUsers)
-                    {
-                        packages = PackageManager.FindPackages();
-
-                    }
-                    else
-                    {
-                        packages = PackageManager.FindPackagesForUser(string.Empty);
-                    }
-
-                    var sorted = from p in packages
-                                 where !p.IsResourcePackage
-                                 let name = p.Id.Name // DisplayName throws a lot
-                                 orderby name
-                                 select PackageModel.FromWamPackage(p);
-                    packageModels = sorted.ToList();
-
-                    // Calc the most recent InstalledDate
-                    PackageModel.LastInstalledDateOnRefresh = packageModels.Max(packageModels => packageModels.InstalledDate);
-
-                    _originalpackages = new(packageModels);
-                });
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-
-            if (SortByDate)
-            {
-                Packages = new(_originalpackages.OrderByDescending((p) => p.InstalledDate));
+                PostToWorker(action);
             }
             else
             {
-                Packages = _originalpackages;
+                action();
             }
-
-            // Process Packages with the filter & search text boxes
-            FilterAndSearchPackages();
-
-            PackageModel.StartCalculateDependents(_originalpackages);
-
-            PackageModel.StartCalculatingSizes(_originalpackages);
-
-            // Call Find on a background thread to warm the caches
-            await Task.Run(() =>
-            {
-                // Make a copy in case packages are added/deleted during the Find
-                List<PackageModel> packagesCopy = new(_originalpackages);
-                _ = PackageModel.FindPackages("hello world", packagesCopy);
-
-                Debug.WriteLine("Done initializing cache");
-            });
-
-            // After that FindPackages, search will be fast now
-            IsSearchEnabled = true;
-
-            return;
         }
 
+        /// <summary>
+        /// Sync send to the worker thread from an MTA thread.
+        /// </summary>
+        internal static void SendToWorker(Action action)
+        {
+            Debug.Assert(!MainWindow.CurrentIsUiThread);
+            Debug.Assert(!MainWindow.CurrentIsWorkerThread);
+
+            if (MainWindow.CurrentIsWorkerThread)
+            {
+                action();
+                return;
+            }
+
+            var semaphore = new SemaphoreSlim(0, 1);
+            PostToWorker(() =>
+            {
+                action();
+                semaphore.Release();
+            });
+            semaphore.Wait();
+        }
+
+        /// <summary>
+        /// Worker thread for doing all the work with the Package APIs
+        /// </summary>
+        /// <param name="isAllUsers"></param>
+        void WorkerThread(bool isAllUsers)
+        {
+            _workerThread = Thread.CurrentThread;
+            IEnumerable<Package> wamPackages = null;
+            if (isAllUsers)
+            {
+                wamPackages = PackageManager.FindPackages();
+
+            }
+            else
+            {
+                wamPackages = PackageManager.FindPackagesForUser(string.Empty);
+            }
+
+            // bugbug: better to call this before loading packages or after?
+            InitializePackageCatalogEvents();
+
+            var sorted = from p in wamPackages
+                         where !p.IsResourcePackage
+                         select PackageModel.FromWamPackage(p);
+            var packages = sorted.ToList();
+
+            DebugLog.Append($"{packages.Count} packages loaded");
+
+            _originalPackages.Value = new(packages);
+
+            var initialSort = SortPackages(_originalPackages.Value);
+
+            bool isInput = MainWindow.PipeInputFilterString != null;
+            foreach (var p in _originalPackages.Value)
+            {
+                // Enable filtering on UI thread
+                _ = p.Name;
+
+                // If this was launched by piping to it from get-appxpackage,
+                // we need to have the FullName loaded
+                if (isInput)
+                {
+                    _ = p.FullName;
+                }
+            }
+
+            // We're not full loaded yet, but we're loaded _just_ enough to start showing the UI
+            PostToUI(() =>
+            {
+                Packages = initialSort;
+                IsLoading = false;
+
+                if (_loadingDialog != null)
+                {
+                    _loadingDialog.Hide();
+                }
+            });
+
+            // Calc the most recent InstalledDate
+            PackageModel.LastInstalledDateOnRefresh = _originalPackages.Value.Max(p => p.InstalledDate);
+
+            // Still on the worker thread, finishing loading all the Package data
+            // so that we have everything cached
+            _packagesToPreload = new(_originalPackages.Value);
+            _packagesToLoad = new(_originalPackages.Value);
+            FinishLoading();
+        }
+
+        Queue<PackageModel> _packagesToPreload;
+        Queue<PackageModel> _packagesToLoad;
+
+        /// <summary>
+        /// Finish loading the packages, working through the two load queues
+        /// </summary>
+        void FinishLoading()
+        {
+            PackageModel package;
+
+            // There's two load phases; preload and load.
+            // Preload gets enough properties loaded for the list,
+            // load gets everything else necessary for the detail and search
+
+            // So as to leave the worker thread available for requests from the UI thread,
+            // we only process one item here and then post back for the next.
+            // bugbug: DispatcherQueue needs a peek
+            // bugbug: could make this more efficient and have a separate queue for work from the UI thread
+
+            if (_packagesToPreload != null)
+            {
+                package = _packagesToPreload.Dequeue();
+
+                if (_packagesToPreload.Count == 0)
+                {
+                    _packagesToPreload = null;
+                }
+            }
+
+            else if (_packagesToLoad != null)
+            {
+                package = _packagesToLoad.Dequeue();
+                package.EnsureInitializeAsync();
+
+                if (_packagesToLoad.Count == 0)
+                {
+                    _packagesToLoad = null;
+                }
+            }
+
+            else
+            {
+                DebugLog.Append("Finished loading");
+                MainWindow.PostToUI(() => IsSearchEnabled = true);
+                return;
+            }
+
+            Debug.Assert(package != null);
+
+            // Move on to the next item (this post might go behind something from the UI thread)
+            MainWindow.PostToWorker(() => FinishLoading());
+        }
 
         void EnsureItemSelected()
         {
@@ -684,11 +908,11 @@ namespace ViewAppxPackage
                 IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> removing;
                 if (IsAllUsers)
                 {
-                    removing = PackageManager.RemovePackageAsync(package.Id.FullName, RemovalOptions.RemoveForAllUsers);
+                    removing = PackageManager.RemovePackageAsync(package.FullName, RemovalOptions.RemoveForAllUsers);
                 }
                 else
                 {
-                    removing = PackageManager.RemovePackageAsync(package.Id.FullName);
+                    removing = PackageManager.RemovePackageAsync(package.FullName);
                 }
 
                 // bugbug: is there something to check in the return DeploymentResult?
@@ -740,12 +964,15 @@ namespace ViewAppxPackage
         /// </summary>
         void FilterAndSearchPackages()
         {
+            Debug.Assert(MainWindow.CurrentIsUiThread);
+
             if (Packages == null)
             {
                 return;
             }
 
-            IEnumerable<PackageModel> packages = _originalpackages;
+            // This is the one place where we get the raw package list from the UI thread
+            IEnumerable<PackageModel> packages = _originalPackages.ValueNoThreadCheck;
 
             if (!string.IsNullOrEmpty(_filter))
             {
@@ -765,14 +992,17 @@ namespace ViewAppxPackage
                 {
                     if (isInput)
                     {
-                        if (PipeInputPackages.Contains(p.Id.FullName))
+                        Debug.Assert(p.IsFullNameLoaded);
+                        if (PipeInputPackages.Contains(p.FullName))
                         {
                             filteredPackages.Add(p);
                         }
                     }
                     else
                     {
-                        var matches = filterRegex.Matches(p.Id.Name);
+                        Debug.Assert(p.IsNameLoaded);
+
+                        var matches = filterRegex.Matches(p.Name);
                         if (matches.Count > 0)
                         {
                             filteredPackages.Add(p);
@@ -788,13 +1018,7 @@ namespace ViewAppxPackage
                 packages = PackageModel.FindPackages(_searchText, packages);
             }
 
-            // If it's not sort-by-date, it's sort-by-name, and the packages are already sorted by name
-            if (_sortByDate)
-            {
-                packages = packages.OrderByDescending((p) => p.InstalledDate);
-            }
-
-            Packages = new(packages);
+                Packages = SortPackages(packages);
         }
 
         private void SelectionChanged(object sender, Microsoft.UI.Xaml.Controls.SelectionChangedEventArgs e)
@@ -936,7 +1160,7 @@ namespace ViewAppxPackage
             // e.g. a dependency package of something that _is_ in the list
             CurrentItem = package;
 
-            var matchingPackage = Packages.FirstOrDefault(p => p.Id.FullName == package.Id.FullName);
+            var matchingPackage = Packages.FirstOrDefault(p => p.FullName == package.FullName);
             if (matchingPackage != null)
             {
                 PostScrollSelectedItemIntoView();

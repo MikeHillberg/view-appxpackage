@@ -172,34 +172,46 @@
                           MinWidth="{x:Bind MaxListWidth, Mode=OneWay}">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:PackageModel">
-                                <StackPanel Margin="0,6,0,6" Padding="0,2,0,2">
+                                <!-- First column is a logo, second column is several properties -->
+                                <!-- 36px matches Settings app Installed Apps list -->
+                                <Grid ColumnDefinitions="36,*" ColumnSpacing="8">
+                                    <Image Stretch="Uniform" >
+                                        <Image.Source>
+                                            <BitmapImage UriSource="{x:Bind Logo}" />
+                                        </Image.Source>
+                                    </Image>
                                     
-                                    <!-- Row with package name -->
-                                    <!-- The max ActualWidth of this TextBlock becomes the MaxWidth
-                                         of the row below. This is done using SizeChanged to track ActualWidth -->
-                                    <TextBlock Text="{x:Bind Id.Name}"
-                                           Style="{ThemeResource BodyTextBlockStyle}"
-                                           SizeChanged="NameSizeChanged"
-                                           FontWeight="{x:Bind BoldIfNew}"/>
+                                    <StackPanel Grid.Column="1" Margin="0,6,0,6" Padding="0,2,0,2">
 
-                                    <!-- Row with display name and install date -->
-                                    <!-- Width is constrained to be no wider than the above unconstrained TextBlock -->
-                                    <!-- x:Bind in a DataTemplate still has a limitation that it can't reference the code behind.
+                                        <!-- Row with package name -->
+                                        <!-- The max ActualWidth of this TextBlock becomes the MaxWidth
+                                         of the row below. This is done using SizeChanged to track ActualWidth -->
+                                        <!-- The "Preload" property is optimized to only calculate the few properties
+                                         we need for this item template -->
+                                        <TextBlock Text="{x:Bind Preload.Name}"
+                                               Style="{ThemeResource BodyTextBlockStyle}"
+                                               SizeChanged="NameSizeChanged"
+                                               FontWeight="{x:Bind BoldIfNew}"/>
+
+                                        <!-- Row with display name and install date -->
+                                        <!-- Width is constrained to be no wider than the above unconstrained TextBlock -->
+                                        <!-- x:Bind in a DataTemplate still has a limitation that it can't reference the code behind.
                                          So use a {Binding} to a Static Resource to get the MaxNameWidth property -->
-                                    <Grid ColumnDefinitions="*,Auto" Opacity="0.6"
+                                        <Grid ColumnDefinitions="*,Auto" Opacity="0.6"
                                           Margin="0,3,0,0"
                                           MaxWidth="{Binding XClass.MaxNameWidth, Source={StaticResource _xClassMapper}, Mode=OneWay}" >
 
-                                        <TextBlock Text="{x:Bind DisplayName}" 
+                                            <TextBlock Text="{x:Bind Preload.DisplayName}" 
                                                    Style="{ThemeResource CaptionTextBlockStyle}" 
                                                    TextWrapping="NoWrap"
                                                    TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="1"
+                                            <TextBlock Grid.Column="1"
                                                    Margin="5,0,0,0"
-                                                   Text="{x:Bind local:Utils.FormatDateOrTime(InstalledDate)}" 
+                                                   Text="{x:Bind local:Utils.FormatDateOrTime(Preload.InstalledDate)}" 
                                                    Style="{ThemeResource CaptionTextBlockStyle}" />
-                                    </Grid>
-                                </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>

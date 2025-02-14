@@ -46,22 +46,22 @@
                         <!-- These are all rows of name/value pairs. There's logic to keep the first column width the same everywhere -->
                         <!-- For all of these if a Value is unset, the row is collapsed -->
 
-                        <local:PackageViewRow Label="Name" Value="{x:Bind Package.Id.Name}"/>
+                        <local:PackageViewRow Label="Name" Value="{x:Bind Package.Name}"/>
                         <local:PackageViewRow Label="Installed Date" Value="{x:Bind local:Utils.FormatDate(Package.InstalledDate)}"/>
                         <local:PackageViewRow Label="Size" Value="{x:Bind Package.Size}"/>
-                        <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.Id.ResourceId}"/>
+                        <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.ResourceId}"/>
                         <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
                         <local:PackageViewRow Label="Protocol" Value="{x:Bind Package.Protocol}"/>
                         <local:PackageViewRow Label="File Types" Value="{x:Bind Package.FileTypeAssociations}"/>
                         <local:PackageViewRow Label="Aumid" Value="{x:Bind Package.Aumids}"/>
                         <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
-                        <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.Id.PublisherId}"/>
+                        <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.PublisherId}"/>
                         <local:PackageViewRow Label="Version" Value="{x:Bind Package.VersionString}"/>
-                        <local:PackageViewRow Label="Package Full Name" Value="{x:Bind Package.Id.FullName}"/>
-                        <local:PackageViewRow Label="Package Family Name" Value="{x:Bind Package.Id.FamilyName}"/>
+                        <local:PackageViewRow Label="Package Full Name" Value="{x:Bind Package.FullName}"/>
+                        <local:PackageViewRow Label="Package Family Name" Value="{x:Bind Package.FamilyName}"/>
                         <local:PackageViewRow Label='Author' Value='{x:Bind Package.Author}'/>
                         <local:PackageViewRow Label="Capabilities" Value="{x:Bind Package.Capabilities}"/>
-                        <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Id.Architecture}"/>
+                        <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Architecture}"/>
                         <local:PackageViewRow Label="Installed Path" LinkValue="{x:Bind Package.InstalledPath}"/>
                         <local:PackageViewRow Label="Application Data" LinkValue="{x:Bind Package.ApplicationDataPath}"/>
                         <local:PackageViewRow Label='EffectiveExternalPath' LinkValue='{x:Bind Package.EffectiveExternalPath}'/>
@@ -91,7 +91,7 @@
                                     <DataTemplate x:DataType="local:PackageModel">
                                         <TextBlock Margin="10,5,0,0">
                             <Hyperlink Click="GoToPackage" local:PackageView.MyTag="{x:Bind}">
-                                <Run Text="{x:Bind Id.FullName}"/>
+                                <Run Text="{x:Bind FullName}"/>
                             </Hyperlink>
                                         </TextBlock>
                                     </DataTemplate>
@@ -109,7 +109,7 @@
                                         <TextBlock Margin="10,5,0,0">
                                 <Hyperlink Click="GoToPackage" 
                                            local:PackageView.MyTag="{x:Bind}">
-                                    <Run Text="{x:Bind Id.FullName}"/>
+                                    <Run Text="{x:Bind FullName}"/>
                                 </Hyperlink>
                                         </TextBlock>
                                     </DataTemplate>
@@ -126,7 +126,7 @@
                             <DataTemplate x:DataType="local:PackageSetting">
                                 <StackPanel Margin="0,8,0,8" Spacing="10" Orientation="Horizontal">
                                     <!-- Delete button to delete the setting -->
-                                    <Button Tag="{x:Bind Name}" Click="DeleteSetting"
+                                    <Button Tag="{x:Bind Name, Mode=OneTime}" Click="DeleteSetting"
                                             VerticalAlignment="Top"
                                             Margin="0,2,0,0"
                                             Padding="2">
@@ -136,11 +136,11 @@
                                     
                                     <!-- Name and value of the setting -->
                                     <StackPanel Spacing="5">
-                                        <TextBlock Text="{x:Bind Name}" 
+                                        <TextBlock Text="{x:Bind Name, Mode=OneTime}" 
                                                FontWeight="Bold"
                                                Style="{StaticResource BaseTextBlockStyle}"
                                                IsTextSelectionEnabled="True"/>
-                                        <TextBlock Text="{x:Bind Value}" 
+                                        <TextBlock Text="{x:Bind Value, Mode=OneTime}" 
                                                TextWrapping="Wrap"
                                                Style="{StaticResource BaseTextBlockStyle}"
                                                IsTextSelectionEnabled="True" />

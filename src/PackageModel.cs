@@ -27,6 +27,150 @@ namespace ViewAppxPackage
     {
         Package _package;
 
+        // Cache all the PropertyInfos, used during initialization
+        static IList<PropertyInfo> _thisProperties = typeof(PackageModel).GetProperties().ToList();
+        
+        // We're in the Initializing state until all of the Package has been read
+        // Preinitializing is while we're loading the first few properties for the initial UI
+        public bool Initializing { get; private set; } = false;
+        bool _initialized = false;
+        bool _preloaded = false;
+
+        /// <summary>
+        /// Get all state out of the Package and into this model (fill the caches).
+        /// If called from the UI thread and not already done, 
+        /// this will post to the worker thread and raise a change notification.
+        /// </summary>
+        /// <param name="debug"></param>
+        public void EnsureInitializeAsync(bool debug = false)
+        {
+            if (_initialized || Initializing)
+            {
+                // Already done or underway
+                return;
+            }
+
+            Initializing = true;
+
+            if(MainWindow.CurrentIsUiThread)
+            {
+                DebugLog.Append($"Triggering load for {_name.CurrentValue}");
+            }
+
+            // Do the work on the worker thread
+            MainWindow.RunOnWorker(() =>
+            {
+                // Call all the getters. Any of these not already initialized will set their cache
+                foreach (var prop in _thisProperties)
+                {
+                    try
+                    {
+                        _ = prop.GetValue(this);
+                    }
+                    catch (Exception e)
+                    {
+                        DebugLog.Append($"Exception getting {prop.Name}: {e.Message}");
+                    }
+                }
+
+                _preloaded = true;
+                _initialized = true;
+                Initializing = false;
+
+                DebugLog.Append($"Loaded {Name}");
+                RaisePropertyChangedOnUIThread(null);
+            });
+        }
+
+        /// <summary>
+        /// Ensure the preload properties are loaded.
+        /// These are the first few properties we need to show the first frame of the UI
+        /// </summary>
+        public void EnsurePreinitializeAsync()
+        {
+            if (_preloaded)
+            {
+                return;
+            }
+
+            this.Preload.EnsurePreloadedAsync();
+        }
+
+        /// <summary>
+        /// Nested class to handling preloading a few Very Important Properties.
+        /// They're loaded off the UI thread and raise a change notification.
+        /// Calling this from an x:Bind causes the UI to fault in just these properties,
+        /// for just the packages that need them.
+        /// </summary>
+        public class PreloadPackageModel
+        {
+            PackageModel _package;
+            public PreloadPackageModel(PackageModel package)
+            {
+                _package = package;
+            }
+
+            internal void EnsurePreloadedAsync()
+            {
+                if (_package._preloaded)
+                {
+                    // Already done or in progress
+                    return;
+                }
+
+                _package._preloaded = true;
+
+                MainWindow.RunOnWorker(() =>
+                {
+                    // Call the property getters to get their cache initialized
+                    var name = _package.Name;
+                    _ = _package.DisplayName;
+                    _ = _package.InstalledDate;
+
+                    _package._preloaded = true;
+
+                    DebugLog.Append($"Preloaded {name}");
+
+                    _package.RaisePropertyChangedOnUIThread(null);
+                });
+            }
+
+            public string Name
+            {
+                get
+                {
+                    EnsurePreloadedAsync();
+                    return _package._name.CurrentValue;
+                }
+            }
+
+            public string DisplayName
+            {
+                get
+                {
+                    EnsurePreloadedAsync();
+                    return _package._displayName.CurrentValue;
+                }
+            }
+
+            public DateTimeOffset InstalledDate
+            {
+                get
+                {
+                    EnsurePreloadedAsync();
+                    return _package._installedDate.CurrentValue;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Wrapper of a few properties. Fetching these from the UI thread causes just
+        /// these properties to be loaded and cached (off thread),
+        /// but not all of the Package properties.
+        /// </summary>
+        public PreloadPackageModel Preload { get; private set; }
+
+
         /// <summary>
         /// Most recent InstalledDate of all the packages
         /// </summary>
@@ -35,8 +179,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Indicates if this was installed after the last refresh
         /// </summary>
-        public bool IsNew => !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
-
+        public bool IsNew => _initialized && !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
 
         public bool IsNewCleared
         {
@@ -44,20 +187,18 @@ namespace ViewAppxPackage
             set
             {
                 _isNewCleared = value;
-                RaisePropertyChanged();
-                RaisePropertyChanged(nameof(IsNew));
-                RaisePropertyChanged(nameof(BoldIfNew));
+                RaisePropertyChangedOnUIThread();
+                RaisePropertyChangedOnUIThread(nameof(IsNew));
+                RaisePropertyChangedOnUIThread(nameof(BoldIfNew));
             }
 
         }
-
         bool _isNewCleared = false;
 
         /// <summary>
         /// UI helper to make text of new packages bold
         /// </summary>
         public FontWeight BoldIfNew => IsNew ? FontWeights.Bold : FontWeights.Normal;
-
 
         public override string ToString()
         {
@@ -143,10 +284,14 @@ namespace ViewAppxPackage
             return wamPackage.Id.FullName;
         }
 
+        public bool IsFullNameLoaded => _fullName.Initialized;
+        public bool IsNameLoaded => _name.Initialized;
+
 
         PackageModel(Package package)
         {
             _package = package;
+            Preload = new PreloadPackageModel(this);
         }
 
         /// <summary>
@@ -168,7 +313,7 @@ namespace ViewAppxPackage
             // Raise change notifications on the UI thread
             foreach (var package in packages)
             {
-                package.RaisePropertyChanged(nameof(Size));
+                package.RaisePropertyChangedOnUIThread(nameof(Size));
             }
         }
 
@@ -216,7 +361,7 @@ namespace ViewAppxPackage
             private set
             {
                 _size = value;
-                RaisePropertyChanged();
+                RaisePropertyChangedOnUIThread();
             }
         }
         string _size = "";
@@ -238,7 +383,7 @@ namespace ViewAppxPackage
 
             if (raiseChangeNotification)
             {
-                RaisePropertyChanged(nameof(Size));
+                RaisePropertyChangedOnUIThread(nameof(Size));
             }
         }
 
@@ -293,7 +438,7 @@ namespace ViewAppxPackage
             foreach (var package in packages)
             {
                 package._dependentsCalculated = true;
-                package.RaisePropertyChanged(nameof(Dependents));
+                package.RaisePropertyChangedOnUIThread(nameof(Dependents));
             }
 
         }
@@ -360,7 +505,7 @@ namespace ViewAppxPackage
                 // Cache the PropertyInfos
 
                 // Skip some that we don't want included in a search
-                string[] _ignore = { nameof(InstallDate), nameof(Dependencies), nameof(IsNew), nameof(IsNewCleared), nameof(Size) };
+                string[] _ignore = { nameof(Dependencies), nameof(IsNew), nameof(IsNewCleared), nameof(Size), nameof(IsNameLoaded), nameof(IsFullNameLoaded) };
 
                 _packageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
                                               where !_ignore.Contains(property.Name)
@@ -371,9 +516,21 @@ namespace ViewAppxPackage
 
 
 
-        void RaisePropertyChanged([CallerMemberName] string propertyName = null)
+        internal void RaisePropertyChangedOnUIThread([CallerMemberName] string propertyName = null)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            var args = new PropertyChangedEventArgs(propertyName);
+
+            if (MainWindow.CurrentIsUiThread)
+            {
+                if (!MainWindow.IsShuttingDown)
+                {
+                    PropertyChanged?.Invoke(this, args);
+                }
+            }
+            else
+            {
+                MainWindow.PostToUI(() => PropertyChanged?.Invoke(this, args));
+            }
         }
 
         /// <summary>
@@ -422,7 +579,7 @@ namespace ViewAppxPackage
         {
             get
             {
-                var ver = _package.Id.Version;
+                var ver = this.Version;
 
                 // bugbug: why does get-appxpackage do Major.Minor.Build.Revision rather than
                 // ...Revision.Build?
@@ -430,73 +587,75 @@ namespace ViewAppxPackage
             }
         }
 
+        ///// <summary>
+        ///// Package Status as a string
+        ///// </summary>
+        public string Status => _status.Value(this);
+
+        PackageProperty<string> _status = new(model =>
+        {
+            var package = model._package;
+
+            // If we're running AllUsers, and a package for another user is removed, we won't get a notification for it
+            // In that state the Package.SignatureKind throws an error. 
+            // Special-case that error and invent a new status
+            // bugbug: there must be a better way?
+            // bugbug: this doesn't handle when a package is _added_ for another user
+            // bugbug: respond to this error by re-reading the package list
+            try
+            {
+                // bugbug
+                var signatureKind = package.SignatureKind;
+            }
+            catch (COMException comException) when ((uint)comException.HResult == 0x80071130)
+            {
+                return "Removed?";
+            }
+
+            var status = package.Status;
+
+            if (status.VerifyIsOK())
+            {
+                return "Ok"; // "OK" looks better, but matching get-appxpackage behavior
+            }
+            else
+            {
+                // bugbug: haven't figured out how to test this
+
+                // If the package status isn't OK, there's a bool on PackageStatus to say what the problem is
+                // Search for the one that's true and return its name
+                // bugbug: Sometimes VerifyIsOK() returns false, but none of the bools are set
+                // (saw this when testing a packaged app that called AddPackageByUriAsync on itself with
+                // DeferRegistrationWhenPackagesAreInUse set to install an update)
+
+                var ret = "Not Ok";
+                foreach (var property in _statusProperties)
+                {
+                    if (property.PropertyType == typeof(bool) && (bool)property.GetValue(status))
+                    {
+                        ret = property.Name;
+                        break;
+                    }
+                }
+
+                return ret;
+            }
+        });
 
         /// <summary>
-        /// Package Status as a string
+        /// Refresh the package status (triggered by a notification from the package)
         /// </summary>
-        public string Status
+        internal void UpdateStatus()
         {
-            get
-            {
-                try
-                {
-                    // If we're running AllUsers, and a package for another user is removed, we won't get a notification for it
-                    // In that state the Package.SignatureKind throws an error. 
-                    // Special-case that error and invent a new status
-                    // bugbug: there must be a better way?
-                    // bugbug: this doesn't handle when a package is _added_ for another user
-                    // bugbug: respond to this error by re-reading the package list
-                    try
-                    {
-                        var signatureKind = _package.SignatureKind;
-                    }
-                    catch (COMException comException) when ((uint)comException.HResult == 0x80071130)
-                    {
-                        return "Removed?";
-                    }
-
-                    var status = _package.Status;
-
-                    if (status.VerifyIsOK())
-                    {
-                        _status = "Ok"; // "OK" looks better, but matching get-appxpackage behavior
-                    }
-                    else
-                    {
-                        // bugbug: haven't figured out how to test this
-
-                        // If the package status isn't OK, there's a bool on PackageStatus to say what the problem is
-                        // Search for the one that's true and return its name
-                        // bugbug: Sometimes VerifyIsOK() returns false, but none of the bools are set
-                        // (saw this when testing a packaged app that called AddPackageByUriAsync on itself with
-                        // DeferRegistrationWhenPackagesAreInUse set to install an update)
-
-                        _status = "Not Ok";
-                        foreach (var property in _statusProperties)
-                        {
-                            if (property.PropertyType == typeof(bool) && (bool)property.GetValue(status))
-                            {
-                                _status = property.Name;
-                                break;
-                            }
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    LogException(e);
-                    Debug.Assert(false);
-                    return default(string);
-                }
-
-                return _status;
-            }
+            // Clear the status so that the  next time it's accessed we'll re-query it
+            _status.Clear();
+            RaisePropertyChangedOnUIThread(nameof(Status));
         }
-        string _status;
+
         static Type _statusType = typeof(PackageStatus);
         static PropertyInfo[] _statusProperties = _statusType.GetProperties();
 
-        void LogException(Exception e, [CallerMemberName] string caller = null)
+        static void LogException(Exception e, [CallerMemberName] string caller = null)
         {
             DebugLog.Append($"Exception in {caller} : {e}");
         }
@@ -509,6 +668,7 @@ namespace ViewAppxPackage
         {
             get
             {
+                // Dependents are calculated async on startup
                 return _dependentsCalculated ? _dependents : null;
             }
         }
@@ -516,53 +676,98 @@ namespace ViewAppxPackage
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+
         /// <summary>
         /// Cache of Package dependencies
         /// </summary>
-        public IReadOnlyCollection<PackageModel> Dependencies
+        public IReadOnlyCollection<PackageModel> Dependencies => _dependencies.Value(this);
+        PackageProperty<IReadOnlyCollection<PackageModel>> _dependencies = new(model =>
         {
-            get
+            // bugbug
+            // Package.Dependencies has a tendency to throw that the collection is being modified
+            // during the enumeration. So we'll retry a few times
+            List<Package> copy = null;
+            for (int i = 0; i < 3; i++)
             {
-                if (_dependencies == null)
+                try
                 {
-                    // _package.Dependencies has a tendency to throw that the collection is being modified
-                    // during the enumeration. So we'll retry a few times
-                    List<Package> copy = null;
-                    for (int i = 0; i < 3; i++)
-                    {
-                        try
-                        {
-                            copy = new(_package.Dependencies);
-                            break;
-                        }
-                        catch (InvalidOperationException e)
-                        {
-                            LogException(e);
-                        }
-                    }
-
-                    if (copy == null)
-                    {
-                        return null;
-                    }
-
-                    try
-                    {
-                        _dependencies = (from p in copy
-                                         select PackageModel.FromWamPackage(p))
-                                         .ToList();
-                    }
-                    catch (Exception e)
-                    {
-                        LogException(e);
-                        _dependencies = new();
-                    }
+                    copy = new(model._package.Dependencies);
+                    break;
                 }
-
-                return _dependencies.AsReadOnly();
+                catch (InvalidOperationException e)
+                {
+                    LogException(e);
+                }
             }
-        }
-        List<PackageModel> _dependencies = null;
+
+            if (copy == null)
+            {
+                return (new List<PackageModel>()).AsReadOnly();
+            }
+
+            try
+            {
+                return (from p in copy select PackageModel.FromWamPackage(p)).ToList();
+            }
+            catch (Exception e)
+            {
+                LogException(e);
+                return (new List<PackageModel>()).AsReadOnly();
+            }
+
+        });
+
+
+
+
+        ///// <summary>
+        ///// Cache of Package dependencies
+        ///// </summary>
+        //public IReadOnlyCollection<PackageModel> Dependencies
+        //{
+        //    get
+        //    {
+        //        if (_dependencies == null)
+        //        {
+        //            // _package.Dependencies has a tendency to throw that the collection is being modified
+        //            // during the enumeration. So we'll retry a few times
+        //            List<Package> copy = null;
+        //            for (int i = 0; i < 3; i++)
+        //            {
+        //                try
+        //                {
+        //                    // bugbug
+        //                    copy = new(_package.Dependencies);
+        //                    break;
+        //                }
+        //                catch (InvalidOperationException e)
+        //                {
+        //                    LogException(e);
+        //                }
+        //            }
+
+        //            if (copy == null)
+        //            {
+        //                return null;
+        //            }
+
+        //            try
+        //            {
+        //                _dependencies = (from p in copy
+        //                                 select PackageModel.FromWamPackage(p))
+        //                                 .ToList();
+        //            }
+        //            catch (Exception e)
+        //            {
+        //                LogException(e);
+        //                _dependencies = new();
+        //            }
+        //        }
+
+        //        return _dependencies.AsReadOnly();
+        //    }
+        //}
+        //List<PackageModel> _dependencies = null;
 
 
         /// <summary>
@@ -635,7 +840,7 @@ namespace ViewAppxPackage
         {
             get
             {
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
                 return _appxManifestContent;
             }
         }
@@ -649,7 +854,7 @@ namespace ViewAppxPackage
         {
             get
             {
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
                 return _appExecutionAlias;
             }
         }
@@ -664,18 +869,26 @@ namespace ViewAppxPackage
         {
             get
             {
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
                 return _protocol;
             }
         }
         string _protocol = null;
 
-        void EnsureManifestProperties()
+        void EnsureManifestPropertiesAsync()
         {
             if (_appxManifestContent != null)
             {
                 return;
             }
+
+            if(!MainWindow.CurrentIsWorkerThread)
+            {
+                MainWindow.RunOnWorker(() => EnsureManifestPropertiesAsync());
+                return;
+            }
+
+            Debug.Assert(MainWindow.CurrentIsWorkerThread);
 
             _appxManifestContent = "";
             _protocol = "";
@@ -696,6 +909,11 @@ namespace ViewAppxPackage
             catch (Exception e)
             {
                 LogException(e);
+                return;
+            }
+
+            if(_appxManifestContent == "")
+            {
                 return;
             }
 
@@ -850,6 +1068,9 @@ namespace ViewAppxPackage
             {
                 LogException(e);
             }
+
+            // Bugbug: Update this to only raise for the actual properties updated here
+            RaisePropertyChangedOnUIThread(null);
         }
 
 
@@ -864,7 +1085,7 @@ namespace ViewAppxPackage
                 // So read the XML instead
                 // E.g. c5e2524a-ea46-4f67-841f-6a9465d9d515
 
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
 
                 return _aumids;
             }
@@ -878,7 +1099,7 @@ namespace ViewAppxPackage
         {
             get
             {
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
                 return _aumidsList;
             }
         }
@@ -892,7 +1113,7 @@ namespace ViewAppxPackage
         {
             get
             {
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
                 return _capabilities;
             }
         }
@@ -905,11 +1126,55 @@ namespace ViewAppxPackage
         {
             get
             {
-                EnsureManifestProperties();
+                EnsureManifestPropertiesAsync();
                 return _fileTypeAssociations;
             }
         }
         string _fileTypeAssociations = null;
 
+        public string Description => _description.Value(this);
+        PackageProperty<string> _description = new(model =>
+        {
+            // bugbug: Resource packages don't have descriptions?
+            // This saves having to catch an exception
+            if (model._package.IsResourcePackage)
+            {
+                return "";
+            }
+            else
+            {
+                return model._package.Description;
+            }
+        });
+
+        public string DisplayName => _displayName.Value(this);
+        PackageProperty<string> _displayName = new(model =>
+        {
+            // bugbug: Resource packages don't have display names?
+            // This saves having to catch an exception
+            if (model._package.IsResourcePackage)
+            {
+                return model._package.Id.Name;
+            }
+            else
+            {
+                return model._package.DisplayName;
+            }
+        });
+
+        public Uri Logo => _logo.Value(this);
+        PackageProperty<Uri> _logo = new(model =>
+        {
+            // bugbug: Resource packages don't have logos?
+            // This saves having to catch an exception
+            if (model._package.IsResourcePackage)
+            {
+                return null;
+            }
+            else
+            {
+                return model._package.Logo;
+            }
+        });
     }
 }
