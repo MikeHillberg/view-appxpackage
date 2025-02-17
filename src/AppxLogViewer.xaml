@@ -9,16 +9,32 @@
     mc:Ignorable="d"
     Title="MSIX event Log">
 
-    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8" Padding="10">
-        <Button Click="Reload" ToolTipService.ToolTip="Refresh">
-            <SymbolIcon Symbol="Refresh"/>
-        </Button>
-        
-        <TextBlock Grid.Row="1" FontStyle="Italic" TextWrapping="Wrap">
-            Most recent event first. Select text to copy to clipboard
-        </TextBlock>
+    <Grid RowDefinitions="Auto,*" RowSpacing="8" Padding="10">
 
-        <ScrollViewer Grid.Row="2">
+        <CommandBar HorizontalAlignment="Left">
+            <AppBarToggleButton Icon="Play" Label="Play/Pause"
+                                IsChecked="{x:Bind IsPlaying, Mode=TwoWay}"
+                                ToolTipService.ToolTip="Play/Pause to automatically show new events"/>
+            
+            <AppBarButton Icon="Refresh" Label="Refresh"
+                          Click="Reload"
+                          ToolTipService.ToolTip="Reload latest events (unnecessary when automatically updating)"/>
+            
+            <AppBarButton Icon="Help" Label="Tips">
+                <AppBarButton.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8">
+                            <TextBlock FontWeight="Bold">Tips:</TextBlock>
+                            <TextBlock>Most recent event is shown at the top</TextBlock>
+                            <TextBlock>New events are shown automatically, use play/pause button to stop</TextBlock>
+                        </StackPanel>
+                    </Flyout>
+                </AppBarButton.Flyout>
+            </AppBarButton>
+        </CommandBar>
+        
+        
+        <ScrollViewer Grid.Row="1">
             <RichTextBlock x:Name="_rtb"
                        FontFamily="Courier New"
                        FontSize="12"

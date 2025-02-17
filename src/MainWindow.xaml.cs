@@ -744,11 +744,13 @@ namespace ViewAppxPackage
                 }
             }
 
-            // We're not full loaded yet, but we're loaded _just_ enough to start showing the UI
+            // We're not fully loaded yet, but we're loaded _just_ enough to start showing the UI
             PostToUI(() =>
             {
-                Packages = initialSort;
                 IsLoading = false;
+
+                Packages = initialSort;
+                FilterAndSearchPackages();
 
                 if (_loadingDialog != null)
                 {

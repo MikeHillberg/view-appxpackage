@@ -174,7 +174,7 @@
                             <DataTemplate x:DataType="local:PackageModel">
                                 <!-- First column is a logo, second column is several properties -->
                                 <!-- 36px matches Settings app Installed Apps list -->
-                                <Grid ColumnDefinitions="36,*" ColumnSpacing="8">
+                                <Grid ColumnDefinitions="36,*" ColumnSpacing="10">
                                     <Image Stretch="Uniform" >
                                         <Image.Source>
                                             <BitmapImage UriSource="{x:Bind Logo}" />

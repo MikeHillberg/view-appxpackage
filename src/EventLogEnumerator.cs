@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 
 namespace ViewAppxPackage
@@ -9,16 +10,40 @@ namespace ViewAppxPackage
     internal class EventLogEnumerator : IDisposable
     {
         EventLogReader _reader;
+        EventLogWatcher _watcher;
+        EventLogQuery _readerQuery;
+
         internal EventLogEnumerator(string logName)
         {
-            EventLogQuery query = new(logName, PathType.LogName)
+            _readerQuery = new(logName, PathType.LogName)
             {
                 ReverseDirection = true,
                 TolerateQueryErrors = true
             };
-            _reader = new(query);
+            _reader = new(_readerQuery);
 
+            // Watch for changes to the log
+            // Need a new query because it rejects ReverseDirection
+            EventLogQuery watcherQuery = new(logName, PathType.LogName)
+            {
+                TolerateQueryErrors = true
+            };
+
+            _watcher = new(watcherQuery);
+            _watcher.EventRecordWritten += (s, e) => Changed?.Invoke(this, null);
+            _watcher.Enabled = true;
         }
+
+        internal void Reset()
+        {
+            _next?.Dispose();
+            _next = null;
+
+            _reader?.Dispose();
+            _reader = new(_readerQuery);
+        }
+
+        internal event EventHandler Changed;
 
         // The next record on the log
         EventRecord _next = null;
@@ -85,6 +110,9 @@ namespace ViewAppxPackage
 
             _reader?.Dispose();
             _reader = null;
+
+            _watcher?.Dispose();
+            _watcher = null;
         }
     }
 }

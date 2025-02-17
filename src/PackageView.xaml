@@ -13,24 +13,24 @@
                 Padding="20"
                 Visibility="{x:Bind NotEmpty(Package)}">
 
-            <!-- Title area with display name and logo -->
-            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch" >
+            <!-- Title area with logo and display name -->
+            <Grid ColumnDefinitions="75,*" ColumnSpacing="20" HorizontalAlignment="Stretch" Height="75" >
 
-                <TextBlock Text="{x:Bind Package.DisplayName}"
-                           Style="{StaticResource SubheaderTextBlockStyle}"
-                           TextWrapping="Wrap"
-                           IsTextSelectionEnabled="True"
-                           Margin="0,0,0,10" />
-
-                <Image Grid.Column="1" 
+                <Image Grid.Column="0" 
                        Stretch="Uniform"
-                       HorizontalAlignment="Right" VerticalAlignment="Top"
-                       Height="75">
+                       HorizontalAlignment="Right" VerticalAlignment="Top" >
                     <Image.Source>
                         <BitmapImage UriSource="{x:Bind Package.Logo}" />
                     </Image.Source>
                 </Image>
 
+                <TextBlock Grid.Column="1"
+                           Text="{x:Bind Package.DisplayName}"
+                           VerticalAlignment="Center"
+                           Style="{StaticResource SubheaderTextBlockStyle}"
+                           TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True"
+                           Margin="0,0,0,10" />
             </Grid>
 
             <TextBlock Text="{x:Bind Package.Description}" Margin="0,0,0,10"

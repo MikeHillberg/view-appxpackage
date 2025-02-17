@@ -2,6 +2,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
+using System;
 using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
@@ -30,6 +31,7 @@ namespace ViewAppxPackage
             {
                 _packagingEvents?.Dispose();
                 _deploymentEvents?.Dispose();
+                _newEventRefreshDelayTimer?.Stop();
             };
 
             // WIP:
@@ -43,14 +45,16 @@ namespace ViewAppxPackage
         static public void Show()
         {
             var window = new AppxLogViewer();
-            window.ReadLog();
-            window.Activate();
+            window.ShowImpl();
         }
 
         EventLogEnumerator _packagingEvents = null;
         EventLogEnumerator _deploymentEvents = null;
 
-        void UpdateContent()
+        /// <summary>
+        /// Copy Text property to the UI
+        /// </summary>
+        void DisplayText()
         {
             _rtb.Blocks.Clear();
             Paragraph paragraph = new();
@@ -65,7 +69,17 @@ namespace ViewAppxPackage
                 {
                     break;
                 }
-                paragraph.Inlines.Add(new Run() { Text = $"{line}\n" });
+
+                var run = new Run() { Text = $"{line}\n" };
+
+                // Each line from the event log has a header and content.
+                // Make the header bold
+                if (line.StartsWith("    "))
+                {
+                    run.FontWeight = FontWeights.Bold;
+                }
+
+                paragraph.Inlines.Add(run);
 
                 sb.AppendLine(line);
             }
@@ -76,10 +90,25 @@ namespace ViewAppxPackage
             //_rtb.IsReadOnly = true;
         }
 
-        void ReadLog()
+        void ShowImpl()
         {
             _packagingEvents = new("Microsoft-Windows-AppxPackaging/Operational");
+            _packagingEvents.Changed += (_, _) => OnNewEvents();
+
             _deploymentEvents = new("Microsoft-Windows-AppXDeploymentServer/Operational");
+            _deploymentEvents.Changed += (_, _) => OnNewEvents();
+
+            ReadLogAndDisplay();
+            Activate();
+        }
+
+        void ReadLogAndDisplay()
+        {
+            if (!MainWindow.CurrentIsUiThread)
+            {
+                MainWindow.PostToUI(() => ReadLogAndDisplay());
+                return;
+            }
 
             // Get the most recent 100 entries from the event logs
             // Note that this won't be 50/50 from the two logs, as we're just getting the most recent 100
@@ -100,7 +129,7 @@ namespace ViewAppxPackage
                 // Header line
                 var timeCreated = record.TimeCreated?.ToString("MM/dd/yyyy HH:mm:ss");
                 var activityId = record.ActivityId.ToString();
-                if(!string.IsNullOrEmpty(activityId))
+                if (!string.IsNullOrEmpty(activityId))
                 {
                     activityId = $", ActivityID={activityId}";
                 }
@@ -112,7 +141,7 @@ namespace ViewAppxPackage
 
             Text = sb.ToString();
 
-            UpdateContent();
+            DisplayText();
         }
 
         /// <summary>
@@ -204,9 +233,85 @@ namespace ViewAppxPackage
             ////_rtb.Select(saveStartTextPointer, saveEndTextPointer);
         }
 
+        /// <summary>
+        /// Called when the event log has been updated, updates the UI
+        /// </summary>
+        void OnNewEvents()
+        {
+            if (!MainWindow.CurrentIsUiThread)
+            {
+                MainWindow.PostToUI(() => OnNewEvents());
+                return;
+            }
+
+            if (!IsPlaying)
+            {
+                // View has been paused (you can still click Refresh though)
+                return;
+            }
+
+            // To weather a storm of new events, only update the UI every 10 seconds
+
+            if (_newEventRefreshDelayTimer?.IsEnabled == true)
+            {
+                // Don't update the UI until the timer goes off
+                return;
+            }
+
+            // Create a timer if we don't already have one, and hook up the event handler
+            if (_newEventRefreshDelayTimer == null)
+            {
+                _newEventRefreshDelayTimer = new DispatcherTimer();
+                _newEventRefreshDelayTimer.Interval = TimeSpan.FromSeconds(10);
+                _newEventRefreshDelayTimer.Tick += (_, _) =>
+                {
+                    _newEventRefreshDelayTimer.Stop();
+                    if (!_isPlaying)
+                    {
+                        // The user paused the view
+                        return;
+                    }
+
+                    Reload(null, null);
+                };
+            }
+
+            // Timer's created but not yet running, so Start
+            _newEventRefreshDelayTimer.Start();
+        }
+        DispatcherTimer _newEventRefreshDelayTimer = null;
+
+        /// <summary>
+        /// Play/Pause updating the view.
+        /// The source-of-truth is the UI, so no need to raise change notifications
+        /// </summary>
+        bool IsPlaying
+        {
+            get => _isPlaying;
+            set
+            {
+                _isPlaying = value;
+
+                // The UI was paused, bring it up to date
+                // If it's now paused, the timer might be running, but we'll ignore when it raises
+                if (_isPlaying)
+                {
+                    Reload(null, null);
+                }
+            }
+        }
+        bool _isPlaying = true;
+
+        /// <summary>
+        /// Reload the UI. This is used both from the UI Refresh button and from event log change notifications
+        /// </summary>
         private void Reload(object sender, RoutedEventArgs e)
         {
-            ReadLog();
+            Debug.Assert(MainWindow.CurrentIsUiThread);
+
+            _packagingEvents.Reset();
+            _deploymentEvents.Reset();
+            ReadLogAndDisplay();
         }
     }
 }
