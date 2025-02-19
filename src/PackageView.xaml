@@ -29,6 +29,7 @@
                            VerticalAlignment="Center"
                            Style="{StaticResource SubheaderTextBlockStyle}"
                            TextWrapping="Wrap"
+                           TextTrimming="CharacterEllipsis"
                            IsTextSelectionEnabled="True"
                            Margin="0,0,0,10" />
             </Grid>
@@ -47,6 +48,7 @@
                         <!-- For all of these if a Value is unset, the row is collapsed -->
 
                         <local:PackageViewRow Label="Name" Value="{x:Bind Package.Name}"/>
+                        <local:PackageViewRow Label="Display Name" Value="{x:Bind Package.DisplayName}"/>
                         <local:PackageViewRow Label="Installed Date" Value="{x:Bind local:Utils.FormatDate(Package.InstalledDate)}"/>
                         <local:PackageViewRow Label="Size" Value="{x:Bind Package.Size}"/>
                         <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.ResourceId}"/>

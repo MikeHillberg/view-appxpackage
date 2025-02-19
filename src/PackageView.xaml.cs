@@ -118,7 +118,7 @@ namespace ViewAppxPackage
 
             var package = Package;
 
-            Debug.Assert(package != null);
+            // We might pass through a null state temporarily
             if(package == null)
             {
                 DebugLog.Append($"null package in ReadSettings");

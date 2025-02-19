@@ -63,6 +63,10 @@ namespace ViewAppxPackage
                 IsShuttingDown = true;
             };
 
+            Closed += (s,e) =>
+            {
+                _logViewerWindow?.Close();
+            };
         }
 
         // Dialog that shows until we have the bare minimum loaded
@@ -647,7 +651,8 @@ namespace ViewAppxPackage
         /// Queue to the UI thread
         internal static void PostToUI(Microsoft.UI.Dispatching.DispatcherQueueHandler action)
         {
-            Instance.DispatcherQueue.TryEnqueue(action);
+            // DispatcherQueue can be null during shutdown
+            _ = Instance.DispatcherQueue?.TryEnqueue(action);
         }
 
         /// <summary>
@@ -1401,8 +1406,15 @@ namespace ViewAppxPackage
 
         private void ShowAppxLog(object sender, RoutedEventArgs e)
         {
-            AppxLogViewer.Show();
+            if(_logViewerWindow != null)
+            {
+                _logViewerWindow.Activate();
+                return;
+            }
+
+            _logViewerWindow = AppxLogViewer.Show();
         }
+        Window _logViewerWindow = null;
 
         /// <summary>
         /// Run Powershell with package identity on the process

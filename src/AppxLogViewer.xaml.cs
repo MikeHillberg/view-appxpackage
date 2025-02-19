@@ -34,6 +34,12 @@ namespace ViewAppxPackage
                 _newEventRefreshDelayTimer?.Stop();
             };
 
+            // If the main window is shutting down, close this window too
+            DispatcherQueue.ShutdownStarting += (s, e) =>
+            {
+                Close();
+            };
+
             // WIP:
             //_rtb.AddHandler(
             //    UIElement.PointerReleasedEvent, 
@@ -42,10 +48,11 @@ namespace ViewAppxPackage
         }
         string Text { get; set; }
 
-        static public void Show()
+        static public Window Show()
         {
             var window = new AppxLogViewer();
             window.ShowImpl();
+            return window;
         }
 
         EventLogEnumerator _packagingEvents = null;
@@ -114,7 +121,7 @@ namespace ViewAppxPackage
             // Note that this won't be 50/50 from the two logs, as we're just getting the most recent 100
 
             StringBuilder sb = new();
-            for (int i = 0; i < 200; i++) // bugbug: add a "More" button rather than a random number
+            for (int i = 0; i < 500; i++) // bugbug: add a "More" button rather than a random number
             {
                 using var record = GetNextEvent();
                 if (record == null)
