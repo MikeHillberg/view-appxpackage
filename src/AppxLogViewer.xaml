@@ -27,6 +27,7 @@
                             <TextBlock FontWeight="Bold">Tips:</TextBlock>
                             <TextBlock>Most recent event is shown at the top</TextBlock>
                             <TextBlock>New events are shown automatically, use play/pause button to stop</TextBlock>
+                            <TextBlock>Select text to highlight all occurrences</TextBlock>
                         </StackPanel>
                     </Flyout>
                 </AppBarButton.Flyout>

@@ -20,12 +20,8 @@ using Windows.Foundation;
 using Microsoft.UI.Xaml.Input;
 using System.Collections.ObjectModel;
 using Windows.Storage;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using ColorCode.Compilation.Languages;
 using System.Threading;
 using Microsoft.UI.Dispatching;
-using Windows.System;
-
 
 
 namespace ViewAppxPackage
@@ -528,12 +524,9 @@ namespace ViewAppxPackage
             }
         }
 
-
         int PackageCount => Packages == null ? 0 : Packages.Count;
 
-        bool NoPackagesFound => Packages == null || Packages.Count == 0;
-
-
+        bool NoPackagesFound => !IsLoading && (Packages == null || Packages.Count == 0);
 
         /// <summary>
         /// True if SelectedItems.Count > 1
@@ -573,7 +566,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            _ = Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CurrentItem.FamilyName}"));
+            _ = Windows.System.Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CurrentItem.FamilyName}"));
         }
 
         private void OpenManifest()
@@ -649,10 +642,12 @@ namespace ViewAppxPackage
 
         /// <summary>
         /// Queue to the UI thread
-        internal static void PostToUI(Microsoft.UI.Dispatching.DispatcherQueueHandler action)
+        internal static void PostToUI(
+            DispatcherQueueHandler action,
+            DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
         {
             // DispatcherQueue can be null during shutdown
-            _ = Instance.DispatcherQueue?.TryEnqueue(action);
+            _ = Instance.DispatcherQueue?.TryEnqueue(priority, action);
         }
 
         /// <summary>
@@ -770,7 +765,13 @@ namespace ViewAppxPackage
             // so that we have everything cached
             _packagesToPreload = new(_originalPackages.Value);
             _packagesToLoad = new(_originalPackages.Value);
-            FinishLoading();
+
+            // Finish reading the Package Manager from the worker thread
+            // This can be overridden from the command line (useful for debugging)
+            if (!MainWindow.LazyPreload)
+            {
+                FinishLoading();
+            }
         }
 
         Queue<PackageModel> _packagesToPreload;

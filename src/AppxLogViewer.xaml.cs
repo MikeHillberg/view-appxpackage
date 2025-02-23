@@ -1,12 +1,12 @@
+using Microsoft.UI.Xaml.Documents;
+using System.Diagnostics;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Documents;
-using Microsoft.UI.Xaml.Input;
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
-using System.IO;
 using System.Text;
+using System.Threading;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -18,6 +18,20 @@ namespace ViewAppxPackage
     /// </summary>
     public sealed partial class AppxLogViewer : Window
     {
+        EventLogEnumerator _packagingEvents = null;
+        EventLogEnumerator _deploymentEvents = null;
+        CancellationTokenSource _highlightingCTS = null;
+
+        // EventRecords are heavy (have a Dispose), so just copy out what we need
+        struct MyEventRecord
+        {
+            internal string Header;
+            internal Guid? ActivityId;
+            internal string Description;
+            internal string LevelDisplayName;
+        }
+        List<MyEventRecord> _eventRecords = null;
+
         /// <summary>
         /// Window that displays the event log content (like get-appxlog)
         /// </summary>
@@ -46,8 +60,10 @@ namespace ViewAppxPackage
             //    new PointerEventHandler(RtbPointerReleased), 
             //    true);
         }
-        string Text { get; set; }
 
+        /// <summary>
+        /// Create and activate the window to show the event log
+        /// </summary>
         static public Window Show()
         {
             var window = new AppxLogViewer();
@@ -55,74 +71,74 @@ namespace ViewAppxPackage
             return window;
         }
 
-        EventLogEnumerator _packagingEvents = null;
-        EventLogEnumerator _deploymentEvents = null;
-
         /// <summary>
-        /// Copy Text property to the UI
+        /// Instance helper for Show()
         /// </summary>
-        void DisplayText()
-        {
-            _rtb.Blocks.Clear();
-            Paragraph paragraph = new();
-            _rtb.Blocks.Add(paragraph);
-
-            StringBuilder sb = new();
-            TextReader reader = new StringReader(Text);
-            while (true)
-            {
-                var line = reader.ReadLine();
-                if (line == null)
-                {
-                    break;
-                }
-
-                var run = new Run() { Text = $"{line}\n" };
-
-                // Each line from the event log has a header and content.
-                // Make the header bold
-                if (line.StartsWith("    "))
-                {
-                    run.FontWeight = FontWeights.Bold;
-                }
-
-                paragraph.Inlines.Add(run);
-
-                sb.AppendLine(line);
-            }
-
-
-            //_rtb.IsReadOnly = false;
-            //_rtb.Document.SetText(TextSetOptions.None, sb.ToString());
-            //_rtb.IsReadOnly = true;
-        }
-
         void ShowImpl()
         {
+            // Open the two event logs and register for change updates
             _packagingEvents = new("Microsoft-Windows-AppxPackaging/Operational");
             _packagingEvents.Changed += (_, _) => OnNewEvents();
 
             _deploymentEvents = new("Microsoft-Windows-AppXDeploymentServer/Operational");
             _deploymentEvents.Changed += (_, _) => OnNewEvents();
 
-            ReadLogAndDisplay();
+            ReadLogAndUpdateView();
             Activate();
         }
 
-        void ReadLogAndDisplay()
+        /// <summary>
+        /// Copy Text property to the UI
+        /// </summary>
+        void UpdateView()
         {
+            _rtb.Blocks.Clear();
+
+            // Create a paragraph for each event record
+            foreach (var record in _eventRecords)
+            {
+                Paragraph p = new();
+                p.Margin = new Thickness(0, 0, 0, 10);
+
+                // Add the record.Header in bold as the first line
+                Run header = new();
+                header.Text = record.Header;
+                header.FontWeight = FontWeights.Bold;
+                p.Inlines.Add(header);
+                p.Inlines.Add(new LineBreak());
+
+                // Add the description as the second line
+                // (or lines, since the description can have embedded line breaks)
+                 p.Inlines.Add(new Run() { Text = record.Description });
+                _rtb.Blocks.Add(p);
+            }
+        }
+
+
+        /// <summary>
+        /// Read from the event log and populate the view RichTextBlock
+        /// </summary>
+        void ReadLogAndUpdateView()
+        {
+            // If called from off thread (in an event notification)
+            // forward to the UI thread
             if (!MainWindow.CurrentIsUiThread)
             {
-                MainWindow.PostToUI(() => ReadLogAndDisplay());
+                MainWindow.PostToUI(() => ReadLogAndUpdateView());
                 return;
             }
 
-            // Get the most recent 100 entries from the event logs
-            // Note that this won't be 50/50 from the two logs, as we're just getting the most recent 100
+            // Clear any existing highlighting and stop any in-progress highlighting
+            CancelHighlighting();
+            _rtb.TextHighlighters.Clear();
 
-            StringBuilder sb = new();
-            for (int i = 0; i < 500; i++) // bugbug: add a "More" button rather than a random number
+            // Get the most recent entries from the event logs
+            // Note that this won't be 50/50 from the two logs, as we're just getting the most recent,
+            // and they're not evenly split between the two
+            _eventRecords = new();
+            for (int i = 0; i < 500; i++) // bugbug: add a "More" button rather than a random limit
             {
+                // Get the next event, which could be from either log
                 using var record = GetNextEvent();
                 if (record == null)
                 {
@@ -130,25 +146,28 @@ namespace ViewAppxPackage
                     break;
                 }
 
-                // Whitespace
-                sb.AppendLine();
-
-                // Header line
                 var timeCreated = record.TimeCreated?.ToString("MM/dd/yyyy HH:mm:ss");
+
                 var activityId = record.ActivityId.ToString();
                 if (!string.IsNullOrEmpty(activityId))
                 {
-                    activityId = $", ActivityID={activityId}";
+                    activityId = $", ActivityID = {activityId}";
                 }
-                sb.AppendLine($"    {timeCreated}{activityId}, {record.LevelDisplayName}");
 
-                // Description
-                sb.AppendLine(record.FormatDescription());
+                // Save what we need from the event record, which is going to get disposed
+                MyEventRecord myRecord = new()
+                {
+                    ActivityId = record.ActivityId,
+                    Description = record.FormatDescription(),
+                    Header = $"    {timeCreated}, {record.LevelDisplayName}{activityId}",
+                    LevelDisplayName = record.LevelDisplayName,
+                };
+
+                _eventRecords.Add(myRecord);
             }
 
-            Text = sb.ToString();
-
-            DisplayText();
+            // Populate the RichTextBlock
+            UpdateView();
         }
 
         /// <summary>
@@ -169,96 +188,179 @@ namespace ViewAppxPackage
             }
         }
 
+        /// <summary>
+        /// When there's selected text, highlight any matches
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void DocumentSelectionChanged(object sender, RoutedEventArgs e)
         {
-            //var text = _rtb.SelectedText;
-            //var start = _rtb.SelectionStart.Offset;
-            // Debug.WriteLine($"Selection: '{text}', {start}");
+            var selectedText = _rtb.SelectedText;
+            var start = _rtb.SelectionStart.Offset;
+            var pos = _rtb.Blocks[2].ContentStart.Offset;
+            Debug.WriteLine($"Selection: '{selectedText}', {start}, {pos}");
+
+            _rtb.TextHighlighters.Clear();
+
+            if (string.IsNullOrEmpty(selectedText))
+            {
+                // The selection has been cleared
+                _isSelectionActive = false;
+
+                // Stop any in-process highlighting
+                CancelHighlighting();
+
+                // If some new events came in while the selection was active,
+                // reload from the event log
+                if(_newEventsPending)
+                {
+                    _newEventsPending = false;
+                    Reload(null, null);
+                }
+            }
+            else
+            {
+                // There's a selection going on
+                _isSelectionActive = true;
+
+                // If the selection isn't trivially short, start highlighting matches
+                if (selectedText.Length > 3)
+                {
+                    _highlightingCTS = new();
+                    HighlightAllMatchesAsync(selectedText, _highlightingCTS.Token);
+                }
+            }
         }
 
-        //private void RtbPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        //{
-        //    Test(sender as FrameworkElement, e);
 
-        //    Debug.WriteLine("");
-        //    var pointerPoint = e.GetCurrentPoint(sender as FrameworkElement);
-        //    var textPointer = _rtb.GetPositionFromPoint(pointerPoint.Position);
-        //    Debug.WriteLine($"TextPointer Offset: {textPointer.Offset}");
-
-        //    var saveStartTextPointer = _rtb.SelectionStart;
-        //    var saveEndTextPointer = _rtb.SelectionEnd;
-        //    var start = textPointer.GetPositionAtOffset(-5, LogicalDirection.Backward);
-        //    var end = textPointer.GetPositionAtOffset(5, LogicalDirection.Forward);
-        //    _rtb.Select(start, end);
-        //    Debug.WriteLine($"Selected: '{_rtb.SelectedText}'");
-        //    _rtb.Select(saveStartTextPointer, saveEndTextPointer);
-
-
-        //    TextRange range = new()
-        //    {
-        //        StartIndex = textPointer.Offset,
-        //        Length = 10
-        //    };
-
-        //    TextHighlighter highlighter = new()
-        //    {
-        //        Ranges = { range }
-        //    };
-
-        //    _rtb.TextHighlighters.Add(highlighter);
-
-        //    Debug.WriteLine($"TextPointer Offset into original string: {Text.Substring(textPointer.Offset, 10)}");
-
-        //    //var sub = Text.Substring(position.Offset, 10);
-        //    //Debug.WriteLine($"Substring: '{sub}'");
-
-        //    //            e.Handled = true;
-        //}
-
-        void Test(FrameworkElement sender, PointerRoutedEventArgs e)
+        void CancelHighlighting()
         {
-            //var textPointer = _rtb.ContentStart;
+            _highlightingCTS?.Cancel();
+            _highlightingCTS = null;
 
-            //while(true)
-            //{
-            //    var pointerNext = textPointer.GetPositionAtOffset(1, LogicalDirection.Forward);
-            //    _rtb.Select(textPointer, pointerNext);
-            //    Debug.WriteLine($"pointerOffset={textPointer.Offset}, selection='{_rtb.SelectedText}'");
-            //    textPointer = pointerNext;
-            //}
-
-            ////var pointerPoint = e.GetCurrentPoint(sender as FrameworkElement);
-            ////var textPointer = _rtb.GetPositionFromPoint(pointerPoint.Position);
-            ////Debug.WriteLine($"TextPointer Offset: {textPointer.Offset}");
-
-            ////var saveStartTextPointer = _rtb.SelectionStart;
-            ////var saveEndTextPointer = _rtb.SelectionEnd;
-            ////var start = textPointer.GetPositionAtOffset(-5, LogicalDirection.Backward);
-            ////var end = textPointer.GetPositionAtOffset(5, LogicalDirection.Forward);
-            ////_rtb.Select(start, end);
-            ////Debug.WriteLine($"Selected: '{_rtb.SelectedText}'");
-            ////_rtb.Select(saveStartTextPointer, saveEndTextPointer);
         }
+
+        /// <summary>
+        /// Highlight in the RichTextBlock all matches of the input search string
+        /// </summary>
+        void HighlightAllMatchesAsync(string search, CancellationToken cancellationToken, int index = 0)
+        {
+            // Loop through all the event records looking for matches.
+            // We could loop through the paragraphs instead, but this is faster
+            // This is recursive, running for a while then posting back a continuation.
+            // The index parameter is for the continuation.
+            // bugbug: start highlighting from the viewport rather than from the beginning
+            for (int i = index; i < _eventRecords.Count; i++)
+            {
+                // See if we should abort (because a new selection started)
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                // Highlight the text if there's a match.
+                // The negative offset is calcuated by trial/error
+                var record = _eventRecords[i];
+                HighlightInline(record.Header, search, i, 0, -2);
+                HighlightInline(record.Description, search, i, 2, -5);
+
+                // Periodically yield the UI thread by posting at low priority to continue
+                if(i % 100 == 0)
+                {
+                    MainWindow.PostToUI(
+                        () => HighlightAllMatchesAsync(search, cancellationToken, i+1),
+                        Microsoft.UI.Dispatching.DispatcherQueuePriority.Low);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Highlight an Inline if it has a match for the search string
+        /// </summary>
+        private void HighlightInline(
+            string inlineText, // What's in a Run.Text
+            string searchText,
+            int paragraphIndex, 
+            int inlineIndex,
+            int offset)
+        {
+            // Abort if there's nothing to do
+            if (!inlineText.Contains(searchText))
+            {
+                return;
+            }
+
+            var p = _rtb.Blocks[paragraphIndex] as Paragraph;
+            var run = p.Inlines[inlineIndex] as Run;
+
+            // bugbug: could be multiple matches per line
+            var index = inlineText.IndexOf(searchText);
+
+            // Index is the offset into the Run.Text of the match
+            // We need to convert that value into a TextRange
+            // We can get the TextPointer offset of the start of the run,
+            // but TextPointer offsets and TextHighlighter offsets are in two different
+            // number spaces unfortunately. (TextPointer likely takes into account zero-width
+            // control characters and TextHighlighter doesn't.)
+
+            // By trial and error I've figured out a conversion that works for this specific use case
+            // Take the start of the Run, add the index, subtract a little for each preceding paragraph,
+            // and subtract a little more (depends on if this is the first or second run in the paragraph)
+            index += run.ContentStart.Offset;
+            index -= paragraphIndex * 7;
+            index += offset;
+
+            // Now create the highlighter and add it to the RTB
+            TextHighlighter highlighter = new()
+            {
+                Ranges =
+                {
+                    new TextRange()
+                    {
+                        StartIndex = index,
+                        Length = searchText.Length
+                    }
+                }
+            };
+
+            _rtb.TextHighlighters.Add(highlighter);
+        }
+
+        // This is true when the event log has updated but we didn't fetch them because
+        // there's an active selection
+        bool _newEventsPending = false;
+
+        bool _isSelectionActive = false;
 
         /// <summary>
         /// Called when the event log has been updated, updates the UI
         /// </summary>
         void OnNewEvents()
         {
+            // Forward to the UI thread if necessary
             if (!MainWindow.CurrentIsUiThread)
             {
                 MainWindow.PostToUI(() => OnNewEvents());
                 return;
             }
 
+            // Don't do anything if the view has been paused
+            // (you can still click Refresh though)
             if (!IsPlaying)
             {
-                // View has been paused (you can still click Refresh though)
+                return;
+            }
+
+            // Also don't do anything if there's a selection going on
+            // Keep track that we have something though for when the selection ends
+            if(_isSelectionActive)
+            {
+                _newEventsPending = true;
                 return;
             }
 
             // To weather a storm of new events, only update the UI every 10 seconds
-
             if (_newEventRefreshDelayTimer?.IsEnabled == true)
             {
                 // Don't update the UI until the timer goes off
@@ -318,7 +420,7 @@ namespace ViewAppxPackage
 
             _packagingEvents.Reset();
             _deploymentEvents.Reset();
-            ReadLogAndDisplay();
+            ReadLogAndUpdateView();
         }
     }
 }

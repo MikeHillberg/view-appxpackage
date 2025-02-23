@@ -220,6 +220,7 @@
 
                 <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
                            HorizontalAlignment="Center"
+                           Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}"
                            VerticalAlignment="Center">Nothing to see here, select a package</TextBlock>
 
                 <!-- Detail view. Note that this spans two rows -->
