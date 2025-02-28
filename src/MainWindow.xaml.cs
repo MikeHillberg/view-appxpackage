@@ -31,7 +31,7 @@ namespace ViewAppxPackage
         public MainWindow()
         {
             Instance = this;
-            _uiThread = Thread.CurrentThread;
+            MyThreading.SetUIThread(Thread.CurrentThread);
 
             ProcessCommandLineArguments();
 
@@ -63,16 +63,12 @@ namespace ViewAppxPackage
             {
                 _logViewerWindow?.Close();
             };
+
+            CreateSettings();
         }
 
         // Dialog that shows until we have the bare minimum loaded
         ContentDialog _loadingDialog;
-
-        static Thread _uiThread;
-        static internal bool CurrentIsUiThread => Thread.CurrentThread == _uiThread;
-
-        static Thread _workerThread;
-        static internal bool CurrentIsWorkerThread => Thread.CurrentThread == _workerThread;
 
         // Goes true on DispatcherQueue.ShutdownStarting
         static internal bool IsShuttingDown = false;
@@ -83,7 +79,7 @@ namespace ViewAppxPackage
         /// </summary>
         private void InitializePackageCatalogEvents()
         {
-            Debug.Assert(MainWindow.CurrentIsWorkerThread);
+            Debug.Assert(MyThreading.CurrentIsWorkerThread);
 
             _packageCatalog = PackageCatalog.OpenForCurrentUser();
 
@@ -328,9 +324,12 @@ namespace ViewAppxPackage
             PackageUpdateNotification updateKind)
         {
             // This gets raised on an MTA thread. Forward to the worker thread
-            if(!MainWindow.CurrentIsWorkerThread)
+            if(!MyThreading.CurrentIsWorkerThread)
             {
-                MainWindow.SendToWorker(() => OnCatalogUpdate(isComplete, wamPackage, wamPackage2, updateKind));
+                _ = MyThreading.RunOnWorkerAsync(() =>
+                {
+                    OnCatalogUpdate(isComplete, wamPackage, wamPackage2, updateKind);
+                });
                 return;
             }
 
@@ -384,7 +383,7 @@ namespace ViewAppxPackage
             {
                 // The underlying package is coming as a different instance,
                 // so check the PFullName
-                MainWindow.PostToUI(() =>
+                MyThreading.RunOnUI(() =>
                 {
                     if (CurrentItem.FullName == package.FullName)
                     {
@@ -408,7 +407,7 @@ namespace ViewAppxPackage
                     _originalPackages.Value = new(_originalPackages.Value.OrderBy((p) => p.Name).ToList());
 
                     // If the old package was selected, select the new one
-                    MainWindow.PostToUI(() =>
+                    MyThreading.RunOnUI(() =>
                     {
                         if (CurrentItem.FullName == package2.FullName)
                         {
@@ -434,7 +433,7 @@ namespace ViewAppxPackage
             }
 
             // Update the UI
-            MainWindow.PostToUI(() =>
+            MyThreading.RunOnUI(() =>
             {
                 FilterAndSearchPackages();
                 RaisePropertyChanged(nameof(NoPackagesFound));
@@ -621,8 +620,6 @@ namespace ViewAppxPackage
             }
         }
 
-        static Microsoft.UI.Dispatching.DispatcherQueue _workerThreadDispatcher;
-
         void StartLoadPackages()
         {
             IsLoading = true;
@@ -632,70 +629,10 @@ namespace ViewAppxPackage
 
             var isAllUsers = App.IsProcessElevated() && IsAllUsers;
 
-            // Create the worker thread (STA)
-            var controller = Microsoft.UI.Dispatching.DispatcherQueueController.CreateOnDedicatedThread();
-            _workerThreadDispatcher = controller.DispatcherQueue;
+            MyThreading.CreateWorkerThread();
 
             // Do all the package loading on the worker thread
-            RunOnWorker(() => WorkerThread(isAllUsers));
-        }
-
-        /// <summary>
-        /// Queue to the UI thread
-        internal static void PostToUI(
-            DispatcherQueueHandler action,
-            DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
-        {
-            // DispatcherQueue can be null during shutdown
-            _ = Instance.DispatcherQueue?.TryEnqueue(priority, action);
-        }
-
-        /// <summary>
-        /// Queue to the worker thread
-        /// </summary>
-        /// <param name="action"></param>
-        internal static void PostToWorker(Action action)
-        {
-            _workerThreadDispatcher.TryEnqueue(() => action());
-        }
-
-        /// <summary>
-        /// Run on the worker thread. This is sync if already on the thread, a post otherwise
-        /// </summary>
-        /// <param name="action"></param>
-        internal static void RunOnWorker(Action action)
-        {
-            if (CurrentIsUiThread)
-            {
-                PostToWorker(action);
-            }
-            else
-            {
-                action();
-            }
-        }
-
-        /// <summary>
-        /// Sync send to the worker thread from an MTA thread.
-        /// </summary>
-        internal static void SendToWorker(Action action)
-        {
-            Debug.Assert(!MainWindow.CurrentIsUiThread);
-            Debug.Assert(!MainWindow.CurrentIsWorkerThread);
-
-            if (MainWindow.CurrentIsWorkerThread)
-            {
-                action();
-                return;
-            }
-
-            var semaphore = new SemaphoreSlim(0, 1);
-            PostToWorker(() =>
-            {
-                action();
-                semaphore.Release();
-            });
-            semaphore.Wait();
+            _ = MyThreading.RunOnWorkerAsync(() => WorkerThread(isAllUsers));
         }
 
         /// <summary>
@@ -704,7 +641,7 @@ namespace ViewAppxPackage
         /// <param name="isAllUsers"></param>
         void WorkerThread(bool isAllUsers)
         {
-            _workerThread = Thread.CurrentThread;
+            MyThreading.SetWorkerThread(Thread.CurrentThread);
             IEnumerable<Package> wamPackages = null;
             if (isAllUsers)
             {
@@ -745,7 +682,7 @@ namespace ViewAppxPackage
             }
 
             // We're not fully loaded yet, but we're loaded _just_ enough to start showing the UI
-            PostToUI(() =>
+            MyThreading.RunOnUI(() =>
             {
                 IsLoading = false;
 
@@ -817,14 +754,16 @@ namespace ViewAppxPackage
             else
             {
                 DebugLog.Append("Finished loading");
-                MainWindow.PostToUI(() => IsSearchEnabled = true);
+                MyThreading.RunOnUI(() => IsSearchEnabled = true);
                 return;
             }
 
             Debug.Assert(package != null);
 
             // Move on to the next item (this post might go behind something from the UI thread)
-            MainWindow.PostToWorker(() => FinishLoading());
+            MyThreading.PostToWorker(
+                () => FinishLoading(),
+                DispatcherQueuePriority.Low);
         }
 
         void EnsureItemSelected()
@@ -972,7 +911,7 @@ namespace ViewAppxPackage
         /// </summary>
         void FilterAndSearchPackages()
         {
-            Debug.Assert(MainWindow.CurrentIsUiThread);
+            Debug.Assert(MyThreading.CurrentIsUiThread);
 
             if (Packages == null)
             {
@@ -1613,6 +1552,29 @@ namespace ViewAppxPackage
         }
         double _maxListWidth = 0;
 
+        /// <summary>
+        /// Create a bunch of settings to help test/debug the settings viewer
+        /// </summary>
+        [Conditional("DEBUG")]
+        void CreateSettings()
+        {
+            var createSettings = (ApplicationDataContainer container) =>
+            {
+                container.Values["Test1"] = "Test1";
+                container.Values["Test2"] = "Test2";
+            };
+            ApplicationDataContainer localSettingsContainer = ApplicationData.Current.LocalSettings;
+            createSettings(localSettingsContainer);
+
+            var child = localSettingsContainer.CreateContainer("Container1", ApplicationDataCreateDisposition.Always);
+            createSettings(child);
+
+            child = localSettingsContainer.CreateContainer("Container2", ApplicationDataCreateDisposition.Always);
+            createSettings(child);
+
+            child = child.CreateContainer("Container3", ApplicationDataCreateDisposition.Always);
+            createSettings(child);
+        }
 
     }
 

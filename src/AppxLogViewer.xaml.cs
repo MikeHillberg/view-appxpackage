@@ -122,9 +122,9 @@ namespace ViewAppxPackage
         {
             // If called from off thread (in an event notification)
             // forward to the UI thread
-            if (!MainWindow.CurrentIsUiThread)
+            if (!MyThreading.CurrentIsUiThread)
             {
-                MainWindow.PostToUI(() => ReadLogAndUpdateView());
+                MyThreading.RunOnUI(() => ReadLogAndUpdateView());
                 return;
             }
 
@@ -243,8 +243,18 @@ namespace ViewAppxPackage
         /// <summary>
         /// Highlight in the RichTextBlock all matches of the input search string
         /// </summary>
-        void HighlightAllMatchesAsync(string search, CancellationToken cancellationToken, int index = 0)
+        void HighlightAllMatchesAsync(
+            string search, CancellationToken
+            cancellationToken,
+            int index = 0,
+            int matchCount = 0)
         {
+            if (index == 0)
+            {
+                // Root call into this method (not a recursive call)
+                DebugLog.Append($"Highlighting {search}");
+            }
+
             // Loop through all the event records looking for matches.
             // We could loop through the paragraphs instead, but this is faster
             // This is recursive, running for a while then posting back a continuation.
@@ -255,41 +265,48 @@ namespace ViewAppxPackage
                 // See if we should abort (because a new selection started)
                 if (cancellationToken.IsCancellationRequested)
                 {
+                    DebugLog.Append($"Highlighting of '{search}' canceled");
                     return;
                 }
 
                 // Highlight the text if there's a match.
                 // The negative offset is calcuated by trial/error
                 var record = _eventRecords[i];
-                HighlightInline(record.Header, search, i, 0, -2);
-                HighlightInline(record.Description, search, i, 2, -5);
+                matchCount += HighlightInline(record.Header, search, i, 0, -2);
+                matchCount += HighlightInline(record.Description, search, i, 2, -5);
 
                 // Periodically yield the UI thread by posting at low priority to continue
                 if(i % 100 == 0)
                 {
-                    MainWindow.PostToUI(
-                        () => HighlightAllMatchesAsync(search, cancellationToken, i+1),
+                    MyThreading.RunOnUI(
+                        () => HighlightAllMatchesAsync(search, cancellationToken, i+1, matchCount),
                         Microsoft.UI.Dispatching.DispatcherQueuePriority.Low);
                     return;
                 }
             }
+
+            // We only get here on the call that completes, not each iteration of the multi-step process
+            DebugLog.Append($"Highlighted {matchCount} matches");
         }
 
         /// <summary>
         /// Highlight an Inline if it has a match for the search string
         /// </summary>
-        private void HighlightInline(
+        private int HighlightInline(
             string inlineText, // What's in a Run.Text
             string searchText,
             int paragraphIndex, 
             int inlineIndex,
             int offset)
         {
+            int matchCount = 0;
+
             // Abort if there's nothing to do
             if (!inlineText.Contains(searchText))
             {
-                return;
+                return matchCount;
             }
+            matchCount = 1;
 
             var p = _rtb.Blocks[paragraphIndex] as Paragraph;
             var run = p.Inlines[inlineIndex] as Run;
@@ -325,6 +342,7 @@ namespace ViewAppxPackage
             };
 
             _rtb.TextHighlighters.Add(highlighter);
+            return matchCount;
         }
 
         // This is true when the event log has updated but we didn't fetch them because
@@ -339,9 +357,9 @@ namespace ViewAppxPackage
         void OnNewEvents()
         {
             // Forward to the UI thread if necessary
-            if (!MainWindow.CurrentIsUiThread)
+            if (!MyThreading.CurrentIsUiThread)
             {
-                MainWindow.PostToUI(() => OnNewEvents());
+                MyThreading.RunOnUI(() => OnNewEvents());
                 return;
             }
 
@@ -416,7 +434,7 @@ namespace ViewAppxPackage
         /// </summary>
         private void Reload(object sender, RoutedEventArgs e)
         {
-            Debug.Assert(MainWindow.CurrentIsUiThread);
+            Debug.Assert(MyThreading.CurrentIsUiThread);
 
             _packagingEvents.Reset();
             _deploymentEvents.Reset();

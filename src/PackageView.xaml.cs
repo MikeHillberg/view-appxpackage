@@ -41,7 +41,7 @@ namespace ViewAppxPackage
             // bugbug: this should be happening already with the x:Bind
             _root.Visibility = Package == null ? Visibility.Collapsed : Visibility.Visible;
 
-            ReadSettings();
+            ReadSettingsAsync();
         }
 
         Visibility NotEmpty(PackageModel package)
@@ -101,97 +101,63 @@ namespace ViewAppxPackage
         /// <summary>
         /// App data settings for the package
         /// </summary>
-        public IList<PackageSetting> Settings
+        public IList<PackageSettingBase> Settings
         {
-            get { return (IList<PackageSetting>)GetValue(SettingsProperty); }
+            get { return (IList<PackageSettingBase>)GetValue(SettingsProperty); }
             set { SetValue(SettingsProperty, value); }
         }
         public static readonly DependencyProperty SettingsProperty =
-            DependencyProperty.Register("Settings", typeof(IList<PackageSetting>), typeof(PackageView), new PropertyMetadata(null));
+            DependencyProperty.Register("Settings", typeof(IList<PackageSettingBase>), typeof(PackageView), new PropertyMetadata(null));
 
         /// <summary>
         /// Read the app data settings into the Settings property
         /// </summary>
-        async void ReadSettings()
+        async void ReadSettingsAsync()
         {
             Settings = null;
 
             var package = Package;
 
             // We might pass through a null state temporarily
-            if(package == null)
+            if (package == null)
             {
                 DebugLog.Append($"null package in ReadSettings");
                 return;
             }
 
-            var settings = await Task.Run(() =>
+            IsLoadingSettings = true;
+            IsSettingsEmpty = false;
+
+            IList<PackageSettingBase> settings = null;
+            settings = await package.GetAllSettingsAsync();
+
+            IsLoadingSettings = false;
+
+            if (settings == null || settings.Count == 0)
             {
-                return ReadSettingsHelper(package);
-            });
+                IsSettingsEmpty = true;
+            }
 
             // Ignore the result if the Package has changed while we were away
-            if(Package == package)
+            if (Package == package)
             {
                 Settings = settings;
             }
         }
 
-        /// <summary>
-        /// Read the app data settings async
-        /// </summary>
-        static private IList<PackageSetting> ReadSettingsHelper(PackageModel package)
-        {
-            // AplicationData.LocalSettings.Value has a tendency to throw out-of-range exceptions
-            try
-            {
-                ApplicationData applicationData = GetApplicationDataFor(package);
-                if (applicationData == null)
-                {
-                    return null;
-                }
-
-                var settings = from value in applicationData.LocalSettings.Values
-                               orderby value.Key
-                               select new PackageSetting() { Name = value.Key, Value = value.Value.ToString() };
-
-                return settings.ToList();
-            }
-            catch (Exception e)
-            {
-                DebugLog.Append($"ApplicationData exception in ReadSettings: {e.Message}");
-                return null;
-            }
-        }
-
-        static ApplicationData GetApplicationDataFor(PackageModel package)
-        {
-            ApplicationData applicationData = null;
-            try
-            {
-                applicationData = ApplicationDataManager.CreateForPackageFamily(package.FamilyName);
-            }
-            catch (Exception e)
-            {
-                DebugLog.Append($"ApplicationDataManager.CreateForPackageFamily({package.FamilyName}): {e.Message}");
-            }
-
-            return applicationData;
-        }
-
         private async void DeleteSetting(object sender, RoutedEventArgs e)
         {
-            ApplicationData applicationData = GetApplicationDataFor(Package);
+            ApplicationData applicationData = Package.GetApplicationData();
             if (applicationData == null)
             {
                 return;
             }
 
             var button = sender as Button;
-            var name = button.Tag as string;
+            var setting = button.Tag as PackageSettingBase;
 
             var result = await MyMessageBox.Show(
-                                name, 
+                                setting.Name,
                                 title: "Remove?",
                                 isOKEnabled: true,
                                 closeButtonText: "Cancel");
@@ -200,18 +166,145 @@ namespace ViewAppxPackage
                 return;
             }
 
-            var settingsValues = applicationData.LocalSettings.Values;
-            settingsValues.Remove(name);
+            var parentContainer = GetParentContainerFor(setting);
+            if (setting is PackageSettingContainer)
+            {
+                parentContainer.DeleteContainer(setting.Name);
+            }
+            else
+            {
+                parentContainer.Values.Remove(setting.Name);
+            }
 
             // Re-read the settings, which should now not include {name}
-            ReadSettings();
+            ReadSettingsAsync();
+        }
+
+        ApplicationDataContainer GetParentContainerFor(PackageSettingBase settingBase)
+        {
+            if (settingBase.Parent == null)
+            {
+                ApplicationData applicationData = Package.GetApplicationData();
+                if (applicationData == null)
+                {
+                    DebugLog.Append($"Coudln't get ApplicationData for {this.Package.FullName}");
+                }
+
+                return applicationData?.LocalSettings;
+            }
+
+            var parentContainer = GetParentContainerFor(settingBase.Parent);
+            return parentContainer.Containers[settingBase.Parent.Name];
+        }
+
+        public bool IsLoadingSettings
+        {
+            get { return (bool)GetValue(IsLoadingSettingsProperty); }
+            set { SetValue(IsLoadingSettingsProperty, value); }
+        }
+        public static readonly DependencyProperty IsLoadingSettingsProperty =
+            DependencyProperty.Register("IsLoadingSettings", typeof(bool), typeof(PackageView), new PropertyMetadata(false));
+
+
+        public bool IsSettingsEmpty
+        {
+            get { return (bool)GetValue(IsSettingsEmptyProperty); }
+            set { SetValue(IsSettingsEmptyProperty, value); }
+        }
+        public static readonly DependencyProperty IsSettingsEmptyProperty =
+            DependencyProperty.Register("IsSettingsEmpty", typeof(bool), typeof(PackageView), new PropertyMetadata(false));
+
+        private void AppBarButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        async private void DeleteSetting2(object sender, RoutedEventArgs e)
+        {
+            var setting = _settingsTree.SelectedItem as PackageSettingBase;
+            if (setting == null)
+            {
+                return;
+            }
+            ApplicationData applicationData = Package.GetApplicationData();
+            if (applicationData == null)
+            {
+                return;
+            }
+
+            var result = await MyMessageBox.Show(
+                                setting.Name,
+                                title: "Remove?",
+                                isOKEnabled: true,
+                                closeButtonText: "Cancel");
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            var parentContainer = GetParentContainerFor(setting);
+            if (setting is PackageSettingContainer)
+            {
+                parentContainer.DeleteContainer(setting.Name);
+            }
+            else
+            {
+                parentContainer.Values.Remove(setting.Name);
+            }
+
+            // Re-read the settings, which should now not include {name}
+            ReadSettingsAsync();
         }
     }
 
-    public class PackageSetting
+    // bugbug
+    // Name property should be in PackageSettingBase as it is,
+    // but Children should be in PackageSettingContainer and Value should be in PackageSetting.
+    // And the templates should be x:DataType to PackageSettingContainer and PackageSetting.
+    // But there appears to be a bug in ItemsControl where it caches the
+    // IDataTemplateComponent (the generated Bindings code) on the templateRoot,
+    // and it's getting the type wrong. (See XamlBindingHelperFactory::GetDataTemplateComponentStatic)
+    // So it calls the generated binding code and asks it to set the item and gets a type cast exception.
+    // As a workaround, both templates are x:DataType the base type, so no type cast exception.
+    // That still means it's hitting the bug, but at least it's not crashing.
+    // (Happens on YourPhone app, might requiring setting IsExpanded=true in the template)
+    public class PackageSettingBase
     {
-        public string Name { get; set; }
-        public string Value { get; set; }
+        public PackageSettingBase()
+        {
+            This = this;
+        }
 
+        public string Name { get; set; }
+        public PackageSettingBase Parent;
+        public string Value { get; set; }
+        public IList<PackageSettingBase> Children;
+
+        public PackageSettingBase This { get; private set; }
     }
+
+    public class PackageSetting : PackageSettingBase
+    {
+    }
+
+    public class PackageSettingContainer : PackageSettingBase
+    {
+    }
+
+
+    public class SettingsItemTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate ContainerTemplate { get; set; }
+        public DataTemplate SettingTemplate { get; set; }
+
+        protected override DataTemplate SelectTemplateCore(object item)
+        {
+            Debug.Assert(item != null);
+            var setting = item as PackageSettingBase;
+            var template = (item is PackageSettingContainer) ? ContainerTemplate : SettingTemplate;
+
+            return template;
+        }
+    }
+
 }

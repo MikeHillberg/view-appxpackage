@@ -79,7 +79,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            if (MainWindow.CurrentIsUiThread)
+            if (MyThreading.CurrentIsUiThread)
             {
                 // On the UI thread we'll post to the worker thread to get the value
                 // If we've already started that for this package/property, then we're done

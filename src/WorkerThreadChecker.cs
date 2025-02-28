@@ -26,12 +26,12 @@ namespace ViewAppxPackage
         {
             get
             {
-                Debug.Assert(MainWindow.CurrentIsWorkerThread);
+                Debug.Assert(MyThreading.CurrentIsWorkerThread);
                 return _value;
             }
             set
             {
-                Debug.Assert(MainWindow.CurrentIsWorkerThread);
+                Debug.Assert(MyThreading.CurrentIsWorkerThread);
                 _value = value;
             }
         }

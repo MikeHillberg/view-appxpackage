@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.ApplicationModel;
 using Windows.Management.Core;
+using Windows.Storage;
 using Windows.UI.Text;
 
 namespace ViewAppxPackage
@@ -29,7 +30,7 @@ namespace ViewAppxPackage
 
         // Cache all the PropertyInfos, used during initialization
         static IList<PropertyInfo> _thisProperties = typeof(PackageModel).GetProperties().ToList();
-        
+
         // We're in the Initializing state until all of the Package has been read
         // Preinitializing is while we're loading the first few properties for the initial UI
         public bool Initializing { get; private set; } = false;
@@ -52,13 +53,13 @@ namespace ViewAppxPackage
 
             Initializing = true;
 
-            if(MainWindow.CurrentIsUiThread)
+            if (MyThreading.CurrentIsUiThread)
             {
                 DebugLog.Append($"Triggering load for {_name.CurrentValue}");
             }
 
             // Do the work on the worker thread
-            MainWindow.RunOnWorker(() =>
+            _ = MyThreading.RunOnWorkerAsync(() =>
             {
                 // Call all the getters. Any of these not already initialized will set their cache
                 foreach (var prop in _thisProperties)
@@ -120,7 +121,7 @@ namespace ViewAppxPackage
 
                 _package._preloaded = true;
 
-                MainWindow.RunOnWorker(() =>
+                _ = MyThreading.RunOnWorkerAsync(() =>
                 {
                     // Call the property getters to get their cache initialized
                     var name = _package.Name;
@@ -520,7 +521,7 @@ namespace ViewAppxPackage
         {
             var args = new PropertyChangedEventArgs(propertyName);
 
-            if (MainWindow.CurrentIsUiThread)
+            if (MyThreading.CurrentIsUiThread)
             {
                 if (!MainWindow.IsShuttingDown)
                 {
@@ -529,7 +530,7 @@ namespace ViewAppxPackage
             }
             else
             {
-                MainWindow.PostToUI(() => PropertyChanged?.Invoke(this, args));
+                MyThreading.RunOnUI(() => PropertyChanged?.Invoke(this, args));
             }
         }
 
@@ -882,13 +883,13 @@ namespace ViewAppxPackage
                 return;
             }
 
-            if(!MainWindow.CurrentIsWorkerThread)
+            if (!MyThreading.CurrentIsWorkerThread)
             {
-                MainWindow.RunOnWorker(() => EnsureManifestPropertiesAsync());
+                _ = MyThreading.RunOnWorkerAsync(() => EnsureManifestPropertiesAsync());
                 return;
             }
 
-            Debug.Assert(MainWindow.CurrentIsWorkerThread);
+            Debug.Assert(MyThreading.CurrentIsWorkerThread);
 
             _appxManifestContent = "";
             _protocol = "";
@@ -912,7 +913,7 @@ namespace ViewAppxPackage
                 return;
             }
 
-            if(_appxManifestContent == "")
+            if (_appxManifestContent == "")
             {
                 return;
             }
@@ -1176,5 +1177,90 @@ namespace ViewAppxPackage
                 return model._package.Logo;
             }
         });
+
+
+        async public Task<IList<PackageSettingBase>> GetAllSettingsAsync()
+        {
+            IList<PackageSettingBase> allSettings = null;
+            if (!MyThreading.CurrentIsWorkerThread)
+            {
+                await MyThreading.RunOnWorkerAsync(() => allSettings = GetAllSettings());
+            }
+            else
+            {
+                allSettings = GetAllSettings();
+            }
+
+            return allSettings;
+        }
+
+        /// <summary>
+        /// Read the app data settings
+        /// </summary>
+        private IList<PackageSettingBase> GetAllSettings()
+        {
+            // AplicationData.LocalSettings.Value has a tendency to throw out-of-range exceptions
+            try
+            {
+                ApplicationData applicationData = GetApplicationData();
+                if (applicationData == null)
+                {
+                    return null;
+                }
+                var settings = GetSettings(applicationData.LocalSettings);
+
+                return settings;
+            }
+            catch (Exception e)
+            {
+                DebugLog.Append($"ApplicationData exception in ReadSettings: {e.Message}");
+                return null;
+            }
+        }
+
+        public ApplicationData GetApplicationData()
+        {
+            ApplicationData applicationData = null;
+            try
+            {
+                applicationData = ApplicationDataManager.CreateForPackageFamily(this.FamilyName);
+            }
+            catch (Exception e)
+            {
+                DebugLog.Append($"ApplicationDataManager.CreateForPackageFamily({this.FamilyName}): {e.Message}");
+            }
+
+            return applicationData;
+        }
+
+        private IList<PackageSettingBase> GetSettings(
+            ApplicationDataContainer container,
+            PackageSettingBase parent = null)
+        {
+            List<PackageSettingBase> childContainerSettings = new();
+            foreach (var childContainer in container.Containers)
+            {
+                var settingContainer = new PackageSettingContainer()
+                {
+                    Name = childContainer.Key,
+                    Parent = parent
+                };
+                settingContainer.Children = GetSettings(childContainer.Value, settingContainer);
+                childContainerSettings.Add(settingContainer);
+            }
+
+            var containerSettings = from value in container.Values
+                                    orderby value.Key
+                                    select new PackageSetting()
+                                    {
+                                        Name = value.Key,
+                                        Value = value.Value.ToString(),
+                                        Parent = parent
+                                    };
+
+            return [.. containerSettings, .. childContainerSettings.OrderBy(p => p.Name)];
+        }
+
+
     }
 }
