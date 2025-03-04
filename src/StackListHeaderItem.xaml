@@ -1,0 +1,9 @@
+<ListViewHeaderItem
+    x:Class="ViewAppxPackage.StackListHeaderItem"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Margin="-12,12,-12,0"
+    IsTabStop="False">
+
+
+</ListViewHeaderItem>

@@ -255,6 +255,12 @@ namespace ViewAppxPackage
             // Re-read the settings, which should now not include {name}
             ReadSettingsAsync();
         }
+
+        private void Hyperlink_AppLaunch(Hyperlink sender, HyperlinkClickEventArgs args)
+        {
+            var app = Utils.GetTag(sender) as AppListEntryModel;
+            app.Launch();
+        }
     }
 
     // bugbug

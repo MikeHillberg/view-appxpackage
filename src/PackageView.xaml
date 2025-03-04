@@ -42,89 +42,131 @@
                        TextWrapping="Wrap"
                        local:CollapseIfEmpty.IsEnabled="True" />
 
-        <TabView Grid.Row="2" IsAddTabButtonVisible="False">
-            
+        <TabView Grid.Row="2" IsAddTabButtonVisible="False" 
+                 CanDragTabs="False" CanReorderTabs="False">
+
             <!-- Properties tab -->
             <TabViewItem Header="Properties" IsClosable="False" Padding="0,8,0,8">
                 <Grid RowDefinitions="*">
                     <ScrollViewer>
-                            <StackPanel>
-                                <!-- These are all rows of name/value pairs. There's logic to keep the first column width the same everywhere -->
-                                <!-- For all of these if a Value is unset, the row is collapsed -->
+                        <StackPanel>
+                            <!-- These are all rows of name/value pairs. There's logic to keep the first column width the same everywhere -->
+                            <!-- For all of these if a Value is unset, the row is collapsed -->
 
-                                <local:PackageViewRow Label="Name" Value="{x:Bind Package.Name}"/>
-                                <local:PackageViewRow Label="Display Name" Value="{x:Bind Package.DisplayName}"/>
-                                <local:PackageViewRow Label="Installed Date" Value="{x:Bind local:Utils.FormatDate(Package.InstalledDate)}"/>
-                                <local:PackageViewRow Label="Size" Value="{x:Bind Package.Size}"/>
-                                <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.ResourceId}"/>
-                                <local:PackageViewRow Label="Execution Alias" Value="{x:Bind Package.AppExecutionAlias}"/>
-                                <local:PackageViewRow Label="Protocol" Value="{x:Bind Package.Protocol}"/>
-                                <local:PackageViewRow Label="File Types" Value="{x:Bind Package.FileTypeAssociations}"/>
-                                <local:PackageViewRow Label="Aumid" Value="{x:Bind Package.Aumids}"/>
-                                <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
-                                <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.PublisherId}"/>
-                                <local:PackageViewRow Label="Version" Value="{x:Bind Package.VersionString}"/>
-                                <local:PackageViewRow Label="Package Full Name" Value="{x:Bind Package.FullName}"/>
-                                <local:PackageViewRow Label="Package Family Name" Value="{x:Bind Package.FamilyName}"/>
-                                <local:PackageViewRow Label='Author' Value='{x:Bind Package.Author}'/>
-                                <local:PackageViewRow Label="Capabilities" Value="{x:Bind Package.Capabilities}"/>
-                                <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Architecture}"/>
-                                <local:PackageViewRow Label="Installed Path" LinkValue="{x:Bind Package.InstalledPath}"/>
-                                <local:PackageViewRow Label="Application Data" LinkValue="{x:Bind Package.ApplicationDataPath}"/>
-                                <local:PackageViewRow Label='EffectiveExternalPath' LinkValue='{x:Bind Package.EffectiveExternalPath}'/>
-                                <local:PackageViewRow Label='EffectivePath' LinkValue='{x:Bind Package.EffectivePath}'/>
-                                <local:PackageViewRow Label='MachineExternalPath' LinkValue='{x:Bind Package.MachineExternalPath}'/>
-                                <local:PackageViewRow Label='MutablePath' LinkValue='{x:Bind Package.MutablePath}'/>
-                                <local:PackageViewRow Label='UserExternalPath' LinkValue='{x:Bind Package.UserExternalPath}'/>
-                                <local:PackageViewRow Label='Publisher' Value='{x:Bind Package.Publisher}'/>
-                                <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
-                                <local:PackageViewRow Label="User Information" Value="{x:Bind Package.PackageUserInformation}"/>
+                            <local:PackageViewRow Label="Name" Value="{x:Bind Package.Name}"/>
+                            <local:PackageViewRow Label="Display Name" Value="{x:Bind Package.DisplayName}"/>
+                            <local:PackageViewRow Label="Installed Date" Value="{x:Bind local:Utils.FormatDate(Package.InstalledDate)}"/>
+                            <local:PackageViewRow Label="Size" Value="{x:Bind Package.Size}"/>
+                            <local:PackageViewRow Label="Resource ID" Value="{x:Bind Package.ResourceId}"/>
+                            <local:PackageViewRow Label="Publisher Name" Value="{x:Bind Package.PublisherDisplayName}"/>
+                            <local:PackageViewRow Label="Publisher ID" Value="{x:Bind Package.PublisherId}"/>
+                            <local:PackageViewRow Label="Version" Value="{x:Bind Package.VersionString}"/>
+                            <local:PackageViewRow Label="Package Full Name" Value="{x:Bind Package.FullName}"/>
+                            <local:PackageViewRow Label="Package Family Name" Value="{x:Bind Package.FamilyName}"/>
+                            <local:PackageViewRow Label='Author' Value='{x:Bind Package.Author}'/>
+                            <local:PackageViewRow Label="Capabilities" Value="{x:Bind Package.Capabilities}"/>
+                            <local:PackageViewRow Label="Architecture" Value="{x:Bind Package.Architecture}"/>
+                            <local:PackageViewRow Label="Installed Path" LinkValue="{x:Bind Package.InstalledPath}"/>
+                            <local:PackageViewRow Label="Application Data" LinkValue="{x:Bind Package.ApplicationDataPath}"/>
+                            <local:PackageViewRow Label='Effective External Path' LinkValue='{x:Bind Package.EffectiveExternalPath}'/>
+                            <local:PackageViewRow Label='Effective Path' LinkValue='{x:Bind Package.EffectivePath}'/>
+                            <local:PackageViewRow Label='Machine External Path' LinkValue='{x:Bind Package.MachineExternalPath}'/>
+                            <local:PackageViewRow Label='Mutable Path' LinkValue='{x:Bind Package.MutablePath}'/>
+                            <local:PackageViewRow Label='User External Path' LinkValue='{x:Bind Package.UserExternalPath}'/>
+                            <local:PackageViewRow Label='Publisher' Value='{x:Bind Package.Publisher}'/>
+                            <local:PackageViewRow Label='Product Id' Value='{x:Bind Package.ProductId}'/>
+                            <local:PackageViewRow Label="User Information" Value="{x:Bind Package.PackageUserInformation}"/>
+                            <local:PackageViewRow Label="App Installer URI" Value="{x:Bind Package.AppInstallerUri}"/>
+
+                            <!-- Bugbug: Missing Win11 propertiews: NonRemoveable, PartiallyStaged -->
+
+                            <local:PackageViewRow Label="Signature Kind" Value="{x:Bind Package.SignatureKind}"/>
+                            <local:PackageViewRow Label="Flags" Value="{x:Bind GetTrueBooleans(Package)}" />
+                            <local:PackageViewRow Label="Status" Value="{x:Bind Package.Status}"/>
+
+                            <!-- Apps -->
+
+                            <local:StackListHeaderItem local:CollapseIfEmpty.IsEnabledFor="{x:Bind _appsList}"
+                                                       Content="Apps"/>
+                            
+                            <ItemsControl x:Name="_appsList" ItemsSource="{x:Bind Package.AppEntries}" >
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:AppListEntryModel">
+                                        <StackPanel>
+                                            <Grid  Margin="0,12,0,0">
+                                                <Image Source="{x:Bind Logo}" Width="36" Height="36" Stretch="Uniform"
+                                                       HorizontalAlignment="Left"
+                                                       VerticalAlignment="Center"/>
+
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    
+                                                    <!-- Bugbug: hack to get the next TextBlock at the right horizontal offset -->
+                                                    <TextBlock Opacity="0"
+                                                           Width="{x:Bind local:PackageView.Instance.MinLabelWidth}">M</TextBlock>
+                                                    <TextBlock Grid.Column="1"
+                                                           Margin="10,0,0,0"
+                                                           Text="{x:Bind DisplayName}"
+                                                           Style="{StaticResource SubtitleTextBlockStyle}"/>
+
+                                                    <TextBlock VerticalAlignment="Bottom" Margin="10,0,0,3">
+                                                        <Hyperlink Click="Hyperlink_AppLaunch" 
+                                                                   local:Utils.Tag="{x:Bind This}">
+                                                            [Launch]
+                                                        </Hyperlink>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <local:PackageViewRow Label="Id" Value="{x:Bind Id}"/>
+                                            <local:PackageViewRow Label="Display Name" Value="{x:Bind DisplayName}"/>
+                                            <local:PackageViewRow Label="Description" Value="{x:Bind Description}"/>
+                                            <local:PackageViewRow Label="Execution Aliases" Value="{x:Bind ExecutionAliases}"/>
+                                            <local:PackageViewRow Label="Protocols" Value="{x:Bind Protocols}"/>
+                                            <local:PackageViewRow Label="File Types" Value="{x:Bind FileTypeAssociations}"/>
+                                            <local:PackageViewRow Label="App User Model Id" Value="{x:Bind AppUserModelId}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
 
-                                <!-- bugbug: Non removeable? -->
-                                <!-- butbug: Partially Staged? -->
+                            <!-- List of dependencies -->
+                            <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependencies}">
+                                <local:StackListHeaderItem>Dependencies</local:StackListHeaderItem>
 
-                                <local:PackageViewRow Label="Signature Kind" Value="{x:Bind Package.SignatureKind}"/>
-                                <local:PackageViewRow Label="Flags" Value="{x:Bind GetTrueBooleans(Package)}" />
-                                <local:PackageViewRow Label="Status" Value="{x:Bind Package.Status}"/>
-
-                                <!-- List of dependencies -->
-                                <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependencies}">
-                                    <TextBlock FontWeight="Bold" Text="Dependencies"/>
-
-                                    <!-- Want a DataTemplate, don't want the full UX of a "list", so just use ItemsControl -->
-                                    <ItemsControl ItemsSource="{x:Bind Package.Dependencies}" >
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="local:PackageModel">
-                                                <TextBlock Margin="10,5,0,0">
+                                <!-- Want a DataTemplate, don't want the full UX of a "list", so just use ItemsControl -->
+                                <ItemsControl ItemsSource="{x:Bind Package.Dependencies}" >
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:PackageModel">
+                                            <TextBlock Margin="10,5,0,0">
                             <Hyperlink Click="GoToPackage" local:PackageView.MyTag="{x:Bind}">
                                 <Run Text="{x:Bind FullName}"/>
                             </Hyperlink>
-                                                </TextBlock>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-
-                                </StackPanel>
-
-                                <!-- List of dependents -->
-                                <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependents}">
-                                    <TextBlock FontWeight="Bold" Text="Dependents"/>
-                                    <ItemsControl ItemsSource="{x:Bind Package.Dependents}" >
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="local:PackageModel">
-                                                <TextBlock Margin="10,5,0,0">
-                                <Hyperlink Click="GoToPackage" 
-                                           local:PackageView.MyTag="{x:Bind}">
-                                    <Run Text="{x:Bind FullName}"/>
-                                </Hyperlink>
-                                                </TextBlock>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
 
                             </StackPanel>
+
+                            <!-- List of dependents -->
+                            <StackPanel Margin="0,15,0,0" local:CollapseIfEmpty.IsEnabledFor="{x:Bind Package.Dependents}">
+                                <local:StackListHeaderItem>Dependents</local:StackListHeaderItem>
+                                <ItemsControl ItemsSource="{x:Bind Package.Dependents}" >
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:PackageModel">
+                                            <TextBlock Margin="10,5,0,0">
+                                                <Hyperlink Click="GoToPackage" 
+                                                           local:PackageView.MyTag="{x:Bind}">
+                                                    <Run Text="{x:Bind FullName}"/>
+                                                </Hyperlink>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                        </StackPanel>
                     </ScrollViewer>
                 </Grid>
             </TabViewItem>
@@ -146,14 +188,18 @@
                     <!-- Content area of the properties tab-->
                     <ScrollViewer Grid.Row="1">
                         <Grid>
-                            <TreeView x:Name="_settingsTree" ItemsSource="{x:Bind Settings}">
+                            <!-- To prevent drag, I think all of these Can properties need to be cleared,
+                                 and CanDrag on the individual TreeViewItems (in the DataTemplates) as well -->
+                            <TreeView x:Name="_settingsTree" ItemsSource="{x:Bind Settings}" 
+                                      CanReorderItems="False" CanDrag="False" CanDragItems="False">
                                 <TreeView.ItemTemplateSelector>
                                     <local:SettingsItemTemplateSelector>
-                                        
+
                                         <!-- Template to display a setting name/value -->
                                         <local:SettingsItemTemplateSelector.SettingTemplate>
                                             <DataTemplate x:DataType="local:PackageSettingBase">
-                                                <TreeViewItem AutomationProperties.Name="{x:Bind Name}" >
+                                                <TreeViewItem AutomationProperties.Name="{x:Bind Name}" 
+                                                              CanDrag="False">
                                                     <StackPanel Margin="0,8,0,8" Spacing="10" Orientation="Horizontal">
                                                         <!-- Name and value of the setting -->
                                                         <StackPanel Spacing="5">
@@ -174,7 +220,7 @@
                                         <!-- Template to display an app data Container (child container) -->
                                         <local:SettingsItemTemplateSelector.ContainerTemplate>
                                             <DataTemplate x:DataType="local:PackageSettingBase">
-                                                <TreeViewItem ItemsSource="{x:Bind Children}" >
+                                                <TreeViewItem ItemsSource="{x:Bind Children}" CanDrag="False">
                                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                                         <SymbolIcon>Folder</SymbolIcon>
                                                         <TextBlock Text="{x:Bind Name}"

@@ -53,7 +53,7 @@
                     <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
                     <AppBarButton x:Name="_launchButton" 
                                   Icon="Play" Label="Launch"
-                                  IsEnabled="{x:Bind CanLaunch(IsMultiSelect)}"
+                                  IsEnabled="{x:Bind CanLaunch(CurrentItem)}"
                                   Click="LaunchPackage2">
                     </AppBarButton>
 
@@ -87,7 +87,8 @@
                         </AppBarButton.Icon>
                     </AppBarButton>
 
-                    <AppBarButton Label="PS as Package" Click="RunPowershellAsPackage">
+                    <AppBarButton Label="PS as Package" Click="RunPowershellAsPackage"
+                                  IsEnabled="{x:Bind CanLaunch(CurrentItem)}" >
                         <AppBarButton.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
                         </AppBarButton.Icon>
@@ -173,8 +174,8 @@
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:PackageModel">
                                 <!-- First column is a logo, second column is several properties -->
-                                <!-- 36px matches Settings app Installed Apps list -->
-                                <Grid ColumnDefinitions="36,*" ColumnSpacing="10">
+                                <!-- 36px and 22px match Settings app Installed Apps list -->
+                                <Grid ColumnDefinitions="36,*" ColumnSpacing="22">
                                     <Image Stretch="Uniform" >
                                         <Image.Source>
                                             <BitmapImage UriSource="{x:Bind Logo}" />

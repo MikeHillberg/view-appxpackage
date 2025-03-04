@@ -31,6 +31,7 @@
     <None Remove="PackageView.xaml" />
     <None Remove="PackageViewRow.xaml" />
     <None Remove="ProgressOverlay.xaml" />
+    <None Remove="StackListHeaderItem.xaml" />
   </ItemGroup>
 
 
@@ -75,6 +76,9 @@
     <None Update="Assets\Icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Page Update="StackListHeaderItem.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="DebugLogViewer.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

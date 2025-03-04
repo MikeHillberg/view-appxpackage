@@ -101,5 +101,30 @@ namespace ViewAppxPackage
 
             return $"{bytes:0} {suffix}";
         }
+
+
+
+        /// <summary>
+        /// DependencyObject-like Tag property for non DOs
+        /// </summary>
+        public static object GetTag(DependencyObject obj)
+        {
+            return (object)obj.GetValue(TagProperty);
+        }
+
+        /// <summary>
+        /// DependencyObject-like Tag property for non DOs
+        /// </summary>
+        public static void SetTag(DependencyObject obj, object value)
+        {
+            obj.SetValue(TagProperty, value);
+        }
+
+        /// <summary>
+        /// DependencyObject-like Tag property for non DOs
+        /// </summary>
+        public static readonly DependencyProperty TagProperty =
+            DependencyProperty.RegisterAttached("Tag", typeof(object), typeof(Utils), new PropertyMetadata(null));
+
     }
 }

@@ -594,19 +594,28 @@ namespace ViewAppxPackage
             return true;
         }
 
-        bool CanLaunch(bool isMultiSelect)
+        /// <summary>
+        /// True if the Launch button should be enabled.
+        /// The PackageModel parameter is really just CurrentItem, but making it a parameter enables
+        /// the OneWay x:Bind set up change notifications
+        /// </summary>
+        /// <param name="package"></param>
+        /// <returns></returns>
+        bool CanLaunch(PackageModel package)
         {
-            if (isMultiSelect)
+            if(package == null)
             {
                 return false;
             }
 
-            if (CurrentItem == null)
+            if (package.AppEntries != null)
+            {
+                return package.AppEntries.Count != 0;
+            }
+            else
             {
                 return false;
             }
-
-            return !string.IsNullOrEmpty(CurrentItem.Aumids);
         }
 
         bool _isLoading = false;
@@ -1061,18 +1070,23 @@ namespace ViewAppxPackage
                 return;
             }
 
-            var aumidList = package.AumidsList;
+            var appEntries = package.AppEntries;
 
-            // No aumids
-            if (aumidList.Count == 0)
+            var count = 0;
+            if(appEntries != null)
+            {
+                count = appEntries.Count;
+            }
+
+            if(count == 0)
             {
                 return;
             }
 
             // One aumid means launch it
-            else if (aumidList.Count == 1)
+            else if (count == 1)
             {
-                LaunchPackage(aumidList[0]);
+                appEntries[0].Launch();
                 return;
             }
 
@@ -1080,19 +1094,11 @@ namespace ViewAppxPackage
             else
             {
                 MenuFlyout flyout = new();
-                foreach (var aumid in aumidList)
+                foreach (var app in appEntries)
                 {
-                    // E.g. Microsoft.Winget.Source_8wekyb3d8bbwe!SourceData
-                    var splitAumid = aumid.Split('!');
-                    if (splitAumid.Count() != 2)
-                    {
-                        DebugLog.Append($"Invalid Aumid: {aumid}");
-                        continue;
-                    }
-
                     MenuFlyoutItem item = new();
-                    item.Text = splitAumid[1];
-                    item.Click += (s, e) => LaunchPackage(aumid);
+                    item.Text = app.Id;
+                    item.Click += (s, e) => app.Launch();
                     flyout.Items.Add(item);
                 }
                 _launchButton.Flyout = flyout;
@@ -1361,12 +1367,14 @@ namespace ViewAppxPackage
         /// </summary>
         private void RunPowershellAsPackage(object sender, RoutedEventArgs e)
         {
-            if (CurrentItem == null)
+            if (!CanLaunch(CurrentItem))
             {
+                // Either CurrentItem is null, or it doesn't have app entries
+                // (This operation requires an Aumid)
                 return;
             }
 
-            // Putting this in a try/catch because I'm not sure if PS can raise
+            // Putting the rest of this in a try/catch because I'm not sure if PS can raise
             // And then not being super careful about the possibility of a package
             // being configured in a way I don't understand and throwing somewhere
             try
@@ -1387,15 +1395,10 @@ namespace ViewAppxPackage
                 psi.WindowStyle = ProcessWindowStyle.Hidden;
 
                 // We need a Praid for the call to Invoke-CommandInDesktopPackage
-                // This gets the Praid from the first Aumid, though there could be many.
+                // This gets the Praid from the first app list entry, though there could be many.
                 // But that should be OK because all the aumid have the same package identity.
                 // Not sure why any aumid is even necessary?
-                var aumid = CurrentItem.Aumids.Split(' ').FirstOrDefault().Trim();
-                if (string.IsNullOrEmpty(aumid))
-                {
-                    return;
-                }
-                var praid = aumid.Split('!')[1];
+                var praid = CurrentItem.AppEntries[0].Id;
 
                 // This is the package path of _this_ app, not the CurrentItem package.
                 // That's where the script is that we're going to run in the second PowerShell,

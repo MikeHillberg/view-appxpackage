@@ -1,7 +1,6 @@
 ﻿using Microsoft.UI.Text;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -61,6 +60,12 @@ namespace ViewAppxPackage
             // Do the work on the worker thread
             _ = MyThreading.RunOnWorkerAsync(() =>
             {
+                // Load the entries in the <Applications> of the appx manifest
+                // Note that this is converted to a list now, otherwise below when we're iterating through
+                // we're populating and updating at the same time
+                AppEntries = (from wamEntry in _package.GetAppListEntries()
+                              select new AppListEntryModel(wamEntry)).ToList();
+
                 // Call all the getters. Any of these not already initialized will set their cache
                 foreach (var prop in _thisProperties)
                 {
@@ -82,6 +87,11 @@ namespace ViewAppxPackage
                 RaisePropertyChangedOnUIThread(null);
             });
         }
+
+        /// <summary>
+        /// Members of the Applications element in the appx manifest (or null if none)
+        /// </summary>
+        public IList<AppListEntryModel> AppEntries { get; private set; }
 
         /// <summary>
         /// Ensure the preload properties are loaded.
@@ -228,6 +238,27 @@ namespace ViewAppxPackage
             _modelCache.Add(id, model);
             return model;
         }
+
+
+        /// <summary>
+        /// URI of the AppInstaller (if present). If this exists, the
+        /// HasAppInstaller property is also set (so it's searchable)
+        /// </summary>
+        PackageProperty<Uri> _appInstallerUri = new((model) =>
+        {
+            AppInstallerInfo info = model._package.GetAppInstallerInfo();
+            if(info == null)
+            {
+                return null;
+            }
+            return info.Uri;
+        });
+        public Uri AppInstallerUri => _appInstallerUri.Value(this);
+
+        /// <summary>
+        /// Helper property that's set if AppInstallerUri is set
+        /// </summary>
+        public bool HasAppInstaller => AppInstallerUri != null;
 
         /// <summary>
         /// Fixes a bug in the Windows API where the Version is all zeros.
@@ -851,30 +882,10 @@ namespace ViewAppxPackage
         /// <summary>
         /// App Execution Alias from the AppxManifest
         /// </summary>
-        public string AppExecutionAlias
-        {
-            get
-            {
-                EnsureManifestPropertiesAsync();
-                return _appExecutionAlias;
-            }
-        }
-        string _appExecutionAlias = null;
-
-
 
         /// <summary>
         /// App Execution Alias from the AppxManifest
         /// </summary>
-        public string Protocol
-        {
-            get
-            {
-                EnsureManifestPropertiesAsync();
-                return _protocol;
-            }
-        }
-        string _protocol = null;
 
         void EnsureManifestPropertiesAsync()
         {
@@ -892,11 +903,7 @@ namespace ViewAppxPackage
             Debug.Assert(MyThreading.CurrentIsWorkerThread);
 
             _appxManifestContent = "";
-            _protocol = "";
-            _appExecutionAlias = "";
             _capabilities = "";
-            _fileTypeAssociations = "";
-            _aumids = "";
 
             try
             {
@@ -926,92 +933,104 @@ namespace ViewAppxPackage
                     return;
                 }
 
-                // Protocols
-
-                XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
-                var protocolElements = doc.Descendants(uap + "Protocol");
-                StringBuilder sb = new();
-                foreach (var protocolElement in protocolElements)
-                {
-                    var attribute = protocolElement.Attribute("Name");
-                    if (attribute != null)
-                    {
-                        sb.Append($"{attribute.Value}: ");
-                    }
-                    _protocol = sb == null ? "" : sb.ToString();
-                }
-
-
-                // Execution Aliases
-
-                XNamespace desktop = "http://schemas.microsoft.com/appx/manifest/desktop/windows10";
-                var executionAliases = doc.Descendants(desktop + "ExecutionAlias");
-                sb = null;
-                foreach (var executionAlias in executionAliases)
-                {
-                    if (sb == null)
-                    {
-                        sb = new StringBuilder();
-                    }
-                    else
-                    {
-                        sb.Append(", ");
-                    }
-
-                    var attribute = executionAlias.Attribute("Alias");
-                    if (attribute != null)
-                    {
-                        sb.Append(attribute.Value);
-                    }
-                    _appExecutionAlias = sb == null ? "" : sb.ToString();
-                }
-
-
-                //  Aumids
-
                 XNamespace foundation = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
-                var applications = doc.Descendants(foundation + "Application");
-                sb = null;
-                _aumidsList = new();
-                foreach (var application in applications)
+                StringBuilder sb = null;
+                XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+
+                // Read the <Application> entries in the <Applications> element
+                // We use this to populate the AppListEntryModel with properties that aren't in the
+                // [AppListEntry](https://docs.microsoft.com/uwp/api/Windows.ApplicationModel.Core.AppListEntry)
+                // API
+
+                var applicationsElement = doc.Descendants(foundation + "Applications").FirstOrDefault();
+                if (applicationsElement != null)
                 {
-                    var attribute = application.Attribute("Id");
-                    if (attribute != null)
+                    // We have an <Applications> element in the manifest
+
+                    // Find all the child <Application> elements
+                    var applicationElements = applicationsElement.Elements();
+                    foreach (var applicationElement in applicationElements)
                     {
-                        if (sb == null)
+                        if(this.AppEntries == null)
                         {
-                            sb = new StringBuilder();
-                        }
-                        else
-                        {
-                            // bugbug: add a space here to make it easier for LaunchPackage to pull out the first aumid
-                            // (See the bugbug there about how it shouldn't be pulling out just the first aumid)
-                            sb.AppendLine(" ");
+                            continue;
                         }
 
-                        var aumid = $"{FamilyName}!{attribute.Value}";
-                        _aumidsList.Add(aumid);
-                        sb.Append(aumid);
-                    }
-
-
-                    // Add in the App.Executable attribute value too
-                    var executable = application.Attribute("Executable");
-                    if (executable != null)
-                    {
-                        if (sb == null)
+                        // The <Application> is required to have an Id, but be robust
+                        var id = applicationElement.Attribute("Id");
+                        if (id == null)
                         {
-                            Debug.Assert(false); // Can't have an Application without an Id, right?
-                            sb = new StringBuilder();
+                            DebugLog.Append($"No Application.Id found for {this.FullName}");
+                            continue;
                         }
 
-                        sb.Append($" ({executable.Value})");
+                        // Find the corresponding entry that was read from the package
+                        var appEntry = this.AppEntries.FirstOrDefault(e => e.Id == id.Value);
+                        if (appEntry == null)
+                        {
+                            DebugLog.Append($"App Id {id.Value} not found for {this.FullName}");
+                            continue;
+                        }
+
+                        // Protocols
+
+                        var protocolElements = applicationElement.Descendants(uap + "Protocol");
+                        sb = new();
+                        foreach (var protocolElement in protocolElements)
+                        {
+                            var attribute = protocolElement.Attribute("Name");
+                            if (attribute != null)
+                            {
+                                sb.Append($"{attribute.Value}: ");
+                            }
+                        }
+                        appEntry.Protocols = sb == null ? "" : sb.ToString();
+
+                        // Execution Aliases
+
+                        XNamespace desktop = "http://schemas.microsoft.com/appx/manifest/desktop/windows10";
+                        var executionAliases = applicationElement.Descendants(desktop + "ExecutionAlias");
+                        sb = null;
+                        foreach (var executionAlias in executionAliases)
+                        {
+                            if (sb == null)
+                            {
+                                sb = new StringBuilder();
+                            }
+                            else
+                            {
+                                sb.Append(", ");
+                            }
+
+                            var attribute = executionAlias.Attribute("Alias");
+                            if (attribute != null)
+                            {
+                                sb.Append(attribute.Value);
+                            }
+                        }
+                        appEntry.ExecutionAliases = sb == null ? "" : sb.ToString();
+
+                        // File Type Associations
+
+                        var fileTypes = applicationElement.Descendants(uap + "FileType");
+                        sb = null;
+                        foreach (var fileType in fileTypes)
+                        {
+                            if (sb == null)
+                            {
+                                sb = new StringBuilder();
+                            }
+                            else
+                            {
+                                sb.Append(" ");
+                            }
+
+                            sb.Append(fileType.Value);
+                        }
+                        appEntry.FileTypeAssociations = sb == null ? "" : sb.ToString();
+
                     }
                 }
-
-                _aumids = sb == null ? "" : sb.ToString();
-
-
 
                 // Capabilities
                 //
@@ -1045,25 +1064,6 @@ namespace ViewAppxPackage
                 _capabilities = sb == null ? "" : sb.ToString();
 
 
-                // File Type Associations
-
-                var fileTypes = doc.Descendants(uap + "FileType");
-                sb = null;
-                foreach (var fileType in fileTypes)
-                {
-                    if (sb == null)
-                    {
-                        sb = new StringBuilder();
-                    }
-                    else
-                    {
-                        sb.Append(" ");
-                    }
-
-                    sb.Append(fileType.Value);
-                }
-                _fileTypeAssociations = sb == null ? "" : sb.ToString();
-
             }
             catch (Exception e)
             {
@@ -1078,34 +1078,10 @@ namespace ViewAppxPackage
         /// <summary>
         /// App User Model ID (as a string)
         /// </summary>
-        public string Aumids
-        {
-            get
-            {
-                // bugbug: some apps have an Application.Id but don't show up in GetAppListEntries() API
-                // So read the XML instead
-                // E.g. c5e2524a-ea46-4f67-841f-6a9465d9d515
-
-                EnsureManifestPropertiesAsync();
-
-                return _aumids;
-            }
-        }
-        string _aumids = null;
 
         /// <summary>
         /// App User Model ID (as a list of strings)
         /// </summary>
-        public IReadOnlyList<string> AumidsList
-        {
-            get
-            {
-                EnsureManifestPropertiesAsync();
-                return _aumidsList;
-            }
-        }
-        List<string> _aumidsList = null;
-
 
         /// <summary>
         /// Capabilities from the appx manifest
@@ -1119,19 +1095,6 @@ namespace ViewAppxPackage
             }
         }
         string _capabilities = null;
-
-        /// <summary>
-        /// FTAs from the appx manifest
-        /// </summary>
-        public string FileTypeAssociations
-        {
-            get
-            {
-                EnsureManifestPropertiesAsync();
-                return _fileTypeAssociations;
-            }
-        }
-        string _fileTypeAssociations = null;
 
         public string Description => _description.Value(this);
         PackageProperty<string> _description = new(model =>
