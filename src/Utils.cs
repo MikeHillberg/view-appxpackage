@@ -14,7 +14,7 @@ namespace ViewAppxPackage
             return value ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        internal static Visibility IsNotVisible(bool value)
+        internal static Visibility IsCollapsedIf(bool value)
         {
             return value ? Visibility.Collapsed : Visibility.Visible;
         }

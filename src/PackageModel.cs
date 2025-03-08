@@ -1,6 +1,7 @@
 ﻿using Microsoft.UI.Text;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -67,6 +68,7 @@ namespace ViewAppxPackage
                               select new AppListEntryModel(wamEntry)).ToList();
 
                 // Call all the getters. Any of these not already initialized will set their cache
+                // bugbug: do this just for package properteis (make only them public and reduce this to public)
                 foreach (var prop in _thisProperties)
                 {
                     try
@@ -77,6 +79,29 @@ namespace ViewAppxPackage
                     {
                         DebugLog.Append($"Exception getting {prop.Name}: {e.Message}");
                     }
+                }
+
+                // bugbug: when updating to Win11 SDK, replace this with 
+                // [Package.FindRelatedPackages](https://docs.microsoft.com/uwp/api/Windows.ApplicationModel.Package.FindRelatedPackages)
+                List<PackageModel> dependencies = null;
+                foreach (var dependency in this.Dependencies)
+                {
+                    if (dependencies == null)
+                    {
+                        dependencies = new();
+                    }
+                    dependencies.Add(dependency);
+                }
+
+                if (dependencies != null)
+                {
+                    MyThreading.RunOnUI(() =>
+                    {
+                        foreach (var dependency in dependencies)
+                        {
+                            dependency._dependents.Add(this);
+                        }
+                    });
                 }
 
                 _preloaded = true;
@@ -137,6 +162,7 @@ namespace ViewAppxPackage
                     var name = _package.Name;
                     _ = _package.DisplayName;
                     _ = _package.InstalledDate;
+                    _ = _package.Logo;
 
                     _package._preloaded = true;
 
@@ -170,6 +196,15 @@ namespace ViewAppxPackage
                 {
                     EnsurePreloadedAsync();
                     return _package._installedDate.CurrentValue;
+                }
+            }
+
+            public Uri Logo
+            {
+                get
+                {
+                    EnsurePreloadedAsync();
+                    return _package._logo.CurrentValue;
                 }
             }
         }
@@ -247,7 +282,7 @@ namespace ViewAppxPackage
         PackageProperty<Uri> _appInstallerUri = new((model) =>
         {
             AppInstallerInfo info = model._package.GetAppInstallerInfo();
-            if(info == null)
+            if (info == null)
             {
                 return null;
             }
@@ -447,7 +482,7 @@ namespace ViewAppxPackage
         }
 
         /// <summary>
-        /// Fork a thread and fine all dependents for a package.
+        /// Fork a thread and find all dependents for a package.
         /// (Packages whose Dependencies collection reference this one.)
         /// </summary>
         /// <param name="packages"></param>
@@ -469,13 +504,11 @@ namespace ViewAppxPackage
 
             foreach (var package in packages)
             {
-                package._dependentsCalculated = true;
                 package.RaisePropertyChangedOnUIThread(nameof(Dependents));
             }
 
         }
-        bool _dependentsCalculated = false;
-        List<PackageModel> _dependents = new List<PackageModel>();
+        ObservableCollection<PackageModel> _dependents = new();
 
         /// <summary>
         /// Find packages that match a regex string
@@ -696,14 +729,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Packages that depend on this package.
         /// </summary>
-        internal List<PackageModel> Dependents
-        {
-            get
-            {
-                // Dependents are calculated async on startup
-                return _dependentsCalculated ? _dependents : null;
-            }
-        }
+        internal ObservableCollection<PackageModel> Dependents => _dependents;
 
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -951,7 +977,7 @@ namespace ViewAppxPackage
                     var applicationElements = applicationsElement.Elements();
                     foreach (var applicationElement in applicationElements)
                     {
-                        if(this.AppEntries == null)
+                        if (this.AppEntries == null)
                         {
                             continue;
                         }

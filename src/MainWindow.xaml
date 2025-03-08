@@ -43,13 +43,8 @@
 
                     <AppBarButton Icon="Help" Label="Help" Click="ShowHelpClick"/>
 
-                    <AppBarToggleButton Label="All users"
-                                    IsChecked="{x:Bind IsAllUsers, Mode=TwoWay}"
-                                    Visibility="{x:Bind local:Utils.IsVisible(local:MainWindow.Instance.IsElevated)}" 
-                                    ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. This button only appears when the app is run elevated."/>
-
                     <AppBarSeparator/>
-                    
+
                     <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
                     <AppBarButton x:Name="_launchButton" 
                                   Icon="Play" Label="Launch"
@@ -61,7 +56,7 @@
                           Label="Open in Store" 
                           IsEnabled="{x:Bind CanOpenStore(IsMultiSelect)}"/>
 
-                    <AppBarButton Click="{x:Bind OpenManifest}" Icon="Document" Label="Open Manifest"
+                    <AppBarButton Click="{x:Bind OpenManifest}" Icon="Document" Label="Manifest"
                           IsEnabled="{x:Bind CanOpenManifest(IsMultiSelect)}"/>
 
                     <AppBarSeparator/>
@@ -81,13 +76,19 @@
 
                     <AppBarSeparator/>
 
-                    <AppBarButton Label="Log" Click="ShowAppxLog" >
+                    <AppBarButton Label="MSIX Log" Click="ShowAppxLog" >
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE7C3;" FontFamily="Segoe MDL2 Assets" FontSize="48"/>
                         </AppBarButton.Icon>
                     </AppBarButton>
 
-                    <AppBarButton Label="PS as Package" Click="RunPowershellAsPackage"
+                    <AppBarToggleButton Label="All users"
+                                        Icon="OtherUser"
+                                    IsChecked="{x:Bind IsAllUsers, Mode=OneWay}"
+                                        Click="{x:Bind ToggleAllUsers}"
+                                    ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. Requires this app to be run elevated."/>
+
+                    <AppBarButton Label="PowerShell" Click="RunPowershellAsPackage"
                                   IsEnabled="{x:Bind CanLaunch(CurrentItem)}" >
                         <AppBarButton.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
@@ -124,7 +125,7 @@
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind FilterPlaceholderText}" />
                     </StackPanel>
-                    
+
                     <!-- Message showing the package count, next to a sort button -->
                     <Grid x:Name="_workaroundGrid"
                           ColumnDefinitions="*,Auto" 
@@ -178,10 +179,10 @@
                                 <Grid ColumnDefinitions="36,*" ColumnSpacing="22">
                                     <Image Stretch="Uniform" >
                                         <Image.Source>
-                                            <BitmapImage UriSource="{x:Bind Logo}" />
+                                            <BitmapImage UriSource="{x:Bind Preload.Logo}" />
                                         </Image.Source>
                                     </Image>
-                                    
+
                                     <StackPanel Grid.Column="1" Margin="0,6,0,6" Padding="0,2,0,2">
 
                                         <!-- Row with package name -->

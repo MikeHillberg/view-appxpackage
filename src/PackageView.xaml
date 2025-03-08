@@ -46,8 +46,8 @@
                  CanDragTabs="False" CanReorderTabs="False">
 
             <!-- Properties tab -->
-            <TabViewItem Header="Properties" IsClosable="False" Padding="0,8,0,8">
-                <Grid RowDefinitions="*">
+            <TabViewItem Header="Properties" IsClosable="False" Padding="00">
+                <Grid RowDefinitions="*" Padding="0,8,0,8">
                     <ScrollViewer>
                         <StackPanel>
                             <!-- These are all rows of name/value pairs. There's logic to keep the first column width the same everywhere -->
@@ -173,10 +173,10 @@
 
             <!-- Settings tab -->
             <TabViewItem Header="Settings" IsClosable="False" Padding="0,8,0,8">
-                <Grid RowDefinitions="Auto,*">
+                <Grid RowDefinitions="Auto,*" Padding="0,8,0,8">
                     <!-- Settings tab has a command bar at the top that doesn't scroll -->
                     <CommandBar Grid.Row="0" HorizontalAlignment="Left"
-                                Visibility="{x:Bind local:Utils.IsNotVisible(IsSettingsEmpty)}">
+                                Visibility="{x:Bind local:Utils.IsCollapsedIf(IsSettingsEmpty)}">
                         <AppBarButton Click="DeleteSetting2" Label="Delete">
                             <AppBarButton.Icon>
                                 <SymbolIcon Symbol="Delete"/>

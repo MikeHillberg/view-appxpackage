@@ -205,6 +205,30 @@ namespace ViewAppxPackage
         }
         bool _isAllUsers = false;
 
+        /// <summary>
+        /// Toggle all users mode on and off. (Use this rather than setting IsAllUsers property)
+        /// </summary>
+        void ToggleAllUsers()
+        {
+            // This is a workaround for Xaml not allowing tool tips on a disabled button.
+            // Rather than disabling the AllUsers button when the app's not running elevated,
+            // leave it enabled but show a message box if it's clicked
+            if(!MainWindow.Instance.IsElevated)
+            {
+                _ = MyMessageBox.Show(
+                    message: "To enable All Users mode, run this app elevated",
+                    title: "Requires elevation");
+
+                // The toggle button will go into a checked state,
+                // even though the IsAllUsers property isn't changing.
+                // Raise this to keep the UI in sync
+                RaisePropertyChanged(nameof(IsAllUsers));
+                return;
+            }
+
+            IsAllUsers = !IsAllUsers;
+        }
+
         // Test/debug flag
         internal static bool LazyPreload = false;
 
@@ -764,6 +788,7 @@ namespace ViewAppxPackage
             {
                 DebugLog.Append("Finished loading");
                 MyThreading.RunOnUI(() => IsSearchEnabled = true);
+                
                 return;
             }
 
@@ -1359,6 +1384,7 @@ namespace ViewAppxPackage
             }
 
             _logViewerWindow = AppxLogViewer.Show();
+            _logViewerWindow.Closed += ((_,_) => _logViewerWindow = null);
         }
         Window _logViewerWindow = null;
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Specialized;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -171,10 +172,7 @@ namespace ViewAppxPackage
             var target = GetIsEnabledFor(frameworkElement);
             var empty = IsEmpty(target, out var changeProperty, out var canBeEmptyObject);
 
-            if (empty)
-                frameworkElement.Visibility = Visibility.Collapsed;
-            else
-                frameworkElement.Visibility = Visibility.Visible;
+            frameworkElement.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
 
             if (!isUpdate)
             {
@@ -186,6 +184,10 @@ namespace ViewAppxPackage
                 else if (canBeEmptyObject != null)
                 {
                     canBeEmptyObject.IsEmptyChanged += (s, e) => TargetPropertyChanged(frameworkElement);
+                }
+                else if(target is INotifyCollectionChanged incc)
+                {
+                    incc.CollectionChanged += (s, e) => TargetPropertyChanged(frameworkElement);
                 }
             }
         }

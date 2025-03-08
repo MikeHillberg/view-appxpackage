@@ -5,8 +5,10 @@ using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
-using System.Text;
 using System.Threading;
+using Microsoft.UI.Xaml.Controls;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -16,7 +18,7 @@ namespace ViewAppxPackage
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
     /// </summary>
-    public sealed partial class AppxLogViewer : Window
+    public sealed partial class AppxLogViewer : Window, INotifyPropertyChanged
     {
         EventLogEnumerator _packagingEvents = null;
         EventLogEnumerator _deploymentEvents = null;
@@ -93,10 +95,13 @@ namespace ViewAppxPackage
         void UpdateView()
         {
             _rtb.Blocks.Clear();
+            IsEmpty = true;
 
             // Create a paragraph for each event record
             foreach (var record in _eventRecords)
             {
+                IsEmpty = false;
+
                 Paragraph p = new();
                 p.Margin = new Thickness(0, 0, 0, 10);
 
@@ -109,11 +114,24 @@ namespace ViewAppxPackage
 
                 // Add the description as the second line
                 // (or lines, since the description can have embedded line breaks)
-                 p.Inlines.Add(new Run() { Text = record.Description });
+                p.Inlines.Add(new Run() { Text = record.Description });
                 _rtb.Blocks.Add(p);
             }
         }
 
+        /// <summary>
+        /// True if there are no records (all filtered out)
+        /// </summary>
+        bool IsEmpty
+        {
+            get => _isEmpty;
+            set
+            {
+                _isEmpty = value;
+                RaisePropertyChanged();
+            }
+        }
+        bool _isEmpty = true;
 
         /// <summary>
         /// Read from the event log and populate the view RichTextBlock
@@ -132,10 +150,12 @@ namespace ViewAppxPackage
             CancelHighlighting();
             _rtb.TextHighlighters.Clear();
 
+            _eventRecords = new();
+            OldestRecord = null;
+
             // Get the most recent entries from the event logs
             // Note that this won't be 50/50 from the two logs, as we're just getting the most recent,
             // and they're not evenly split between the two
-            _eventRecords = new();
             for (int i = 0; i < 500; i++) // bugbug: add a "More" button rather than a random limit
             {
                 // Get the next event, which could be from either log
@@ -146,7 +166,16 @@ namespace ViewAppxPackage
                     break;
                 }
 
+                // Ignore if filter out by level (higher numbers are more verbose)
+                if (record.Level > _logLevel)
+                {
+                    continue;
+                }
+
                 var timeCreated = record.TimeCreated?.ToString("MM/dd/yyyy HH:mm:ss");
+
+                // Keep track of the oldest record we retrieve, to be used in a message
+                OldestRecord = Utils.FormatDate((DateTimeOffset)record.TimeCreated!);
 
                 var activityId = record.ActivityId.ToString();
                 if (!string.IsNullOrEmpty(activityId))
@@ -165,6 +194,10 @@ namespace ViewAppxPackage
 
                 _eventRecords.Add(myRecord);
             }
+
+            // These properties are calculated by the above loop
+            RaisePropertyChanged(nameof(RecordCount));
+            RaisePropertyChanged(nameof(OldestRecord));
 
             // Populate the RichTextBlock
             UpdateView();
@@ -212,7 +245,7 @@ namespace ViewAppxPackage
 
                 // If some new events came in while the selection was active,
                 // reload from the event log
-                if(_newEventsPending)
+                if (_newEventsPending)
                 {
                     _newEventsPending = false;
                     Reload(null, null);
@@ -276,10 +309,10 @@ namespace ViewAppxPackage
                 matchCount += HighlightInline(record.Description, search, i, 2, -5);
 
                 // Periodically yield the UI thread by posting at low priority to continue
-                if(i % 100 == 0)
+                if (i % 100 == 0)
                 {
                     MyThreading.RunOnUI(
-                        () => HighlightAllMatchesAsync(search, cancellationToken, i+1, matchCount),
+                        () => HighlightAllMatchesAsync(search, cancellationToken, i + 1, matchCount),
                         Microsoft.UI.Dispatching.DispatcherQueuePriority.Low);
                     return;
                 }
@@ -295,7 +328,7 @@ namespace ViewAppxPackage
         private int HighlightInline(
             string inlineText, // What's in a Run.Text
             string searchText,
-            int paragraphIndex, 
+            int paragraphIndex,
             int inlineIndex,
             int offset)
         {
@@ -372,7 +405,7 @@ namespace ViewAppxPackage
 
             // Also don't do anything if there's a selection going on
             // Keep track that we have something though for when the selection ends
-            if(_isSelectionActive)
+            if (_isSelectionActive)
             {
                 _newEventsPending = true;
                 return;
@@ -439,6 +472,74 @@ namespace ViewAppxPackage
             _packagingEvents.Reset();
             _deploymentEvents.Reset();
             ReadLogAndUpdateView();
+        }
+
+        /// <summary>
+        /// Minimum severity level to display (lower number is more severe)
+        /// </summary>
+        int LogLevel
+        {
+            get => _logLevel;
+            set
+            {
+                _logLevel = value;
+                RaisePropertyChanged();
+                RaisePropertyChanged(nameof(LogLevelString));
+            }
+        }
+        int _logLevel = 5; // Verbose
+
+        /// <summary>
+        /// LogLevel property but a word rather than a number
+        /// </summary>
+        string LogLevelString
+        {
+            get
+            {
+                return LogLevel switch
+                {
+                    1 => "Critical",
+                    2 => "Error",
+                    3 => "Warning",
+                    4 => "Information",
+                    5 => "Verbose",
+                    _ => "Unknown"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Helper for the toggle menu item to figure out if it's checked
+        /// </summary>
+        bool IsLogLevelChecked(int level, int logLevel)
+        {
+            return level == logLevel;
+        }
+
+        /// <summary>
+        /// Called by all of the Filter menu items. Tag property tells which one
+        /// </summary>
+        private void SeverityFilter_Click(object sender, RoutedEventArgs e)
+        {
+            LogLevel = int.Parse((string)(sender as MenuFlyoutItem).Tag);
+            Reload(null,null);
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        void RaisePropertyChanged([CallerMemberName] string name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+
+        int RecordCount => _eventRecords == null ? 0 : _eventRecords.Count;
+        string OldestRecord;
+
+        /// <summary>
+        /// Called by a hyperlink to open the Filter menu
+        /// </summary>
+        private void ShowFilter_Click(Hyperlink sender, HyperlinkClickEventArgs args)
+        {
+            _filterButton.Flyout.ShowAt(_filterButton);
         }
     }
 }
