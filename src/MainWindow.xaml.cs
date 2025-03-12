@@ -134,8 +134,17 @@ namespace ViewAppxPackage
             // Scrolling workaround
             PostScrollSelectedItemIntoView();
 
-            // Show a "Loading ..." dialog until we have the bare minimum loaded
-            if (IsLoading)
+            // Show the loading dialog
+            EnsureLoadingDialog();
+        }
+
+        /// <summary>
+        /// Show the loading dialog if we're in IsLoading and not already showing the Help dialog
+        /// </summary>
+        void EnsureLoadingDialog()
+        {
+            // You can't show two dialogs at the same time
+            if (IsLoading && !_showingHelp)
             {
                 _loadingDialog = new ContentDialog()
                 {
@@ -152,15 +161,22 @@ namespace ViewAppxPackage
         }
 
 
-        void ShowHelp()
+        async void ShowHelp()
         {
             Help help = new()
             {
                 XamlRoot = _lv.XamlRoot,
                 CloseButtonText = "Close"
             };
-            _ = help.ShowAsync();
+
+            _showingHelp = true;
+            _ = await help.ShowAsync();
+            _showingHelp = false;
+
+            // Now that the Help dialog is out of the way it might be necessary to show the loading dialog
+            EnsureLoadingDialog();
         }
+        bool _showingHelp = false;
 
         bool _isSearchEnabled = false;
         public bool IsSearchEnabled
@@ -1030,7 +1046,9 @@ namespace ViewAppxPackage
 
             // bugbug: handle bundles
             picker.FileTypeFilter.Add(".appx");
+            picker.FileTypeFilter.Add(".appxbundle");
             picker.FileTypeFilter.Add(".msix");
+            picker.FileTypeFilter.Add(".msixbundle");
             var storageFile = await picker.PickSingleFileAsync();
             if (storageFile == null)
             {
