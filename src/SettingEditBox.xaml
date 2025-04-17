@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="ViewAppxPackage.SettingEditBox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ViewAppxPackage"
+    x:DefaultBindMode="OneWay">
+
+    <StackPanel MaxWidth="500" >
+
+        <!-- This shows the actual setting value, and is hidden when editing -->
+        <TextBlock x:Name="_textBlock"
+            Text="{x:Bind PackageSettingValue.ValueAsString}"
+                   Margin="0,0,0,13"
+                   TextWrapping="Wrap"
+                   Style="{StaticResource BaseTextBlockStyle}"
+                   IsTextSelectionEnabled="True"
+                   Visibility="{x:Bind local:Utils.IsCollapsedIf(IsEditing)}"
+                   PointerPressed="TextBlock_PointerPressed"
+                   Tapped="_textBlock_Tapped"/>
+
+        <!-- This shows when editing instead of the TextBlock -->
+        <Grid ColumnDefinitions="*,Auto,Auto"
+              Visibility="{x:Bind local:Utils.IsVisibleIf(IsEditing)}"
+              MinWidth="50">
+
+            <!-- Type in the new value here -->
+            <!-- bugbug: do an unload  -->
+            <TextBox x:Name="_textBox"
+                     x:Load="{x:Bind IsEditing, Mode=OneWay}"
+                     Text="{x:Bind NewValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="0,0,10,0"
+                     Loaded="_textBox_Loaded" />
+
+            <!-- Save or revert changes -->
+            <Button Grid.Column="1" Click="{x:Bind SaveAndExitEditing}" ToolTipService.ToolTip="Control+Enter" Padding="2">Save</Button>
+            <Button Grid.Column="2" Click="{x:Bind CancelEditing}" ToolTipService.ToolTip="Escape" Padding="2">Cancel</Button>
+        </Grid>
+
+        <!-- This is visible if there's an error -->
+        <TextBlock Foreground="Red"
+                   Style="{StaticResource BaseTextBlockStyle}"
+                   Visibility="{x:Bind local:Utils.IsVisibleIf(IsError)}">
+            Invalid value
+        </TextBlock>
+
+        <!-- This is visible if the setting is an unsupported type -->
+        <TextBlock Foreground="Red"
+                   Margin="0,-10,0,0"
+                   Style="{StaticResource BaseTextBlockStyle}"
+                   Visibility="{x:Bind local:Utils.IsVisibleIf(IsUnsupportedType)}">
+            This value type can't be edited
+        </TextBlock>
+
+    </StackPanel>
+</UserControl>

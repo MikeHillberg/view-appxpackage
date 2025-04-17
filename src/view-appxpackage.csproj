@@ -28,6 +28,8 @@
     <None Remove="ComplexToolTip.xaml" />
     <None Remove="DebugLogViewer.xaml" />
     <None Remove="Help.xaml" />
+    <None Remove="NewPackageSettingContainer.xaml" />
+    <None Remove="PackageSettingView.xaml" />
     <None Remove="PackageView.xaml" />
     <None Remove="PackageViewRow.xaml" />
     <None Remove="ProgressOverlay.xaml" />
@@ -45,9 +47,14 @@
   </ItemGroup>-->
 
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.Markdown" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.183">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.240923002" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250310001" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="9.0.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Private.Uri" Version="4.3.2" />
@@ -76,6 +83,18 @@
     <None Update="Assets\Icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Page Update="NewPackageSettingContainer.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="NewPackageSettingValue.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="PackageSettingView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="SettingEditBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="StackListHeaderItem.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TreeViewItem
+    x:Class="ViewAppxPackage.PackageSettingView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ViewAppxPackage"
+    x:DefaultBindMode="OneWay"
+    >
+    <StackPanel Margin="0,0,0,0" Spacing="10" Orientation="Horizontal" Background="Transparent">
+        <UIElement.ContextFlyout>
+            <MenuFlyout>
+                <MenuFlyoutItem Text="Delete" Click="DeleteSettingClick" />
+                <MenuFlyoutItem Text="Edit" Click="EditSettingClick" />
+                <MenuFlyoutItem Text="New Value" Click="NewSettingValue_Click"/>
+                <MenuFlyoutItem Text="New Container" Click="NewSettingContainer_Click"/>
+            </MenuFlyout>
+        </UIElement.ContextFlyout>
+        
+        <StackPanel Spacing="5">
+            <!-- Use align-left so that the TextBlock doesn't fill and steal the right-click space for an ancestor context menu -->
+            <!-- But give it a little right-side padding too to enable selection -->
+            <TextBlock Text="{x:Bind PackageSettingValue.Name}" 
+                        FontWeight="Bold"
+                        HorizontalAlignment="Left"
+                       Padding="0,0,5,0"
+                        Style="{StaticResource BaseTextBlockStyle}"
+                        IsTextSelectionEnabled="True"/>
+            
+            <!-- This is a TextBlock or a TextBox for the value -->
+            <local:SettingEditBox 
+                x:Name="_editBox"
+                PackageSettingValue="{x:Bind PackageSettingValue}" 
+                IsSelected="{x:Bind IsSelected}"/>
+
+        </StackPanel>
+    </StackPanel>
+</TreeViewItem>

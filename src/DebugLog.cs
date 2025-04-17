@@ -32,6 +32,12 @@ namespace ViewAppxPackage
             }
         }
 
+        public static void Append(Exception e, string message)
+        {
+            Append(message);
+            Append(e);
+        }
+
         static string Thread
         {
             get
@@ -39,8 +45,6 @@ namespace ViewAppxPackage
                 return ""; // No Thread available in portable library
             }
         }
-
-
 
         public static string GetLog()
         {

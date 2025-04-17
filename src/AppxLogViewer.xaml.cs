@@ -142,7 +142,7 @@ namespace ViewAppxPackage
             // forward to the UI thread
             if (!MyThreading.CurrentIsUiThread)
             {
-                MyThreading.RunOnUI(() => ReadLogAndUpdateView());
+                MyThreading.PostToUI(() => ReadLogAndUpdateView());
                 return;
             }
 
@@ -311,7 +311,7 @@ namespace ViewAppxPackage
                 // Periodically yield the UI thread by posting at low priority to continue
                 if (i % 100 == 0)
                 {
-                    MyThreading.RunOnUI(
+                    MyThreading.PostToUI(
                         () => HighlightAllMatchesAsync(search, cancellationToken, i + 1, matchCount),
                         Microsoft.UI.Dispatching.DispatcherQueuePriority.Low);
                     return;
@@ -392,7 +392,7 @@ namespace ViewAppxPackage
             // Forward to the UI thread if necessary
             if (!MyThreading.CurrentIsUiThread)
             {
-                MyThreading.RunOnUI(() => OnNewEvents());
+                MyThreading.PostToUI(() => OnNewEvents());
                 return;
             }
 

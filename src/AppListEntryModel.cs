@@ -93,7 +93,7 @@ namespace ViewAppxPackage
 
         void CreateLogoBitmapSource()
         {
-            MyThreading.RunOnUI(async () =>
+            MyThreading.PostToUI(async () =>
             {
                 var ras = await _logoRef.OpenReadAsync();
                 _logo = new();

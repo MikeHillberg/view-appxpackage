@@ -174,14 +174,43 @@
             <!-- Settings tab -->
             <TabViewItem Header="Settings" IsClosable="False" Padding="0,8,0,8">
                 <Grid RowDefinitions="Auto,*" Padding="0,8,0,8">
-                    <!-- Settings tab has a command bar at the top that doesn't scroll -->
+                    
+                    <!-- Command bar at the top that doesn't scroll -->
                     <CommandBar Grid.Row="0" HorizontalAlignment="Left"
                                 Visibility="{x:Bind local:Utils.IsCollapsedIf(IsSettingsEmpty)}">
-                        <AppBarButton Click="DeleteSetting2" Label="Delete">
+                        <AppBarButton Click="Refresh_Click" Label="Refresh"
+                                      ToolTipService.ToolTip="If an app's settings are updated, the update won't automatically be shown. Click this to reload settings">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Refresh"/>
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+
+                        <AppBarButton Click="DeleteSetting2_Click" Label="Delete"
+                                      IsEnabled="{x:Bind local:Utils.Not(IsRootSelected)}">
                             <AppBarButton.Icon>
                                 <SymbolIcon Symbol="Delete"/>
-                                <!--<FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE74D;" FontSize="12" />-->
                             </AppBarButton.Icon>
+                        </AppBarButton>
+
+                        <AppBarButton Click="EditSetting_Click" Label="Edit">
+                            <AppBarButton.Icon>
+                                <SymbolIcon Symbol="Edit"/>
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+
+                        <AppBarButton Label="New" Icon="Add">
+                            <AppBarButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="New Value" 
+                                                    Click="NewSettingValue_Click"
+                                                    IsEnabled="{x:Bind local:Utils.IfNotNull(SelectedSetting)}"
+                                                    Tag="{x:Bind SelectedSetting}"/>
+                                    <MenuFlyoutItem Text="New Container" 
+                                                    Click="NewContainer_Click"
+                                                    IsEnabled="{x:Bind local:Utils.IfNotNull(SelectedSetting)}"
+                                                    Tag="{x:Bind SelectedSetting}"/>
+                                </MenuFlyout>
+                            </AppBarButton.Flyout>
                         </AppBarButton>
                     </CommandBar>
 
@@ -191,37 +220,49 @@
                             <!-- To prevent drag, I think all of these Can properties need to be cleared,
                                  and CanDrag on the individual TreeViewItems (in the DataTemplates) as well -->
                             <TreeView x:Name="_settingsTree" ItemsSource="{x:Bind Settings}" 
-                                      CanReorderItems="False" CanDrag="False" CanDragItems="False">
+                                      CanReorderItems="False" CanDrag="False" CanDragItems="False"
+                                      SelectionChanged="_settingsTree_SelectionChanged"
+                                      SelectedItem="{x:Bind SelectedSetting, Mode=TwoWay}">
                                 <TreeView.ItemTemplateSelector>
                                     <local:SettingsItemTemplateSelector>
 
                                         <!-- Template to display a setting name/value -->
                                         <local:SettingsItemTemplateSelector.SettingTemplate>
                                             <DataTemplate x:DataType="local:PackageSettingBase">
-                                                <TreeViewItem AutomationProperties.Name="{x:Bind Name}" 
-                                                              CanDrag="False">
-                                                    <StackPanel Margin="0,8,0,8" Spacing="10" Orientation="Horizontal">
-                                                        <!-- Name and value of the setting -->
-                                                        <StackPanel Spacing="5">
-                                                            <TextBlock Text="{x:Bind Name, Mode=OneTime}" 
-                                                               FontWeight="Bold"
-                                                               Style="{StaticResource BaseTextBlockStyle}"
-                                                               IsTextSelectionEnabled="True"/>
-                                                            <TextBlock Text="{x:Bind Value, Mode=OneTime}" 
-                                                               TextWrapping="Wrap"
-                                                               Style="{StaticResource BaseTextBlockStyle}"
-                                                               IsTextSelectionEnabled="True" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </TreeViewItem>
+                                                <local:PackageSettingView 
+                                                    AutomationProperties.Name="{x:Bind Name}" 
+                                                    PackageSettingValue="{x:Bind This}"
+                                                    DeleteRequested="PackageSettingView_DeleteRequested"
+                                                    NewSettingValueRequested="PackageSettingView_NewRequested"
+                                                    NewContainerRequested="PackageSettingView_NewContainerRequested"
+                                                    CanDrag="False"
+                                                    GotFocus="TreeViewItem_GotFocus" />
                                             </DataTemplate>
                                         </local:SettingsItemTemplateSelector.SettingTemplate>
 
                                         <!-- Template to display an app data Container (child container) -->
                                         <local:SettingsItemTemplateSelector.ContainerTemplate>
                                             <DataTemplate x:DataType="local:PackageSettingBase">
-                                                <TreeViewItem ItemsSource="{x:Bind Children}" CanDrag="False">
-                                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                                <TreeViewItem ItemsSource="{x:Bind Children}" 
+                                                              CanDrag="False"
+                                                              IsExpanded="{x:Bind IsRoot}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="10" Background="Transparent">
+                                                        <!-- StackPanel has a Transparent background to enable this context menu -->
+                                                        <UIElement.ContextFlyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Text="Delete" 
+                                                                                Click="DeleteSetting_Click"
+                                                                                IsEnabled="{x:Bind local:Utils.Not(IsRoot)}"
+                                                                                Tag="{x:Bind This}"/>
+                                                                <MenuFlyoutItem Text="New Value" 
+                                                                                Click="NewSettingValue_Click"
+                                                                                Tag="{x:Bind This}"/>
+                                                                <MenuFlyoutItem Text="New Container" 
+                                                                                Click="NewContainer_Click"
+                                                                                Tag="{x:Bind This}"/>
+                                                            </MenuFlyout>
+                                                        </UIElement.ContextFlyout>
+                                                        
                                                         <SymbolIcon>Folder</SymbolIcon>
                                                         <TextBlock Text="{x:Bind Name}"
                                                                    FontWeight="Bold"
@@ -235,11 +276,11 @@
                                 </TreeView.ItemTemplateSelector>
                             </TreeView>
 
-                            <!-- Same cell as above TreeView, either a progress ring or a "no content" message -->
+                            <!-- Same Grid cell as above TreeView, either a progress ring or a "no content" message -->
                             <Grid Margin="0,10,0,0">
                                 <ProgressRing IsActive="{x:Bind IsLoadingSettings}"  />
                                 <TextBlock Text="This package has no data container settings"
-                                       Visibility="{x:Bind local:Utils.IsVisible(IsSettingsEmpty)}"/>
+                                       Visibility="{x:Bind local:Utils.IsVisibleIf(IsSettingsEmpty)}"/>
                             </Grid>
                         </Grid>
                     </ScrollViewer>

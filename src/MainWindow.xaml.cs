@@ -22,6 +22,7 @@ using System.Collections.ObjectModel;
 using Windows.Storage;
 using System.Threading;
 using Microsoft.UI.Dispatching;
+using System.Xml.Linq;
 
 
 namespace ViewAppxPackage
@@ -64,7 +65,7 @@ namespace ViewAppxPackage
                 _logViewerWindow?.Close();
             };
 
-            CreateSettings();
+            EnsureSampleSettings();
         }
 
         // Dialog that shows until we have the bare minimum loaded
@@ -193,10 +194,10 @@ namespace ViewAppxPackage
         {
             return isSearchEnabled
                 ? "Search with regex, e.g. myapp or my.*app (Ctrl+E)"
-                : "Initializing search ...";
+                : "Preparing for search ...";
         }
 
-        string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
+        private string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
 
         public bool IsElevated => App.IsProcessElevated();
 
@@ -255,7 +256,7 @@ namespace ViewAppxPackage
             var args = Environment.GetCommandLineArgs();
             if (args != null && args.Length > 1)
             {
-                if (args[1] == "-lazy")
+                if (args[1].ToLower() == "-lazy")
                 {
                     LazyPreload = true;
                     return;
@@ -423,7 +424,7 @@ namespace ViewAppxPackage
             {
                 // The underlying package is coming as a different instance,
                 // so check the PFullName
-                MyThreading.RunOnUI(() =>
+                MyThreading.PostToUI(() =>
                 {
                     if (CurrentItem.FullName == package.FullName)
                     {
@@ -447,7 +448,7 @@ namespace ViewAppxPackage
                     _originalPackages.Value = new(_originalPackages.Value.OrderBy((p) => p.Name).ToList());
 
                     // If the old package was selected, select the new one
-                    MyThreading.RunOnUI(() =>
+                    MyThreading.PostToUI(() =>
                     {
                         if (CurrentItem.FullName == package2.FullName)
                         {
@@ -473,7 +474,7 @@ namespace ViewAppxPackage
             }
 
             // Update the UI
-            MyThreading.RunOnUI(() =>
+            MyThreading.PostToUI(() =>
             {
                 FilterAndSearchPackages();
                 RaisePropertyChanged(nameof(NoPackagesFound));
@@ -731,7 +732,7 @@ namespace ViewAppxPackage
             }
 
             // We're not fully loaded yet, but we're loaded _just_ enough to start showing the UI
-            MyThreading.RunOnUI(() =>
+            MyThreading.PostToUI(() =>
             {
                 IsLoading = false;
 
@@ -803,7 +804,7 @@ namespace ViewAppxPackage
             else
             {
                 DebugLog.Append("Finished loading");
-                MyThreading.RunOnUI(() => IsSearchEnabled = true);
+                MyThreading.PostToUI(() => IsSearchEnabled = true);
                 
                 return;
             }
@@ -1602,13 +1603,21 @@ namespace ViewAppxPackage
         /// <summary>
         /// Create a bunch of settings to help test/debug the settings viewer
         /// </summary>
-        [Conditional("DEBUG")]
-        void CreateSettings()
+        void EnsureSampleSettings()
         {
             var createSettings = (ApplicationDataContainer container) =>
             {
-                container.Values["Test1"] = "Test1";
-                container.Values["Test2"] = "Test2";
+                EnsureSampleSetting(container, "StringSample1", "Test 1");
+                EnsureSampleSetting(container, "StringSample2", "Test 2");
+                EnsureSampleSetting(container, "MultiLineSample", "Line 1\rLine 2");
+                EnsureSampleSetting(container, "Int32Sample", (int)123);
+                EnsureSampleSetting(container, "DateSample", DateTimeOffset.Now);
+                EnsureSampleSetting(container, "IntArraySample", new int[] { 1, 2, 3 });
+                EnsureSampleSetting(container, "StringArraySample", new string[] { "Hello", "world" });
+                EnsureSampleSetting(container, "PointArraySample", new Point[] { new Point(0, 1), new Point(2, 3) });
+                EnsureSampleSetting(container, "RectArraySample", new Rect[] { new Rect(1, 2, 3, 4), new Rect(5, 6, 7, 8) });
+                EnsureSampleSetting(container, "SizeArraySample", new Size[] { new Size(1, 2), new Size(3, 4) });
+
             };
             ApplicationDataContainer localSettingsContainer = ApplicationData.Current.LocalSettings;
             createSettings(localSettingsContainer);
@@ -1623,7 +1632,19 @@ namespace ViewAppxPackage
             createSettings(child);
         }
 
+        void EnsureSampleSetting<T>(
+            ApplicationDataContainer container,
+            string key,
+            T value
+            )
+        {
+            if (!container.Values.TryGetValue(key, out var current))
+            {
+                container.Values[key] = value;
+            }
+        }
     }
+
 
     /// <summary>
     /// Hack to help get the code behind available to a DataTemplate

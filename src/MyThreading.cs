@@ -69,7 +69,7 @@ namespace ViewAppxPackage
 
         /// <summary>
         /// Queue to the UI thread
-        internal static void RunOnUI(
+        internal static void PostToUI(
             DispatcherQueueHandler action,
             DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
         {

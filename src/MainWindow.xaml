@@ -159,7 +159,7 @@
                 <!-- List of packages. Transparent to make Mica work -->
                 <!-- The ListSizeChanged handler is to make this list wide enough for the longest package name -->
                 <Grid Grid.Row="2" RowDefinitions="*,Auto" Margin="0,4,0,0">
-                    <TextBlock Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}" >No packages found</TextBlock>
+                    <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(NoPackagesFound)}" >No packages found</TextBlock>
 
                     <!-- OneWay binding on SelectedItem rather than TwoWay, with code instead in SelectionChanged -->
                     <!-- MinWidth is set to be the widest ActualWidth, done by tracking SizeChanged,
@@ -222,7 +222,7 @@
 
                 <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
                            HorizontalAlignment="Center"
-                           Visibility="{x:Bind local:Utils.IsVisible(NoPackagesFound)}"
+                           Visibility="{x:Bind local:Utils.IsVisibleIf(NoPackagesFound)}"
                            VerticalAlignment="Center">Nothing to see here, select a package</TextBlock>
 
                 <!-- Detail view. Note that this spans two rows -->

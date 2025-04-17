@@ -1,0 +1,70 @@
+<local:FormDialogBase
+    x:Class="ViewAppxPackage.NewPackageSettingValue"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ViewAppxPackage"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="using:System"
+    x:DefaultBindMode="OneWay"
+    Title="New Setting Value"
+    CloseButtonText="Cancel"
+    PrimaryButtonText="Save"
+    >
+    <Grid HorizontalAlignment="Center" 
+          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+          ColumnDefinitions="Auto,*"
+          RowSpacing="10"
+          ColumnSpacing="10"
+          MinWidth="400"
+          Margin="50">
+        <Grid.Resources>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"/>
+        </Grid.Resources>
+
+        <TextBlock >Name:</TextBlock>
+        <TextBox Grid.Column="1"
+                 Text="{x:Bind SettingName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                   Visibility="{x:Bind local:Utils.IsVisibleIf(IsDuplicateName)}"
+                   Foreground="Red">
+            Name already exists
+        </TextBlock>
+
+        <TextBlock Grid.Row="2">Type:</TextBlock>
+        <Grid Grid.Row="2" Grid.Column="1"
+              ColumnDefinitions="Auto,Auto"
+              ColumnSpacing="10">
+            <ComboBox ItemsSource="{x:Bind TypeStrings}"
+                  x:Name="_cb"
+                  SelectedIndex="{x:Bind SelectedIndex, Mode=TwoWay}">
+            </ComboBox>
+            <CheckBox Grid.Column="1" 
+                      Content="Array"
+                      IsChecked="{x:Bind IsArray, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        </Grid>
+
+        <!--<ListView ItemsSource="{x:Bind Types}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="sys:Type">
+                    <TextBlock Text="{x:Bind Name}"/>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+            
+        </ListView>-->
+
+        <TextBlock Grid.Row="3">Value:</TextBlock>
+        <TextBox Grid.Row="3" Grid.Column="1" 
+                 AcceptsReturn="True"
+                 Text="{x:Bind ValueString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 />
+
+        <TextBlock Grid.Row="4" Grid.ColumnSpan="2"
+                   Visibility="{x:Bind local:Utils.IsVisibleIf(IsInvalidValue)}"
+                   Foreground="Red">
+            Invalid value
+        </TextBlock>
+
+    </Grid>
+</local:FormDialogBase>

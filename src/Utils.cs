@@ -9,7 +9,7 @@ namespace ViewAppxPackage
 {
     internal class Utils
     {
-        internal static Visibility IsVisible(bool value)
+        internal static Visibility IsVisibleIf(bool value)
         {
             return value ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -17,6 +17,11 @@ namespace ViewAppxPackage
         internal static Visibility IsCollapsedIf(bool value)
         {
             return value ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        internal static bool IfNotNull(object value)
+        {
+            return value != null;
         }
 
         internal static bool And(bool val1, bool val2)
@@ -54,14 +59,17 @@ namespace ViewAppxPackage
             //if (timeDifference.TotalHours < 24)
             if (date.Date == DateTime.Now.Date)
             {
-                return date.ToString("t"); // Just the time
+                return date.ToString("t").ToLower(); // e.g. 1:45 pm
+            }
+            else if (date.Date == DateTime.Now.Date.Subtract(TimeSpan.FromDays(1)))
+            {
+                return $"yesterday at {date.ToString("t").ToLower()}";
             }
             else
             {
-                return date.ToString("g"); // 6/15/2009 1:45 PM
+                return date.ToString("g").ToLower(); // e.g. 6/15/2009 1:45 pm
             }
         }
-
 
         public static string FormatDateOrTime(DateTimeOffset date)
         {
@@ -94,15 +102,13 @@ namespace ViewAppxPackage
             }
 
             var suffix = "";
-            if(index < suffixes.Length)
+            if (index < suffixes.Length)
             {
                 suffix = suffixes[index];
             }
 
             return $"{bytes:0} {suffix}";
         }
-
-
 
         /// <summary>
         /// DependencyObject-like Tag property for non DOs

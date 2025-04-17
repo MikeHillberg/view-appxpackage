@@ -95,7 +95,7 @@ namespace ViewAppxPackage
 
                 if (dependencies != null)
                 {
-                    MyThreading.RunOnUI(() =>
+                    MyThreading.PostToUI(() =>
                     {
                         foreach (var dependency in dependencies)
                         {
@@ -594,7 +594,7 @@ namespace ViewAppxPackage
             }
             else
             {
-                MyThreading.RunOnUI(() => PropertyChanged?.Invoke(this, args));
+                MyThreading.PostToUI(() => PropertyChanged?.Invoke(this, args));
             }
         }
 
@@ -1196,9 +1196,24 @@ namespace ViewAppxPackage
                 {
                     return null;
                 }
-                var settings = GetSettings(applicationData.LocalSettings);
 
-                return settings;
+                // A fake setting node so that the tree can have a root that you can right click on for context menu
+                var rootSetting = new PackageSettingContainer()
+                {
+                    Name = "",
+                    Parent = null,
+                    IsRoot = true // bugbug: this is redundant with Parent==null ?
+                };
+
+                // Get all the settings and parent to the root node
+                var settings = GetSettings(applicationData.LocalSettings, rootSetting);
+                rootSetting.Children = settings;
+
+                // Return the root node as a list
+                return new List<PackageSettingBase>
+                {
+                    rootSetting
+                };
             }
             catch (Exception e)
             {
@@ -1224,7 +1239,7 @@ namespace ViewAppxPackage
 
         private IList<PackageSettingBase> GetSettings(
             ApplicationDataContainer container,
-            PackageSettingBase parent = null)
+            PackageSettingBase parent)
         {
             List<PackageSettingBase> childContainerSettings = new();
             foreach (var childContainer in container.Containers)
@@ -1238,13 +1253,32 @@ namespace ViewAppxPackage
                 childContainerSettings.Add(settingContainer);
             }
 
+#if DEBUG
+            foreach (var settingValue in container.Values)
+            {
+                var valueString = PackageSettingBase.ConvertSettingValueToString(settingValue.Value);
+                var valueType = settingValue.Value.GetType();
+                if (!SettingEditBox.TryParseValue(valueType, valueString, out var parsedValue)
+                    || PackageSettingBase.ConvertSettingValueToString(parsedValue) != valueString)
+                {
+                    if (valueType != typeof(ApplicationDataCompositeValue))
+                    {
+                        Debug.Assert(false);
+                    }
+                }
+            }
+#endif
+
             var containerSettings = from value in container.Values
                                     orderby value.Key
-                                    select new PackageSetting()
+                                    select new PackageSettingValue()
                                     {
                                         Name = value.Key,
-                                        Value = value.Value.ToString(),
-                                        Parent = parent
+                                        ValueAsString = PackageSettingBase.ConvertSettingValueToString(value.Value),
+                                        ValueType = value.Value?.GetType(),
+                                        KeyValuePair = value,
+                                        Parent = parent,
+                                        Package = this
                                     };
 
             return [.. containerSettings, .. childContainerSettings.OrderBy(p => p.Name)];
