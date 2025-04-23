@@ -31,6 +31,8 @@ namespace ViewAppxPackage
         // Watch for lost focus events to commit changes when focus moves out of this control
         void LostFocusHandler()
         {
+            _justSelectedByPointer = false;
+
             // Ignore transitions through the null state
             var target = FocusManager.GetFocusedElement(this.XamlRoot) as FrameworkElement;
             if (target == null)
@@ -93,7 +95,7 @@ namespace ViewAppxPackage
 
         void IsSelectedChanged()
         {
-            // Keep track if selection happens by clicking with the mouse
+             // Keep track if selection happens by clicking with the mouse
             // If selection happens by mouse, it's during the pointer-down
             if (IsPrimaryPointerButtonPressed())
             {
@@ -362,8 +364,6 @@ namespace ViewAppxPackage
                         => float.Parse(value),
                     Type t when t == typeof(double)
                         => double.Parse(value),
-                    Type t when t == typeof(Single)
-                        => Single.Parse(value),
 
                     Type t when t == typeof(DateTimeOffset)
                         => DateTimeOffset.Parse(value),
@@ -394,6 +394,16 @@ namespace ViewAppxPackage
             }
 
             return true;
+        }
+
+        string ExampleString(Type type)
+        {
+            var isArray = type.IsArray;
+            if(isArray)
+            {
+                type = type.GetElementType();
+            }
+            return NewPackageSettingValue.ExampleString(type, isArray);
         }
 
         // bugbug: replace this with a unit test
@@ -642,7 +652,6 @@ namespace ViewAppxPackage
             {
                 IsError = false;
                 IsEditing = false;
-                _textBlock.Focus(FocusState.Programmatic);
             }
             else
             {

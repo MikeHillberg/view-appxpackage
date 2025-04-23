@@ -12,7 +12,7 @@
     PrimaryButtonText="Save"
     >
     <Grid HorizontalAlignment="Center" 
-          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
           ColumnDefinitions="Auto,*"
           RowSpacing="10"
           ColumnSpacing="10"
@@ -22,6 +22,7 @@
             <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"/>
         </Grid.Resources>
 
+        <!-- Name -->
         <TextBlock >Name:</TextBlock>
         <TextBox Grid.Column="1"
                  Text="{x:Bind SettingName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
@@ -32,6 +33,7 @@
             Name already exists
         </TextBlock>
 
+        <!-- Setting type -->
         <TextBlock Grid.Row="2">Type:</TextBlock>
         <Grid Grid.Row="2" Grid.Column="1"
               ColumnDefinitions="Auto,Auto"
@@ -45,15 +47,7 @@
                       IsChecked="{x:Bind IsArray, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
         </Grid>
 
-        <!--<ListView ItemsSource="{x:Bind Types}">
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="sys:Type">
-                    <TextBlock Text="{x:Bind Name}"/>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-            
-        </ListView>-->
-
+        <!-- New value -->
         <TextBlock Grid.Row="3">Value:</TextBlock>
         <TextBox Grid.Row="3" Grid.Column="1" 
                  AcceptsReturn="True"
@@ -65,6 +59,13 @@
                    Foreground="Red">
             Invalid value
         </TextBlock>
+
+        <!-- Show example syntax -->
+        <TextBlock Grid.Row="4">Example:</TextBlock>
+        <TextBlock Grid.Row="4" Grid.Column="1"
+                   Text="{x:Bind ExampleString(SelectedIndex,IsArray)}"
+                   Foreground="Gray"
+                   FontStyle="Italic"/>
 
     </Grid>
 </local:FormDialogBase>

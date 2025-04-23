@@ -29,6 +29,11 @@ namespace ViewAppxPackage
             return val1 && val2;
         }
 
+        internal static bool Or(bool val1, bool val2)
+        {
+            return val1 || val2;
+        }
+
         internal static bool Not(bool value)
         {
             return !value;

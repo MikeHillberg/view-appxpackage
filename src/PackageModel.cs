@@ -225,7 +225,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Indicates if this was installed after the last refresh
         /// </summary>
-        public bool IsNew => _initialized && !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
+        public bool IsNew => !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
 
         public bool IsNewCleared
         {
@@ -1197,23 +1197,11 @@ namespace ViewAppxPackage
                     return null;
                 }
 
-                // A fake setting node so that the tree can have a root that you can right click on for context menu
-                var rootSetting = new PackageSettingContainer()
-                {
-                    Name = "",
-                    Parent = null,
-                    IsRoot = true // bugbug: this is redundant with Parent==null ?
-                };
 
                 // Get all the settings and parent to the root node
-                var settings = GetSettings(applicationData.LocalSettings, rootSetting);
-                rootSetting.Children = settings;
+                var settings = GetSettings(applicationData.LocalSettings, null);
 
-                // Return the root node as a list
-                return new List<PackageSettingBase>
-                {
-                    rootSetting
-                };
+                return settings;
             }
             catch (Exception e)
             {

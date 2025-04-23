@@ -37,6 +37,15 @@
             <Button Grid.Column="2" Click="{x:Bind CancelEditing}" ToolTipService.ToolTip="Escape" Padding="2">Cancel</Button>
         </Grid>
 
+        <!-- When in editing mode, this shows an example for the selected type -->
+        <StackPanel Orientation="Horizontal"
+                    Margin="0,5,0,0"
+                    Visibility="{x:Bind local:Utils.IsVisibleIf(IsEditing)}"
+                    Spacing="10">
+            <TextBlock VerticalAlignment="Top">Example:</TextBlock>
+            <TextBlock Text="{x:Bind ExampleString(PackageSettingValue.ValueType)}"/>
+        </StackPanel>
+
         <!-- This is visible if there's an error -->
         <TextBlock Foreground="Red"
                    Style="{StaticResource BaseTextBlockStyle}"

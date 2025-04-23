@@ -469,7 +469,7 @@ namespace ViewAppxPackage
             // Update the badge number on the task bar icon of new packages since refresh
             if (doBadgeUpdate)
             {
-                var newPackageCount = Packages.Sum((p) => p.IsNew ? 1 : 0);
+                var newPackageCount = _originalPackages.Value.Sum((p) => p.IsNew ? 1 : 0);
                 SetBadgeNumber(newPackageCount);
             }
 
@@ -533,7 +533,7 @@ namespace ViewAppxPackage
 
         PackageCatalog _packageCatalog;
 
-        // This is the raw WAM package list.
+        // This is the full package list.
         // The wrapper class is to ensure we only use it from the worker thread
         WorkerThreadChecker<ObservableCollection<PackageModel>> _originalPackages;
 

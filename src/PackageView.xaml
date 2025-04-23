@@ -176,8 +176,7 @@
                 <Grid RowDefinitions="Auto,*" Padding="0,8,0,8">
                     
                     <!-- Command bar at the top that doesn't scroll -->
-                    <CommandBar Grid.Row="0" HorizontalAlignment="Left"
-                                Visibility="{x:Bind local:Utils.IsCollapsedIf(IsSettingsEmpty)}">
+                    <CommandBar Grid.Row="0" HorizontalAlignment="Left">
                         <AppBarButton Click="Refresh_Click" Label="Refresh"
                                       ToolTipService.ToolTip="If an app's settings are updated, the update won't automatically be shown. Click this to reload settings">
                             <AppBarButton.Icon>
@@ -186,13 +185,15 @@
                         </AppBarButton>
 
                         <AppBarButton Click="DeleteSetting2_Click" Label="Delete"
-                                      IsEnabled="{x:Bind local:Utils.Not(IsRootSelected)}">
+                                      IsEnabled="{x:Bind local:Utils.Or(IsSettingContainerSelected, IsSettingValueSelected)}">
                             <AppBarButton.Icon>
                                 <SymbolIcon Symbol="Delete"/>
                             </AppBarButton.Icon>
                         </AppBarButton>
 
-                        <AppBarButton Click="EditSetting_Click" Label="Edit">
+                        <AppBarButton Click="EditSetting_Click" 
+                                      Label="Edit"
+                                      IsEnabled="{x:Bind IsSettingValueSelected}">
                             <AppBarButton.Icon>
                                 <SymbolIcon Symbol="Edit"/>
                             </AppBarButton.Icon>
@@ -203,11 +204,9 @@
                                 <MenuFlyout>
                                     <MenuFlyoutItem Text="New Value" 
                                                     Click="NewSettingValue_Click"
-                                                    IsEnabled="{x:Bind local:Utils.IfNotNull(SelectedSetting)}"
                                                     Tag="{x:Bind SelectedSetting}"/>
                                     <MenuFlyoutItem Text="New Container" 
                                                     Click="NewContainer_Click"
-                                                    IsEnabled="{x:Bind local:Utils.IfNotNull(SelectedSetting)}"
                                                     Tag="{x:Bind SelectedSetting}"/>
                                 </MenuFlyout>
                             </AppBarButton.Flyout>
@@ -223,57 +222,23 @@
                                       CanReorderItems="False" CanDrag="False" CanDragItems="False"
                                       SelectionChanged="_settingsTree_SelectionChanged"
                                       SelectedItem="{x:Bind SelectedSetting, Mode=TwoWay}">
-                                <TreeView.ItemTemplateSelector>
-                                    <local:SettingsItemTemplateSelector>
-
-                                        <!-- Template to display a setting name/value -->
-                                        <local:SettingsItemTemplateSelector.SettingTemplate>
-                                            <DataTemplate x:DataType="local:PackageSettingBase">
-                                                <local:PackageSettingView 
-                                                    AutomationProperties.Name="{x:Bind Name}" 
+                                <TreeView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:PackageSettingBase">
+                                        <!-- TreeViewItem -->
+                                        <!-- This PackageSettingView can display either a value or a container -->
+                                        <!-- (ItemsSource will be null in the value case) -->
+                                        <!-- Tried an ItemTemplateSelector instead but couldn't get it to work, search "BugBug(d5aecdc)" -->
+                                        <local:PackageSettingView 
                                                     PackageSettingValue="{x:Bind This}"
                                                     DeleteRequested="PackageSettingView_DeleteRequested"
                                                     NewSettingValueRequested="PackageSettingView_NewRequested"
                                                     NewContainerRequested="PackageSettingView_NewContainerRequested"
                                                     CanDrag="False"
+                                                    ItemsSource="{x:Bind Children}"
                                                     GotFocus="TreeViewItem_GotFocus" />
-                                            </DataTemplate>
-                                        </local:SettingsItemTemplateSelector.SettingTemplate>
+                                    </DataTemplate>
 
-                                        <!-- Template to display an app data Container (child container) -->
-                                        <local:SettingsItemTemplateSelector.ContainerTemplate>
-                                            <DataTemplate x:DataType="local:PackageSettingBase">
-                                                <TreeViewItem ItemsSource="{x:Bind Children}" 
-                                                              CanDrag="False"
-                                                              IsExpanded="{x:Bind IsRoot}">
-                                                    <StackPanel Orientation="Horizontal" Spacing="10" Background="Transparent">
-                                                        <!-- StackPanel has a Transparent background to enable this context menu -->
-                                                        <UIElement.ContextFlyout>
-                                                            <MenuFlyout>
-                                                                <MenuFlyoutItem Text="Delete" 
-                                                                                Click="DeleteSetting_Click"
-                                                                                IsEnabled="{x:Bind local:Utils.Not(IsRoot)}"
-                                                                                Tag="{x:Bind This}"/>
-                                                                <MenuFlyoutItem Text="New Value" 
-                                                                                Click="NewSettingValue_Click"
-                                                                                Tag="{x:Bind This}"/>
-                                                                <MenuFlyoutItem Text="New Container" 
-                                                                                Click="NewContainer_Click"
-                                                                                Tag="{x:Bind This}"/>
-                                                            </MenuFlyout>
-                                                        </UIElement.ContextFlyout>
-                                                        
-                                                        <SymbolIcon>Folder</SymbolIcon>
-                                                        <TextBlock Text="{x:Bind Name}"
-                                                                   FontWeight="Bold"
-                                                                   Style="{StaticResource BaseTextBlockStyle}"
-                                                                   IsTextSelectionEnabled="True"/>
-                                                    </StackPanel>
-                                                </TreeViewItem>
-                                            </DataTemplate>
-                                        </local:SettingsItemTemplateSelector.ContainerTemplate>
-                                    </local:SettingsItemTemplateSelector>
-                                </TreeView.ItemTemplateSelector>
+                                </TreeView.ItemTemplate>
                             </TreeView>
 
                             <!-- Same Grid cell as above TreeView, either a progress ring or a "no content" message -->

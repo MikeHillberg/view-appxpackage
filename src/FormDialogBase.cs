@@ -20,12 +20,18 @@ public class FormDialogBase : ContentDialog
     }
 
     /// <summary>
+    /// When this is set, close the dialog when the Enter key is pressed
+    /// </summary>
+    protected bool SubmitOnEnter { get; set; } = true;
+
+    /// <summary>
     /// KeyDown handler that checks for Ctrl+Enter, which means submit
     /// </summary>
     private void RootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Enter
-            && SettingEditBox.IsExactModifierKeyPressed(VirtualKeyModifiers.Control)
+            && (SubmitOnEnter && SettingEditBox.GetKeyModifiers() == VirtualKeyModifiers.None
+                || SettingEditBox.IsExactModifierKeyPressed(VirtualKeyModifiers.Control))
             && IsValid)
         {
             // bugbug: can't find a way to close the dialog programatically and emulate that Save was clicked

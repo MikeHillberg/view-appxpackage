@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Windows.Foundation;
 using Windows.Storage;
@@ -20,6 +21,9 @@ namespace ViewAppxPackage
             TypeStrings = from type in Types
                           select type.Name;
             SelectedIndex = Types.IndexOf(typeof(string));
+
+            // Don't submit (save) on pressing just the Enter key
+            this.SubmitOnEnter = false;
         }
 
         ApplicationDataContainer _targetContainer;
@@ -30,8 +34,8 @@ namespace ViewAppxPackage
             set { SetValue(ValueStringProperty, value); }
         }
         public static readonly DependencyProperty ValueStringProperty =
-            DependencyProperty.Register("ValueString", typeof(string), typeof(NewPackageSettingValue), 
-                new PropertyMetadata("", (d,dp) => (d as NewPackageSettingValue).PropertyChanged()));
+            DependencyProperty.Register("ValueString", typeof(string), typeof(NewPackageSettingValue),
+                new PropertyMetadata("", (d, dp) => (d as NewPackageSettingValue).PropertyChanged()));
 
         public int SelectedIndex
         {
@@ -40,7 +44,7 @@ namespace ViewAppxPackage
         }
         public static readonly DependencyProperty SelectedIndexProperty =
             DependencyProperty.Register("SelectedIndex", typeof(int), typeof(NewPackageSettingValue),
-                new PropertyMetadata(0, (d,dp) => (d as NewPackageSettingValue).PropertyChanged()));
+                new PropertyMetadata(0, (d, dp) => (d as NewPackageSettingValue).PropertyChanged()));
 
         List<Type> Types = new()
         {
@@ -55,7 +59,6 @@ namespace ViewAppxPackage
             typeof(byte),
             typeof(float),
             typeof(double),
-            typeof(Single),
             typeof(DateTimeOffset),
             typeof(TimeSpan),
             typeof(Guid),
@@ -67,15 +70,6 @@ namespace ViewAppxPackage
 
         IEnumerable<string> TypeStrings;
 
-        //private void Button_Click(object sender, RoutedEventArgs e)
-        //{
-        //    if(TryParseValue(out var parsedValue))
-        //    {
-        //        NewType = Types[SelectedIndex];
-        //        NewValue = parsedValue;
-        //        this.Hide();
-        //    }
-        //}
 
         public Type NewType;
         public object NewValue;
@@ -86,7 +80,7 @@ namespace ViewAppxPackage
             set { SetValue(IsDuplicateNameProperty, value); }
         }
         public static readonly DependencyProperty IsDuplicateNameProperty =
-            DependencyProperty.Register("IsDuplicateName", typeof(bool), typeof(NewPackageSettingValue), 
+            DependencyProperty.Register("IsDuplicateName", typeof(bool), typeof(NewPackageSettingValue),
                 new PropertyMetadata(false));
 
         public bool IsArray
@@ -100,11 +94,97 @@ namespace ViewAppxPackage
         private bool TryParseValue(out object parsedValue)
         {
             var type = Types[this.SelectedIndex];
-            if(IsArray)
+            if (IsArray)
             {
                 type = type.MakeArrayType();
             }
             return SettingEditBox.TryParseValue(Types[this.SelectedIndex], ValueString, out parsedValue);
+        }
+
+        /// <summary>
+        /// Produce a example string for the currently-selected type
+        /// </summary>
+        string ExampleString(int selectedIndex, bool isArray)
+        {
+            var type = Types[selectedIndex];
+            return ExampleString(type, isArray);
+        }
+
+        /// <summary>
+        /// Produce an example of a string-ized form of a setting type
+        /// </summary>
+        static internal string ExampleString(Type type, bool isArray)
+        {
+            Debug.Assert(!type.IsArray);
+
+            const string date1 = "4/4/1975 8:00am";
+            const string date2 = "10/6/2012 5:00am";
+            const string time1 = "12:00:00";
+            const string time2 = "12:00:01";
+            const string guid1 = "12345678-1234-1234-1234-123456789012";
+            const string guid2 = "12345678-1234-1234-1234-123456789013";
+            const string twoInts1 = "1, 2";
+            const string twoInts2 = "3, 4";
+            const string rect1 = "0, 0, 1024, 768";
+            const string rect2 = "0, 0, 2256, 1504";
+            const string int1 = "123";
+            const string int2 = "1, 2, 3";
+            const string float1 = "3.141";
+            const string float2 = "2.718";
+            const string string1 = "Hello world";
+            const string string2 = "How are you?";
+            const string bool1 = "true";
+            const string bool2 = "false";
+            const string char1 = "a";
+            const string char2 = "b";
+
+            // Assume initially that it's not an array
+            string example = type switch
+            {
+                Type t when t == typeof(bool) => bool1,
+                Type t when t == typeof(int) => int1,
+                Type t when t == typeof(long) => int1,
+                Type t when t == typeof(short) => int1,
+                Type t when t == typeof(char) => char1,
+                Type t when t == typeof(uint) => int1,
+                Type t when t == typeof(ulong) => int1,
+                Type t when t == typeof(ushort) => int1,
+                Type t when t == typeof(byte) => int1,
+                Type t when t == typeof(float) => float1,
+                Type t when t == typeof(double) => float1,
+                Type t when t == typeof(DateTimeOffset) => date1,
+                Type t when t == typeof(DateTime) => date2,
+                Type t when t == typeof(TimeSpan) => time1,
+                Type t when t == typeof(Guid) => guid1,
+                Type t when t == typeof(Point) => twoInts1,
+                Type t when t == typeof(Rect) => rect1,
+                Type t when t == typeof(Size) => twoInts1,
+                Type t when t == typeof(string) => string1,
+                _ => "?",
+            };
+
+            // Modify that if it is an array
+            if (isArray)
+            {
+                example = example switch
+                {
+                    bool1 => $"{bool1}, {bool2}",
+                    char1 => $"{char1}, {char2}",
+                    int1 => int2,
+                    float1 => $"{float1}, {float2}",
+                    twoInts1 => $"{twoInts1}\r{twoInts2}",
+                    rect1 => $"{rect1}\r{rect2}",
+                    string1 => $"{string1}\r{string2}",
+                    date1 => $"{date1}, {date2}",
+                    time1 => $"{time1}, {time2}",
+                    guid1 => $"{guid1}, {guid2}",
+                    _ => "?",
+                };
+            }
+
+            Debug.Assert(example != "?" || type.IsAssignableTo(typeof(ApplicationDataCompositeValue)));
+
+            return example;
         }
 
         public bool CanSave
@@ -122,7 +202,7 @@ namespace ViewAppxPackage
         }
         public static readonly DependencyProperty SettingNameProperty =
             DependencyProperty.Register("SettingName", typeof(string), typeof(NewPackageSettingValue),
-                new PropertyMetadata("", (d,dp) => (d as NewPackageSettingValue).PropertyChanged()));
+                new PropertyMetadata("", (d, dp) => (d as NewPackageSettingValue).PropertyChanged()));
         void PropertyChanged()
         {
             this.IsValid = UpdateValueIfValid();
@@ -176,22 +256,12 @@ namespace ViewAppxPackage
                 NewValue = parsedValue;
                 return true;
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 DebugLog.Append(e, $"Failed evaluating new package setting value");
                 return false;
             }
         }
 
-        private void RootKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
-        {
-            if (e.Key == VirtualKey.Enter
-                && SettingEditBox.IsExactModifierKeyPressed(VirtualKeyModifiers.Control)
-                && IsPrimaryButtonEnabled)
-            {
-                IsSubmittedProgramatically = true;
-                this.Hide();
-            }
-        }
     }
 }

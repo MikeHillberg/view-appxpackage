@@ -10,28 +10,54 @@
         <UIElement.ContextFlyout>
             <MenuFlyout>
                 <MenuFlyoutItem Text="Delete" Click="DeleteSettingClick" />
-                <MenuFlyoutItem Text="Edit" Click="EditSettingClick" />
+                
+                <MenuFlyoutItem Text="Edit" Click="EditSettingClick"
+                                Visibility="{x:Bind local:Utils.IsVisibleIf(IsValue)}"/>
+                
                 <MenuFlyoutItem Text="New Value" Click="NewSettingValue_Click"/>
                 <MenuFlyoutItem Text="New Container" Click="NewSettingContainer_Click"/>
             </MenuFlyout>
         </UIElement.ContextFlyout>
-        
-        <StackPanel Spacing="5">
-            <!-- Use align-left so that the TextBlock doesn't fill and steal the right-click space for an ancestor context menu -->
-            <!-- But give it a little right-side padding too to enable selection -->
-            <TextBlock Text="{x:Bind PackageSettingValue.Name}" 
-                        FontWeight="Bold"
-                        HorizontalAlignment="Left"
-                       Padding="0,0,5,0"
-                        Style="{StaticResource BaseTextBlockStyle}"
-                        IsTextSelectionEnabled="True"/>
-            
-            <!-- This is a TextBlock or a TextBox for the value -->
-            <local:SettingEditBox 
+
+        <!-- This Grid has two children, one shows a value the other shows a container -->
+        <!-- Only one shows at a time, depepnding on what the PackageSetting is -->
+        <Grid>
+            <!-- Value case -->
+            <StackPanel Spacing="5" Visibility="{x:Bind local:Utils.IsVisibleIf(IsValue)}">
+                <!-- Use align-left so that the TextBlock doesn't fill and steal the right-click space for an ancestor context menu -->
+                <!-- But give it a little right-side padding too to enable selection -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                    <TextBlock Text="{x:Bind PackageSettingValue.Name}" 
+                           FontWeight="Bold"
+                           HorizontalAlignment="Left"
+                           Padding="0,0,5,0"
+                           Style="{StaticResource BaseTextBlockStyle}"
+                           IsTextSelectionEnabled="True"/>
+                    <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.IsEditing)}">
+                    (<Run Text="{x:Bind PackageSettingValue.ValueType.Name}" />)
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- This is a TextBlock or a TextBox for the value -->
+                <local:SettingEditBox 
                 x:Name="_editBox"
                 PackageSettingValue="{x:Bind PackageSettingValue}" 
                 IsSelected="{x:Bind IsSelected}"/>
 
-        </StackPanel>
+            </StackPanel>
+
+
+            <!-- Container case -->
+            <StackPanel Orientation="Horizontal" Spacing="10" Background="Transparent"
+                        Visibility="{x:Bind local:Utils.IsCollapsedIf(IsValue)}">
+                <SymbolIcon>Folder</SymbolIcon>
+                <TextBlock Text="{x:Bind PackageSettingValue.Name}"
+                            FontWeight="Bold"
+                            Style="{StaticResource BaseTextBlockStyle}"
+                            IsTextSelectionEnabled="True"/>
+            </StackPanel>
+
+        </Grid>
+
     </StackPanel>
 </TreeViewItem>

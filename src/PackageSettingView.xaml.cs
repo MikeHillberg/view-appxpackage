@@ -28,7 +28,19 @@ public sealed partial class PackageSettingView : TreeViewItem
             new PropertyMetadata(null,(d,dp) => (d as PackageSettingView).PackageSettingChanged()));
     void PackageSettingChanged()
     {
+        IsValue = PackageSettingValue is PackageSettingValue;
     }
+
+    /// <summary>
+    /// True if this is a setting value, false if it's a container
+    /// </summary>
+    public bool IsValue
+    {
+        get { return (bool)GetValue(IsValueProperty); }
+        set { SetValue(IsValueProperty, value); }
+    }
+    public static readonly DependencyProperty IsValueProperty =
+        DependencyProperty.Register("IsValue", typeof(bool), typeof(PackageSettingView), new PropertyMetadata(false));
 
     // Context menu handler
     private void DeleteSettingClick(object sender, RoutedEventArgs e)

@@ -103,30 +103,20 @@ public sealed partial class PackageView : UserControl
         {
             if (Settings != null && Settings.Count > 0)
             {
-                // bugbug:
-                // Separate from the below issues, this is crashing too
-                var rootItem = Settings[0];
-                _settingsTree.SelectedItem = rootItem;
+                // bugbug(d5aecdc)
+                // This was crashing with an AV in Xaml up until commit d5aecdc when it was removed
+                // var rootItem = Settings[0];
+                // _settingsTree.SelectedItem = rootItem;
 
-                //// bugbug: this triggers an AV in Xaml
+                // bugbug(d5aecdc)
+                // This was crashing with an AV in Xaml up until commit d5aecdc when it was removed
+                // (in addition to above case)
                 //var node = _settingsTree.SelectedNode;
                 //if (node != null)
                 //{
                 //    node.IsExpanded = true;
                 //}
 
-                //// bugbug: this too
-                //if (_settingsTree.RootNodes.Count > 0)
-                //{
-                //    foreach (var node in _settingsTree.RootNodes[0].Children)
-                //    {
-                //        if (node.Content is PackageSettingContainer)
-                //        {
-                //            node.IsExpanded = true;
-                //            break;
-                //        }
-                //    }
-                //}
 
                 //// bugbug: AV is in the else case (null AV)
                 //_Check_return_ HRESULT ModernCollectionBasePanel::CacheManager::InitCollectionsCache()
@@ -150,8 +140,8 @@ public sealed partial class PackageView : UserControl
                 //    m_isCollectionCacheValid = TRUE;
 
 
-                }
-            },
+            }
+        },
         Microsoft.UI.Dispatching.DispatcherQueuePriority.Low);
     }
 
@@ -198,7 +188,7 @@ public sealed partial class PackageView : UserControl
     static internal ApplicationDataContainer GetAppDataContainerForPackage(PackageModel package, PackageSettingBase settingBase)
     {
         // A setting with no parent is at the root, return the package's ApplicationData.LocalSettings
-        if (settingBase.Parent == null)
+        if (settingBase == null || settingBase.Parent == null)
         {
             ApplicationData applicationData = package.GetApplicationData();
             if (applicationData == null)
@@ -368,7 +358,32 @@ public sealed partial class PackageView : UserControl
     {
         var selectedSetting = _settingsTree.SelectedItem as PackageSettingBase;
         IsRootSelected = selectedSetting?.IsRoot == true;
+
+        IsSettingValueSelected = selectedSetting is PackageSettingValue;
+        IsSettingContainerSelected = selectedSetting is PackageSettingContainer;
     }
+
+    /// <summary>
+    /// True if a setting value is selected (rather than a container or null)
+    /// </summary>
+    public bool IsSettingValueSelected
+    {
+        get { return (bool)GetValue(IsSettingValueSelectedProperty); }
+        set { SetValue(IsSettingValueSelectedProperty, value); }
+    }
+    public static readonly DependencyProperty IsSettingValueSelectedProperty =
+        DependencyProperty.Register("IsSettingValueSelected", typeof(bool), typeof(PackageView), new PropertyMetadata(false));
+
+    /// <summary>
+    /// True if a setting container is selected (rather than a value or null)
+    /// </summary>
+    public bool IsSettingContainerSelected
+    {
+        get { return (bool)GetValue(IsSettingContainerSelectedProperty); }
+        set { SetValue(IsSettingContainerSelectedProperty, value); }
+    }
+    public static readonly DependencyProperty IsSettingContainerSelectedProperty =
+        DependencyProperty.Register("IsSettingContainerSelected", typeof(bool), typeof(PackageView), new PropertyMetadata(false));
 
     private void NewSettingValue_Click(object sender, RoutedEventArgs e)
     {
@@ -379,11 +394,6 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewSetting(PackageSettingBase referenceSetting)
     {
-        if (referenceSetting == null)
-        {
-            return;
-        }
-
         var targetContainer = GetAppDataContainerForPackage(this.Package, referenceSetting);
 
         var newSettingDialog = new NewPackageSettingValue(targetContainer);
@@ -420,11 +430,6 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewContainer(PackageSettingBase referenceSetting)
     {
-        if (referenceSetting == null)
-        {
-            return;
-        }
-
         var targetContainer = GetAppDataContainerForPackage(this.Package, referenceSetting);
 
         var newSettingDialog = new NewPackageSettingContainer(targetContainer);
