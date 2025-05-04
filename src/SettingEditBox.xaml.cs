@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -167,8 +170,6 @@ namespace ViewAppxPackage
         /// </summary>
         bool TrySave()
         {
-            TestParse();
-
             // Try to parse the new value according to the type we read in originally
             if (TryParseValue(PackageSettingValue.ValueType, NewValue, out var parsedNewValue))
             {
@@ -280,8 +281,8 @@ namespace ViewAppxPackage
                     // Everything else (default case) is separated by commas
                     switch (arrayType)
                     {
-                        case Type t when t == typeof(Size):
-                            var lines = value.Split('\r');
+                        case Type t when t == typeof(string):
+                            string[] lines = ReadLines(value);
                             var strings = new String[lines.Length];
                             for (int i = 0; i < lines.Length; i++)
                             {
@@ -291,7 +292,7 @@ namespace ViewAppxPackage
                             return true;
 
                         case Type t when t == typeof(Point):
-                            lines = value.Split('\r');
+                            lines = ReadLines(value);
                             var points = new Point[lines.Length];
                             for (int i = 0; i < lines.Length; i++)
                             {
@@ -301,7 +302,7 @@ namespace ViewAppxPackage
                             return true;
 
                         case Type t when t == typeof(Rect):
-                            lines = value.Split('\r');
+                            lines = ReadLines(value);
                             var rects = new Rect[lines.Length];
                             for (int i = 0; i < lines.Length; i++)
                             {
@@ -311,7 +312,7 @@ namespace ViewAppxPackage
                             return true;
 
                         case Type t when t == typeof(Size):
-                            lines = value.Split('\r');
+                            lines = ReadLines(value);
                             var sizes = new Size[lines.Length];
                             for (int i = 0; i < lines.Length; i++)
                             {
@@ -325,7 +326,7 @@ namespace ViewAppxPackage
                             var array = Array.CreateInstance(arrayType, lines.Length);
                             for (int i = 0; i < lines.Length; i++)
                             {
-                                if (!TryParseValue(arrayType, lines[i], out var element))
+                                if (!TryParseValue(arrayType, lines[i].Trim(), out var element))
                                 {
                                     return false;
                                 }
@@ -396,6 +397,23 @@ namespace ViewAppxPackage
             return true;
         }
 
+        /// <summary>
+        /// Read a string into a string array of lines
+        /// </summary>
+        private static string[] ReadLines(string value)
+        {
+            StringReader reader = new(value);
+            List<string> linesList = new();
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                linesList.Add(line);
+            }
+
+            var lines = linesList.ToArray();
+            return lines;
+        }
+
         string ExampleString(Type type)
         {
             var isArray = type.IsArray;
@@ -406,21 +424,7 @@ namespace ViewAppxPackage
             return NewPackageSettingValue.ExampleString(type, isArray);
         }
 
-        // bugbug: replace this with a unit test
-        [Conditional("DEBUG")]
-        void TestParse()
-        {
-            var point = ParsePoint("1,2");
-            Debug.Assert(point == (new Point(1, 2)));
-
-            var rect = ParseRect("1,2,3,4");
-            Debug.Assert(rect == new Rect(1, 2, 3, 4));
-
-            var size = ParseSize("1,2");
-            Debug.Assert(size == new Size(1, 2));
-        }
-
-        static Point ParsePoint(string pointString)
+        public static Point ParsePoint(string pointString)
         {
             var coordinates = pointString.Split(',');
 
@@ -436,7 +440,7 @@ namespace ViewAppxPackage
             }
         }
 
-        static Rect ParseRect(string rectString)
+        public static Rect ParseRect(string rectString)
         {
             string[] values = rectString.Split(',');
 
@@ -454,7 +458,7 @@ namespace ViewAppxPackage
             }
         }
 
-        static Size ParseSize(string sizeString)
+        public static Size ParseSize(string sizeString)
         {
             string[] values = sizeString.Split(',');
 

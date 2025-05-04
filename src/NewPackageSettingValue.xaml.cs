@@ -118,9 +118,9 @@ namespace ViewAppxPackage
             Debug.Assert(!type.IsArray);
 
             const string date1 = "4/4/1975 8:00am";
-            const string date2 = "10/6/2012 5:00am";
-            const string time1 = "12:00:00";
-            const string time2 = "12:00:01";
+            const string date2 = "10/6/2012 5:00pm";
+            const string time1 = "1:00:00";
+            const string time2 = "2:00:00";
             const string guid1 = "12345678-1234-1234-1234-123456789012";
             const string guid2 = "12345678-1234-1234-1234-123456789013";
             const string twoInts1 = "1, 2";
@@ -133,8 +133,8 @@ namespace ViewAppxPackage
             const string float2 = "2.718";
             const string string1 = "Hello world";
             const string string2 = "How are you?";
-            const string bool1 = "true";
-            const string bool2 = "false";
+            const string bool1 = "True";
+            const string bool2 = "False";
             const string char1 = "a";
             const string char2 = "b";
 
@@ -153,7 +153,6 @@ namespace ViewAppxPackage
                 Type t when t == typeof(float) => float1,
                 Type t when t == typeof(double) => float1,
                 Type t when t == typeof(DateTimeOffset) => date1,
-                Type t when t == typeof(DateTime) => date2,
                 Type t when t == typeof(TimeSpan) => time1,
                 Type t when t == typeof(Guid) => guid1,
                 Type t when t == typeof(Point) => twoInts1,

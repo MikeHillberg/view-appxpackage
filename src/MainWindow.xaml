@@ -112,7 +112,7 @@
                     <!-- Limited to that they don't get wider than the ListView -->
                     <StackPanel MaxWidth="{x:Bind MaxListWidth, Mode=OneWay}">
                         <TextBox x:Name="_searchBox"
-                             Text="{x:Bind SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Text="{x:Bind CatalogModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              IsSpellCheckEnabled="False"
                              IsEnabled="{x:Bind IsSearchEnabled}"
                              Padding="10"
@@ -120,7 +120,7 @@
                              PlaceholderText="{x:Bind SearchPlaceholderText(IsSearchEnabled)}" />
 
                         <TextBox x:Name="_filterBox"
-                             Text="{x:Bind Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Text="{x:Bind CatalogModel.Filter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              IsSpellCheckEnabled="False"
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind FilterPlaceholderText}" />
@@ -136,20 +136,20 @@
 
                         <!-- bugbug: had to eyeball the margin to get things to line up OK -->
                         <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" FontStyle="Italic">
-                            (<Run Text="{x:Bind PackageCount}" 
-                                 /> package<Run Text="{x:Bind local:Utils.PluralS(PackageCount)}"/>)
+                            (<Run Text="{x:Bind CatalogModel.PackageCount}" 
+                                 /> package<Run Text="{x:Bind local:Utils.PluralS(CatalogModel.PackageCount)}"/>)
                         </TextBlock>
 
                         <DropDownButton Grid.Column="1" Margin="5,0,0,0"
                                         ToolTipService.ToolTip="Sort packages by name or by installed date">
                             <StackPanel Orientation="Horizontal" Spacing="5">
                                 <SymbolIcon>Sort</SymbolIcon>
-                                <TextBlock Text="{x:Bind SortLabel}"/>
+                                <TextBlock Text="{x:Bind CatalogModel.SortLabel}"/>
                             </StackPanel>
                             <DropDownButton.Flyout>
                                 <MenuFlyout>
-                                    <ToggleMenuFlyoutItem Text="A-Z"            IsChecked="{x:Bind SortByName, Mode=TwoWay}"/>
-                                    <ToggleMenuFlyoutItem Text="Installed date" IsChecked="{x:Bind SortByDate, Mode=TwoWay}"/>
+                                    <ToggleMenuFlyoutItem Text="A-Z"            IsChecked="{x:Bind CatalogModel.SortByName, Mode=TwoWay}"/>
+                                    <ToggleMenuFlyoutItem Text="Installed date" IsChecked="{x:Bind CatalogModel.SortByDate, Mode=TwoWay}"/>
                                 </MenuFlyout>
                             </DropDownButton.Flyout>
                         </DropDownButton>
@@ -167,8 +167,8 @@
                     <ListView x:Name="_lv" 
                           SizeChanged="List2SizeChanged"
                           Background="Transparent"
-                          ItemsSource="{x:Bind Packages, Mode=OneWay}"
-                          SelectedItem="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"
+                          ItemsSource="{x:Bind CatalogModel.Packages, Mode=OneWay}"
+                          SelectedItem="{x:Bind CatalogModel.CurrentItem, Mode=OneWay}"
                           SelectionChanged="SelectionChanged"
                           SelectionMode="Extended"
                           MinWidth="{x:Bind MaxListWidth, Mode=OneWay}">
@@ -229,7 +229,7 @@
                 <local:PackageView x:Name="_detail"
                                    Grid.Row="1" Grid.RowSpan="2"
                                    Grid.Column="1" 
-                                   Package="{x:Bind local:MainWindow.Instance.CurrentItem, Mode=OneWay}"/>
+                                   Package="{x:Bind local:PackageCatalogModel.Instance.CurrentItem, Mode=OneWay}"/>
 
             </Grid>
 

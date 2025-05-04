@@ -1,8 +1,6 @@
 ﻿using Microsoft.UI.Dispatching;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +9,7 @@ namespace ViewAppxPackage
     public class MyThreading
     {
         static Thread _uiThread;
+        static DispatcherQueue _uiThreadDispatcherQueue;
 
         static Thread _workerThread;
         static DispatcherQueue _workerThreadDispatcher;
@@ -18,9 +17,10 @@ namespace ViewAppxPackage
         static internal bool CurrentIsUiThread => Thread.CurrentThread == _uiThread;
         static internal bool CurrentIsWorkerThread => Thread.CurrentThread == _workerThread;
 
-        static internal void SetUIThread(Thread thread)
+        static internal void SetCurrentAsUIThread()
         {
-            _uiThread = thread;
+            _uiThread = Thread.CurrentThread;
+            _uiThreadDispatcherQueue = DispatcherQueue.GetForCurrentThread();
         }
 
         static internal void SetWorkerThread(Thread thread)
@@ -29,24 +29,36 @@ namespace ViewAppxPackage
         }
 
         /// <summary>
-        /// Post to worker thread, or run sync if already there
+        /// Run a sync action on the worker thread (complete when it's done)
         /// </summary>
-        async internal static Task RunOnWorkerAsync(Action action)
+        async internal static Task RunOnWorkerAsync(Action syncAction)
+        {
+            await RunOnWorkerAsync(() =>
+            {
+                syncAction();
+                return Task.CompletedTask;
+            });
+        }
+
+        /// <summary>
+        /// Run an async action on the worker thread (complete when it's done)
+        /// </summary>
+        internal static async Task RunOnWorkerAsync(Func<Task> asyncAction)
         {
             if (MyThreading.CurrentIsWorkerThread)
             {
-                action();
+                await asyncAction();
                 return;
             }
 
             var semaphore = new SemaphoreSlim(0, 1);
-            PostToWorker(() =>
+            PostToWorker(async () =>
             {
-                action();
+                await asyncAction();
                 semaphore.Release();
             });
 
-            await Task.Run(() => semaphore.WaitAsync());
+            await semaphore.WaitAsync();
         }
 
         /// <summary>
@@ -60,11 +72,17 @@ namespace ViewAppxPackage
             _workerThreadDispatcher.TryEnqueue(() => action());
         }
 
-        internal static void CreateWorkerThread()
+        internal static async Task CreateWorkerThreadAsync()
         {
             // Create the worker thread (STA)
-            var controller = Microsoft.UI.Dispatching.DispatcherQueueController.CreateOnDedicatedThread();
+            var controller = DispatcherQueueController.CreateOnDedicatedThread();
             _workerThreadDispatcher = controller.DispatcherQueue;
+
+            await RunOnWorkerAsync(() =>
+            {
+                Debug.Assert(_workerThread == null);
+                _workerThread = Thread.CurrentThread;
+            });
         }
 
         /// <summary>
@@ -74,8 +92,47 @@ namespace ViewAppxPackage
             DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
         {
             // DispatcherQueue can be null during shutdown
-            _ = MainWindow.Instance.DispatcherQueue?.TryEnqueue(priority, action);
+            _uiThreadDispatcherQueue?.TryEnqueue(priority, action);
         }
 
+        /// <summary>
+        /// Queue a sync action to the UI thread and (async) wait for it to complete
+        /// </summary>
+        internal static async Task RunOnUIAsync(
+            Action syncAction,
+            DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
+        {
+            await RunOnUIAsync(() =>
+            {
+                syncAction();
+                return Task.CompletedTask;
+            },
+            priority);
+        }
+
+        /// <summary>
+        /// Queue an async action to the UI thread and (async) wait for it to complete
+        /// </summary>
+        internal static async Task RunOnUIAsync(
+            Func<Task> asyncAction,
+            DispatcherQueuePriority priority = DispatcherQueuePriority.Normal)
+        {
+            // bugbug: need to handle async actions
+            var semaphore = new SemaphoreSlim(0, 1);
+            MyThreading.PostToUI(async () =>
+            {
+                await asyncAction();
+                semaphore.Release();
+            },
+            priority);
+
+            await semaphore.WaitAsync();
+        }
+
+
+        internal static void ShutdownWorkerThread()
+        {
+            _workerThreadDispatcher?.EnqueueEventLoopExit();
+        }
     }
 }

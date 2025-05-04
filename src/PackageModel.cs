@@ -132,6 +132,19 @@ namespace ViewAppxPackage
             this.Preload.EnsurePreloadedAsync();
         }
 
+        public void DoInitialLoad(bool preloadFullName)
+        {
+            // Enable filtering on UI thread
+            _ = Name;
+
+            // If this was launched by piping to it from get-appxpackage,
+            // we need to have the FullName loaded
+            if (preloadFullName)
+            {
+                _ = FullName;
+            }
+        }
+
         /// <summary>
         /// Nested class to handling preloading a few Very Important Properties.
         /// They're loaded off the UI thread and raise a change notification.
@@ -274,6 +287,7 @@ namespace ViewAppxPackage
             return model;
         }
 
+        public bool CanOpenStore => _package.SignatureKind == PackageSignatureKind.Store;
 
         /// <summary>
         /// URI of the AppInstaller (if present). If this exists, the
@@ -316,7 +330,7 @@ namespace ViewAppxPackage
                     {
                         // Re-read from the system
                         var fullName = wamPackage.Id.FamilyName;
-                        var refindPackages = MainWindow.PackageManager.FindPackagesForUser("", fullName);
+                        var refindPackages = PackageCatalogModel.PackageManager.FindPackagesForUser("", fullName);
 
                         // If we got something, replace the original value
                         if (refindPackages != null)
@@ -533,7 +547,6 @@ namespace ViewAppxPackage
                     if (value == null)
                     {
                         continue;
-
                     }
 
                     // For string property types, we check the property value
@@ -578,8 +591,6 @@ namespace ViewAppxPackage
             }
         }
         static List<PropertyInfo> _packageModelPropertyInfos = null;
-
-
 
         internal void RaisePropertyChangedOnUIThread([CallerMemberName] string propertyName = null)
         {
@@ -831,7 +842,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// String with a list of users that have this package
         /// </summary>
-        internal string PackageUserInformation
+        public string PackageUserInformation
         {
             get
             {
@@ -839,9 +850,9 @@ namespace ViewAppxPackage
                 {
                     _packageUserInformation = "";
 
-                    if (MainWindow.Instance.IsElevated)
+                    if (App.IsProcessElevated())
                     {
-                        var pm = MainWindow.PackageManager;
+                        var pm = PackageCatalogModel.PackageManager;
 
                         try
                         {
