@@ -1,2 +1,4 @@
 ﻿GetKeyState
 VIRTUAL_KEY
+GetOpenFileName
+MAX_PATH

@@ -32,6 +32,7 @@ get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 
 # Additional features
 
+* View, edit, delete, add **package settings**
 * **Launch** the package with the Launch button (if applicable for the package)
 * **Open** a package's AppxManifest
 * **Remove** a package

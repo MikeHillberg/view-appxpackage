@@ -7,10 +7,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.Foundation;
@@ -61,15 +62,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     [ObservableProperty]
     internal int packageCount;
 
-    internal void WorkerThread(bool isAllUsers, bool isInput)
-    {
-        MyThreading.SetWorkerThread(Thread.CurrentThread);
 
-        PackageCatalogModel.Instance.Initialize(
-            isAllUsers,
-            preloadFullName: isInput,
-            useSettings: true);
-    }
 
 
     /// <summary>
@@ -196,6 +189,19 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         }
     }
 
+    /// <summary>
+    /// Reset Search and Filter properties with only one set of change notifications
+    /// </summary>
+    internal void ResetSearchAndFilter()
+    {
+        _searchText = null;
+        _filter = null;
+
+        RaisePropertyChanged(nameof(Filter));
+        RaisePropertyChanged(nameof(SearchText));
+        FilterAndSearchPackages();
+    }
+
     public ObservableCollection<PackageModel> Packages
     {
         get { return _packages; }
@@ -278,9 +284,12 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         Debug.Assert(package != null);
 
         // Move on to the next item (this post might go behind something from the UI thread)
-        MyThreading.PostToWorker(
-            () => FinishLoading(),
-            DispatcherQueuePriority.Low);
+        if (!MyThreading.HasShutdownStarted)
+        {
+            MyThreading.PostToWorker(
+                () => FinishLoading(),
+                DispatcherQueuePriority.Low);
+        }
     }
 
 
@@ -357,6 +366,11 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
             // so check the PFullName
             MyThreading.PostToUI(() =>
             {
+                if(CurrentItem == null)
+                {
+                    return;
+                }
+
                 if (CurrentItem.FullName == package.FullName)
                 {
                     CurrentItem = null;
@@ -735,5 +749,54 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         }
     }
 
+     /// <summary>
+     /// Unzip a package for sideloading ad a loose file deployment
+     /// </summary>
+    internal string UnzipPackage(string packagePath, string directoryPath)
+    {
+        DebugLog.Append($"Unzipping {packagePath} to {directoryPath}");
 
+        // Bugbug: a bit of guessing here, should figure out a proper parsing
+        // Algorithm is to unzip the file and look for appxmanifest.xml
+        // If that doesn't work, look for a msix or appx file in the unzip,
+        // and if there unzip and look for appxmanifest.xml again
+
+        // ZipFile feels like something that could throw exceptions
+        try
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                // Unzip the package to a directory
+                ZipFile.ExtractToDirectory(packagePath, directoryPath);
+
+                // If there's an appxmanifest.xml, return the full path to it
+                var manifestPath = Path.Combine(directoryPath, "AppxManifest.xml");
+                if (File.Exists(manifestPath))
+                {
+                    return manifestPath;
+                }
+
+                // There wasn't an appxmanifest.xml, see if there's an msix or appx
+                packagePath = Directory.GetFiles(directoryPath, "*.msix").FirstOrDefault();
+                if (packagePath == null)
+                {
+                    packagePath = Directory.GetFiles(directoryPath, "*.appx").FirstOrDefault();
+                    if (packagePath == null)
+                    {
+                        DebugLog.Append($"No msix/appx file found in {directoryPath}");
+                        return null;
+                    }
+                }
+
+                // Try this new packagePath and directoryPath
+                directoryPath = $"{packagePath}.unzip";
+            }
+        }
+        catch (Exception e)
+        {
+            DebugLog.Append(e, "Couldn't unzip package");
+        }
+
+        return null;
+    }
 }

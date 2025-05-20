@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Package IgnorableNamespaces="uap rescap build" xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:build="http://schemas.microsoft.com/developer/appx/2015/build">
+  
+  <Identity Name="a60d2c46-59cf-4c4f-87b5-a39bf0be42c9" Publisher="CN=MikeHillberg" Version="1.0.1.0" ProcessorArchitecture="x86"/>
+  <Properties>
+    <DisplayName>TestPackage</DisplayName>
+    <PublisherDisplayName>mikehill</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.19041.0" MaxVersionTested="10.0.19041.0"/>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.19041.0"/>
+  </Dependencies>
+  <Resources>
+    <Resource Language="EN-US"/>
+    <Resource uap:Scale="200"/>
+    
+  </Resources>
+  <Applications>
+    <Application Id="App" Executable="view-appxpackage.TestPackage\view-appxpackage.TestPackage.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="TestPackage" Description="TestPackage" BackgroundColor="transparent" Square150x150Logo="Images\Square150x150Logo.png" Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png"/>
+        <uap:SplashScreen Image="Images\SplashScreen.png"/>
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClient"/>
+    <rescap:Capability Name="runFullTrust"/>
+  </Capabilities>
+  <build:Metadata>
+    <build:Item Name="Microsoft.Build.DesktopBridge.Tasks.dll" Version="17.13.40096.63131"/>
+    <build:Item Name="TargetFrameworkMoniker" Value=".NETFramework,Version=v4.5.1"/>
+    <build:Item Name="VisualStudio" Version="17.0"/>
+    <build:Item Name="VisualStudioEdition" Value="Microsoft Visual Studio Enterprise 2022"/>
+    <build:Item Name="OperatingSystem" Version="10.0.26100.1 (WinBuild.160101.0800)"/>
+    <build:Item Name="Microsoft.Build.AppxPackage.dll" Version="17.13.40096.63131"/>
+    <build:Item Name="ProjectGUID" Value="c79dcac9-2515-44aa-9000-8381eda6c5f9"/>
+    <build:Item Name="makepri.exe" Version="10.0.26100.1742 (WinBuild.160101.0800)"/>
+  </build:Metadata>
+</Package>

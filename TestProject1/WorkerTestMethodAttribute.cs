@@ -1,4 +1,5 @@
-﻿using ViewAppxPackage;
+﻿using Microsoft.UI.Dispatching;
+using ViewAppxPackage;
 
 namespace TestProject1;
 
@@ -8,13 +9,14 @@ public class WorkerTestMethodAttribute : TestMethodAttribute
     {
         TestResult[] result = null!;
 
-        MyThreading.RunOnWorkerAsync(() =>
+        Semaphore sem = new(0, 1);
+        _ = MyThreading.RunOnWorkerAsync(() =>
         {
             result = base.Execute(testMethod);
-        }).Wait();
+            sem.Release();
+        });
+        sem.WaitOne();
 
         return result!;
     }
 }
-
-

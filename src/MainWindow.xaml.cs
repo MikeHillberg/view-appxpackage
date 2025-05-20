@@ -98,9 +98,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             {
                 // When Packages is replaced ListView clears the selected item,
                 // so restore it to CurrentItem (if it's in the list)
-                if (CatalogModel.Packages.Contains(CurrentItem))
+                if (CatalogModel.Packages.Contains(CatalogModel.CurrentItem))
                 {
-                    _lv.SelectedItem = CurrentItem;
+                    _lv.SelectedItem = CatalogModel.CurrentItem;
                 }
 
                 // If the current item isn't in the list, clear it.
@@ -251,6 +251,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         get => _isAllUsers;
         set
         {
+            if (value == _isAllUsers)
+            {
+                return;
+            }
+
             _isAllUsers = value;
             RaisePropertyChanged();
 
@@ -392,16 +397,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        _ = Windows.System.Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CurrentItem.FamilyName}"));
+        _ = Windows.System.Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CatalogModel.CurrentItem.FamilyName}"));
     }
-
-    private PackageModel CurrentItem => CatalogModel.CurrentItem;
 
     private void OpenManifest()
     {
         Debug.Assert(CanOpenManifest(IsMultiSelect));
 
-        var path = CurrentItem.InstalledPath;
+        var path = CatalogModel.CurrentItem.InstalledPath;
 
         // bugbug: use https://learn.microsoft.com/windows/win32/api/appxpackaging/nf-appxpackaging-iappxpackagereader-getmanifest
         path = Path.Combine(path, "AppxManifest.xml");
@@ -468,13 +471,16 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var isAllUsers = App.IsProcessElevated() && IsAllUsers;
 
         // Everything we do with actual Package APIs is on a single background thread
-        await MyThreading.CreateWorkerThreadAsync();
+        await MyThreading.EnsureWorkerThreadAsync();
 
         // Do all the package loading on the worker thread
-        _ = MyThreading.RunOnWorkerAsync(
-            () => CatalogModel.WorkerThread(
-               isAllUsers: isAllUsers,
-               isInput: MainWindow.PipeInputFilterString != null));
+        _ = MyThreading.RunOnWorkerAsync(() =>
+        {
+            PackageCatalogModel.Instance.Initialize(
+                isAllUsers,
+                preloadFullName: MainWindow.PipeInputFilterString != null,
+                useSettings: true);
+        });
     }
 
     /// <summary>
@@ -500,7 +506,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         // If something's already selected, don't change it
-        if (CurrentItem != null)
+        if (CatalogModel.CurrentItem != null)
         {
             return;
         }
@@ -577,6 +583,31 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             });
     }
 
+    /// <summary>
+    /// Call package VerifyContentIntegrity
+    /// </summary>
+    async private void VerifyPackage(object sender, RoutedEventArgs e)
+    {
+        var package = _lv.SelectedItem as PackageModel;
+        if (package == null)
+        {
+            Debug.Assert(false);
+            return;
+        }
+
+        const string title = "Verify package content integrity";
+        string message = "Package has been modified";
+
+        if (await package.VerifyAsync())
+        {
+            message = "Package has not been modified";
+        }
+
+        _ = MyMessageBox.Show(
+                message: message,
+                title: title,
+                isOKEnabled: false);
+    }
 
     void RaisePropertyChanged([CallerMemberName] string propertyName = null)
     {
@@ -606,21 +637,39 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     async private void AddPackage(object sender, RoutedEventArgs e)
     {
         var picker = new FileOpenPicker();
-        var hwnd = WindowNative.GetWindowHandle(this);
-        InitializeWithWindow.Initialize(picker, hwnd);
-
         // bugbug: handle bundles
         picker.FileTypeFilter.Add(".appx");
         picker.FileTypeFilter.Add(".appxbundle");
         picker.FileTypeFilter.Add(".msix");
         picker.FileTypeFilter.Add(".msixbundle");
-        var storageFile = await picker.PickSingleFileAsync();
-        if (storageFile == null)
+
+        Uri fileUri = null;
+
+        // If running elevated, use the Win32 ComCtl file picker GetOpenFileName. 
+        // Otherwise use the modern FileOpenPicker
+        if (IsElevated)
         {
-            return;
+            var path = FilePickerWorkaround.ShowDialog(picker.FileTypeFilter, dialogTitle: "Open");
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+            fileUri = new(path);
+        }
+        else
+        {
+            var hwnd = WindowNative.GetWindowHandle(this);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var storageFile = await picker.PickSingleFileAsync();
+            if (storageFile == null)
+            {
+                return;
+            }
+
+            fileUri = new Uri(storageFile.Path);
         }
 
-        var fileUri = new Uri(storageFile.Path);
 
         try
         {
@@ -652,21 +701,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         if (fe.ActualWidth > MaxNameWidth)
         {
             MaxNameWidth = fe.ActualWidth;
-        }
-    }
-
-    private static void LaunchPackage(string aumid)
-    {
-        ProcessStartInfo si = new();
-        si.FileName = $@"shell:AppsFolder\{aumid}";
-        si.UseShellExecute = true;
-
-        try
-        {
-            Process.Start(si);
-        }
-        catch (Exception)
-        {
         }
     }
 
@@ -773,6 +807,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        // The AllowUnsigned option only works if the package's publisher is in the
+        // OID.2.25.311729368913984317654407730594956997722 namespace
+        // So instead, unzip the package and do a loose file deployment instead, which doesn't require signing
+
         var picker = new FileOpenPicker();
         var hwnd = WindowNative.GetWindowHandle(this);
         InitializeWithWindow.Initialize(picker, hwnd);
@@ -781,13 +819,29 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         picker.FileTypeFilter.Add(".msix");
         picker.FileTypeFilter.Add(".xml");
 
-        var storageFile = await picker.PickSingleFileAsync();
-        if (storageFile == null)
+        string path = "";
+
+        // If running elevated, use the Win32 ComCtl file picker GetOpenFileName. 
+        // Otherwise use the moderl FileOpenPicker
+        if (IsElevated)
         {
-            // Canceled
-            return;
+            path = FilePickerWorkaround.ShowDialog(picker.FileTypeFilter, dialogTitle: "Open");
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
         }
-        var path = storageFile.Path;
+        else
+        {
+            var storageFile = await picker.PickSingleFileAsync();
+            if (storageFile == null)
+            {
+                // Canceled
+                return;
+            }
+            path = storageFile.Path;
+        }
+
         string manifestPath = null;
 
         if (Path.GetExtension(path) == ".xml")
@@ -823,9 +877,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 return;
             }
 
-            ZipFile.ExtractToDirectory(path, directoryPath);
-
-            manifestPath = Path.Combine(directoryPath, "AppxManifest.xml");
+            manifestPath = CatalogModel.UnzipPackage(path, directoryPath);
         }
 
         if (!Path.Exists(manifestPath))
@@ -990,7 +1042,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void RunPowershellAsPackage(object sender, RoutedEventArgs e)
     {
-        if (!CanLaunch(CurrentItem))
+        if (!CanLaunch(CatalogModel.CurrentItem))
         {
             // Either CurrentItem is null, or it doesn't have app entries
             // (This operation requires an Aumid)
@@ -1021,7 +1073,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             // This gets the Praid from the first app list entry, though there could be many.
             // But that should be OK because all the aumid have the same package identity.
             // Not sure why any aumid is even necessary?
-            var praid = CurrentItem.AppEntries[0].Id;
+            var praid = CatalogModel.CurrentItem.AppEntries[0].Id;
 
             // This is the package path of _this_ app, not the CurrentItem package.
             // That's where the script is that we're going to run in the second PowerShell,
@@ -1031,7 +1083,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             // This is the first part of the command that the first PowerShell will run,
             // to call Invoke-CommandInDesktopPackage, giving it the PFN and Praid and
             // telling it to run the second PowerShell
-            var invokeCommandBase = @$"Invoke-CommandInDesktopPackage -PackageFamilyName {CurrentItem.FamilyName} -AppId {praid} -Command powershell";
+            var invokeCommandBase = @$"Invoke-CommandInDesktopPackage -PackageFamilyName {CatalogModel.CurrentItem.FamilyName} -AppId {praid} -Command powershell";
 
 
             // These are the args that will be passed to the nested PS that's created by the
@@ -1169,5 +1221,4 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 public class XClassMapper
 {
     public MainWindow XClass { get; set; }
-
 }
