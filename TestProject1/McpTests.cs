@@ -1,7 +1,9 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ModelContextProtocol;
+using ModelContextProtocol.Handlers;
+using ModelContextProtocol.Models;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using ViewAppxPackage;
 
 namespace TestProject1
@@ -10,10 +12,10 @@ namespace TestProject1
     public class McpTests
     {
         [TestMethod]
-        public void TestJsonSerializationFormat()
+        public void TestMcpJsonFormat()
         {
             // Create a sample package data
-            var packageList = new List<Dictionary<string, object>>
+            var packageItems = new List<Dictionary<string, object>>
             {
                 new Dictionary<string, object>
                 {
@@ -32,13 +34,15 @@ namespace TestProject1
                 }
             };
             
-            // Serialize to JSON
-            var options = new JsonSerializerOptions
+            // Create a model context with the items
+            var modelContext = new ModelContext
             {
-                WriteIndented = true
+                Items = packageItems
             };
             
-            var json = JsonSerializer.Serialize(packageList, options);
+            // Use MCP to serialize
+            var jsonHandler = new JsonModelContextHandler();
+            var json = jsonHandler.GetFormattedResponse(modelContext);
             
             // Verify JSON structure is as expected
             Assert.IsTrue(json.Contains("\"name\""));

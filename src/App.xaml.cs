@@ -1,9 +1,11 @@
 ﻿using Microsoft.UI.Xaml;
+using ModelContextProtocol;
+using ModelContextProtocol.Handlers;
+using ModelContextProtocol.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Principal;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Windows.Management.Deployment;
 
@@ -64,22 +66,46 @@ namespace ViewAppxPackage
             var packageManager = new PackageManager();
             var packages = packageManager.FindPackagesForUser(string.Empty);
             
-            var packageList = new List<PackageJsonModel>();
+            // Create a list of package data for MCP serialization
+            var packageItems = new List<Dictionary<string, object>>();
             
             foreach (var package in packages)
             {
                 if (!package.IsResourcePackage)
                 {
-                    packageList.Add(new PackageJsonModel(package));
+                    // Create a dictionary to hold package properties
+                    var packageData = new Dictionary<string, object>
+                    {
+                        { "name", package.Id.Name },
+                        { "fullName", package.Id.FullName },
+                        { "familyName", package.Id.FamilyName },
+                        { "publisher", package.Id.Publisher },
+                        { "publisherDisplayName", package.PublisherDisplayName },
+                        { "installedDate", package.InstalledDate },
+                        { "architecture", package.Id.Architecture.ToString() },
+                        { "version", $"{package.Id.Version.Major}.{package.Id.Version.Minor}.{package.Id.Version.Build}.{package.Id.Version.Revision}" },
+                        { "isFramework", package.IsFramework },
+                        { "isResourcePackage", package.IsResourcePackage },
+                        { "isBundle", package.IsBundle },
+                        { "isDevelopmentMode", package.IsDevelopmentMode },
+                        { "installedPath", package.InstalledPath }
+                    };
+                    
+                    packageItems.Add(packageData);
                 }
             }
             
-            var options = new JsonSerializerOptions
+            // Create an MCP context with the package data
+            var modelContext = new ModelContext
             {
-                WriteIndented = true
+                Items = packageItems
             };
             
-            var json = JsonSerializer.Serialize(packageList, options);
+            // Serialize using MCP serializer
+            var jsonHandler = new JsonModelContextHandler();
+            var json = jsonHandler.GetFormattedResponse(modelContext);
+            
+            // Output the JSON
             Console.WriteLine(json);
         }
 
