@@ -15,7 +15,7 @@ It's a live list, so it will update automatically if packages are added to or re
 You can search for any package property, including _Name_, _Publisher_, and _Version_. 
 Boolean properties like _IsFramework_ and _IsDevelopmentMode_ are also searchable. 
 If you get unexpected matches, check the AppxManifest as they might be hidden there. 
-Note: there’s a slight delay on startup before the search functionality becomes available.
+Note: thereï¿½s a slight delay on startup before the search functionality becomes available.
 
 Run elevated and the `All Users` toggle will become available.
 Check this to see all packages on the device.
@@ -27,7 +27,10 @@ Check this to see all packages on the device.
 view-appxpackage
 view-appxpackage *calculator*
 get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
+view-appxpackage --mcp-list-packages > packages.json
 ```
+
+The `--mcp-list-packages` option outputs a JSON-formatted list of all packages to stdout without launching the UI. This is useful for automation or integration with other tools.
 
 
 # Additional features
