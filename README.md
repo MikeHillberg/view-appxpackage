@@ -25,5 +25,16 @@ _or_
 view-appxpackage
 view-appxpackage *calculator*
 get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
+view-appxpackage --mcp-list-packages > packages.json
 ```
+
+## MCP Server Functionality
+
+You can use the `--mcp-list-packages` command-line switch to output a list of all packages in JSON format to stdout, without launching the UI:
+
+```
+view-appxpackage --mcp-list-packages > packages.json
+```
+
+This will produce a JSON array containing package objects with properties such as Name, FullName, Version, InstalledDate, and FamilyName.
 

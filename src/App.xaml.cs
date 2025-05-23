@@ -1,6 +1,11 @@
 ﻿using Microsoft.UI.Xaml;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Principal;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Windows.Management.Deployment;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -36,8 +41,46 @@ namespace ViewAppxPackage
         /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            // Check for MCP command-line arguments before initializing UI
+            var cmdArgs = Environment.GetCommandLineArgs();
+            if (cmdArgs != null && cmdArgs.Length > 1)
+            {
+                if (cmdArgs[1].ToLower() == "--mcp-list-packages")
+                {
+                    OutputPackagesAsJson();
+                    Environment.Exit(0);
+                    return;
+                }
+            }
+
+            // Normal application flow
             m_window = new MainWindow();
             m_window.Activate();
+        }
+
+        private void OutputPackagesAsJson()
+        {
+            // Use the same package loading logic as the main app
+            var packageManager = new PackageManager();
+            var packages = packageManager.FindPackagesForUser(string.Empty);
+            
+            var packageList = new List<PackageJsonModel>();
+            
+            foreach (var package in packages)
+            {
+                if (!package.IsResourcePackage)
+                {
+                    packageList.Add(new PackageJsonModel(package));
+                }
+            }
+            
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true
+            };
+            
+            var json = JsonSerializer.Serialize(packageList, options);
+            Console.WriteLine(json);
         }
 
         private Window m_window;
