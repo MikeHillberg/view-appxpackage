@@ -12,6 +12,18 @@ namespace ViewAppxPackage
     /// MCP (Model Context Protocol) Server service that provides tools to interact with AppX package data.
     /// This service exposes package information through MCP tools, allowing external systems to query
     /// package family names and other package information.
+    /// 
+    /// Usage:
+    /// To start the application in MCP server mode, use the command line argument:
+    /// view-appxpackage.exe -mcpserver
+    /// 
+    /// In this mode, the application will:
+    /// 1. Load all package data without showing the UI
+    /// 2. Start an MCP server that exposes tools for querying package information
+    /// 3. Wait for package loading to complete before serving requests
+    /// 4. Provide the 'list_package_family_names' tool to retrieve all package family names
+    /// 
+    /// The server will continue running until terminated and can serve multiple MCP tool requests.
     /// </summary>
     public class McpServerService
     {
@@ -118,14 +130,15 @@ namespace ViewAppxPackage
         [McpTool("list_package_family_names", "Lists all Package Family Names from loaded AppX packages")]
         public IEnumerable<string> ListPackageFamilyNames()
         {
-            // Ensure package data is ready before serving
-            if (!_isPackageDataReady)
-            {
-                _packageLoadedEvent.Wait();
-            }
-
             try
             {
+                // Ensure package data is ready before serving
+                if (!_isPackageDataReady)
+                {
+                    // If not ready, wait for package loading to complete
+                    _packageLoadedEvent.Wait();
+                }
+
                 // Get the packages from the catalog model
                 var packages = PackageCatalogModel.Instance?.Packages;
                 if (packages == null)

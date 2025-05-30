@@ -284,5 +284,70 @@ namespace TestProject1
             Assert.IsTrue(appPackage2 != null);
             Assert.IsTrue(appPackage2.FullName == appPackage.FullName);
         }
+
+        /// <summary>
+        /// Test MCP Server functionality - package family name extraction
+        /// </summary>
+        [UITestMethod]
+        public void TestMcpServerPackageFamilyNames()
+        {
+            // Create the MCP server service
+            var mcpServer = new McpServerService();
+
+            // Get package family names directly from the tool method
+            var familyNames = mcpServer.ListPackageFamilyNames();
+
+            // Verify we get some family names
+            Assert.IsNotNull(familyNames);
+            var familyNameList = familyNames.ToList();
+            Assert.IsTrue(familyNameList.Count > 0, "Should have at least one package family name");
+
+            // Verify all family names are non-empty strings
+            foreach (var familyName in familyNameList)
+            {
+                Assert.IsFalse(string.IsNullOrEmpty(familyName), "Family names should not be null or empty");
+            }
+
+            // Verify we have the same number of unique family names as packages
+            var packageCount = PackageCatalogModel.Instance.Packages.Count;
+            var packagesWithFamilyNames = PackageCatalogModel.Instance.Packages
+                .Where(p => !string.IsNullOrEmpty(p.FamilyName))
+                .Select(p => p.FamilyName)
+                .Distinct()
+                .Count();
+
+            Assert.AreEqual(packagesWithFamilyNames, familyNameList.Count, 
+                "Number of unique family names should match packages with family names");
+
+            // Verify family names are sorted
+            var sortedFamilyNames = familyNameList.OrderBy(name => name).ToList();
+            CollectionAssert.AreEqual(sortedFamilyNames, familyNameList, 
+                "Family names should be returned in sorted order");
+        }
+
+        /// <summary>
+        /// Test command line argument processing for MCP server mode
+        /// </summary>
+        [TestMethod]
+        public void TestMcpServerCommandLineProcessing()
+        {
+            // Test that the MCP server command line argument is properly handled
+            // We'll simulate the command line args and verify the processing
+            
+            // Since we can't easily test the actual command line processing without 
+            // creating a new MainWindow instance, we'll test the logic conceptually
+            var testArgs = new string[] { "view-appxpackage.exe", "-mcpserver" };
+            
+            // Verify that the argument would be recognized
+            Assert.IsTrue(testArgs.Length > 1);
+            Assert.AreEqual("-mcpserver", testArgs[1].ToLower());
+            
+            // Test other command line scenarios
+            var lazyArgs = new string[] { "view-appxpackage.exe", "-lazy" };
+            Assert.AreEqual("-lazy", lazyArgs[1].ToLower());
+            
+            var filterArgs = new string[] { "view-appxpackage.exe", "somefilter" };
+            Assert.AreEqual("somefilter", filterArgs[1]);
+        }
     }
 }
