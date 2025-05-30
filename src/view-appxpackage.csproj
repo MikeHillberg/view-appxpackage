@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <EnableDefaultApplicationEntryPoint>false</EnableDefaultApplicationEntryPoint>
 
 	  <!-- bugbug: workaround for https://github.com/microsoft/CsWinRT/issues/1809 -->
 	  <!-- (Workaround was to also add a nuget ref to microsoft.windows.sdk.net.ref) -->
@@ -55,6 +56,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250401001" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="ModelContextProtocol" Version="0.4.0" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="9.0.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />

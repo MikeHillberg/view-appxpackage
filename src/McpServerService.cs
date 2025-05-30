@@ -25,6 +25,7 @@ namespace ViewAppxPackage
     /// 
     /// The server will continue running until terminated and can serve multiple MCP tool requests.
     /// </summary>
+    [McpServerToolType]
     public class McpServerService
     {
         private readonly CancellationTokenSource _cancellationTokenSource;
@@ -151,7 +152,7 @@ namespace ViewAppxPackage
         /// that have been loaded by the application.
         /// </summary>
         /// <returns>A list of package family names</returns>
-        [McpTool("list_package_family_names", "Lists all Package Family Names from loaded AppX packages")]
+        [McpTool("list_package_family_names", "Lists all Package Family Names from loaded MSIX (AppX) packages")]
         public IEnumerable<string> ListPackageFamilyNames()
         {
             try
