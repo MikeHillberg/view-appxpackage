@@ -34,6 +34,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     // Goes true on DispatcherQueue.ShutdownStarting
     static internal bool IsShuttingDown = false;
 
+    // MCP Server instance for serving package data via Model Context Protocol
+    private McpServerService _mcpServer;
+
+    // Flag to indicate if running in MCP server mode (headless)
+    private bool _isMcpServerMode = false;
+
     public MainWindow()
     {
         Instance = this;
@@ -46,6 +52,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         // bugbug: there's a race where we load the initial set here but
         // haven't set up the change event listeners yet
         StartLoadPackages();
+
+        // In MCP server mode, we only need package loading, not UI initialization
+        if (_isMcpServerMode)
+        {
+            return;
+        }
 
         this.InitializeComponent();
 
@@ -70,6 +82,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         Closed += (s, e) =>
         {
             _logViewerWindow?.Close();
+            _mcpServer?.Stop();
         };
 
         EnsureSampleSettings();
@@ -301,6 +314,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             {
                 // For debugging
                 LazyPreload = true;
+                return;
+            }
+
+            if (args[1].ToLower() == "-mcpserver")
+            {
+                // Start MCP server mode - this will run as a separate instance
+                _isMcpServerMode = true;
+                StartMcpServerMode();
                 return;
             }
 
@@ -1156,6 +1177,31 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         if (!container.Values.TryGetValue(key, out var current))
         {
             container.Values[key] = value;
+        }
+    }
+
+    /// <summary>
+    /// Starts the application in MCP (Model Context Protocol) server mode.
+    /// In this mode, the application runs headlessly and serves package data via MCP tools
+    /// without showing the UI. This allows external systems to query package information.
+    /// </summary>
+    private async void StartMcpServerMode()
+    {
+        try
+        {
+            // Initialize the MCP server
+            _mcpServer = new McpServerService();
+
+            // Start the server - this will wait for package loading to complete
+            // and then serve MCP tools
+            await _mcpServer.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Append($"Failed to start MCP server: {ex.Message}");
+            
+            // Exit the application if server startup fails
+            App.Current?.Exit();
         }
     }
 }
