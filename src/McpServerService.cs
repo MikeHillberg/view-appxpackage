@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Attributes;
 using ModelContextProtocol.Server;
+using System.ComponentModel;
 
 namespace ViewAppxPackage
 {
@@ -58,7 +59,9 @@ namespace ViewAppxPackage
                 // Create and start the MCP server
                 _server = new McpServer("view-appxpackage-mcp", "1.0.0");
                 
-                // Register this service instance to handle tool calls
+                // TODO: Use WithToolsFromAssembly pattern instead of AddToolProvider
+                // This should be replaced with proper dependency injection setup
+                // Example: _server.WithToolsFromAssembly(typeof(McpServerService).Assembly);
                 _server.AddToolProvider(this);
 
                 // Start the server - this will block until cancellation is requested
