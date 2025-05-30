@@ -56,7 +56,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         StartLoadPackages();
 
         // In MCP server mode, we only need package loading, not UI initialization
-        if (_isMcpServerMode)
+        if (IsMcpServerMode)
         {
             return;
         }
