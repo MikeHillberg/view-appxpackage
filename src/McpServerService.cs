@@ -93,16 +93,40 @@ namespace ViewAppxPackage
         /// <returns>A task that completes when package data is ready</returns>
         private async Task WaitForPackageDataAsync(CancellationToken cancellationToken)
         {
-            // Check if MainWindow instance exists and IsLoading is false
-            while (MainWindow.Instance?.IsLoading != false)
+            // Use TaskCompletionSource to wait for IsLoading to become false
+            var isLoadingTcs = new TaskCompletionSource<bool>();
+            
+            // Check if already not loading
+            if (MainWindow.Instance.IsLoading == false)
             {
-                if (cancellationToken.IsCancellationRequested)
+                isLoadingTcs.SetResult(true);
+            }
+            else
+            {
+                // Listen for PropertyChanged event
+                PropertyChangedEventHandler handler = (sender, e) =>
                 {
-                    throw new OperationCanceledException();
-                }
+                    if (e.PropertyName == nameof(MainWindow.IsLoading) && 
+                        MainWindow.Instance.IsLoading == false)
+                    {
+                        isLoadingTcs.TrySetResult(true);
+                    }
+                };
 
-                // Wait a short period before checking again
-                await Task.Delay(100, cancellationToken);
+                MainWindow.Instance.PropertyChanged += handler;
+
+                // Ensure we clean up the event handler
+                cancellationToken.Register(() =>
+                {
+                    MainWindow.Instance.PropertyChanged -= handler;
+                    isLoadingTcs.TrySetCanceled();
+                });
+
+                // Wait for IsLoading to become false or cancellation
+                await isLoadingTcs.Task;
+
+                // Clean up the event handler
+                MainWindow.Instance.PropertyChanged -= handler;
             }
 
             // Additional safety check - ensure packages are actually loaded

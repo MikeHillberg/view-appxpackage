@@ -289,10 +289,13 @@ namespace TestProject1
         /// Test MCP Server functionality - package family name extraction
         /// </summary>
         [UITestMethod]
-        public void TestMcpServerPackageFamilyNames()
+        public async Task TestMcpServerPackageFamilyNames()
         {
             // Create the MCP server service
             var mcpServer = new McpServerService();
+
+            // Start the server to initialize package data
+            await mcpServer.StartAsync();
 
             // Get package family names directly from the tool method
             var familyNames = mcpServer.ListPackageFamilyNames();

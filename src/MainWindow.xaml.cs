@@ -37,8 +37,10 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     // MCP Server instance for serving package data via Model Context Protocol
     private McpServerService _mcpServer;
 
-    // Flag to indicate if running in MCP server mode (headless)
-    private bool _isMcpServerMode = false;
+    /// <summary>
+    /// True if running in MCP server mode (headless)
+    /// </summary>
+    private bool IsMcpServerMode => _mcpServer != null;
 
     public MainWindow()
     {
@@ -310,21 +312,33 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         var args = Environment.GetCommandLineArgs();
         if (args != null && args.Length > 1)
         {
-            if (args[1].ToLower() == "-lazy")
+            // Loop through all arguments to find flags, allowing them in any order
+            bool foundSpecialFlag = false;
+            for (int i = 1; i < args.Length; i++)
             {
-                // For debugging
-                LazyPreload = true;
+                string arg = args[i].ToLower();
+                
+                if (arg == "-lazy")
+                {
+                    // For debugging
+                    LazyPreload = true;
+                    foundSpecialFlag = true;
+                }
+                else if (arg == "-mcpserver")
+                {
+                    // Start MCP server mode - this will run as a separate instance
+                    StartMcpServerMode();
+                    foundSpecialFlag = true;
+                }
+            }
+
+            // If we found special flags, don't treat remaining args as filter
+            if (foundSpecialFlag)
+            {
                 return;
             }
 
-            if (args[1].ToLower() == "-mcpserver")
-            {
-                // Start MCP server mode - this will run as a separate instance
-                _isMcpServerMode = true;
-                StartMcpServerMode();
-                return;
-            }
-
+            // Use first non-flag argument as filter
             _commandLineProvided = true;
             CatalogModel.Filter = args[1];
             return;
