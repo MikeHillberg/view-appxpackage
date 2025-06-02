@@ -596,11 +596,11 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         const string title = "Verify package content integrity";
-        string message = "Package has been modified";
+        string message = $"{package.Name} has been modified";
 
         if (await package.VerifyAsync())
         {
-            message = "Package has not been modified";
+            message = $"{package.Name} has not been modified";
         }
 
         _ = MyMessageBox.Show(
