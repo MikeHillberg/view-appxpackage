@@ -48,7 +48,7 @@
                     <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
                     <AppBarButton x:Name="_launchButton" 
                                   Icon="Play" Label="Launch"
-                                  IsEnabled="{x:Bind CanLaunch(CurrentItem)}"
+                                  IsEnabled="{x:Bind CanLaunch(CatalogModel.CurrentItem)}"
                                   Click="LaunchPackage2">
                     </AppBarButton>
 
@@ -89,7 +89,7 @@
                                     ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. Requires this app to be run elevated."/>
 
                     <AppBarButton Label="PowerShell" Click="RunPowershellAsPackage"
-                                  IsEnabled="{x:Bind CanLaunch(CurrentItem)}" >
+                                  IsEnabled="{x:Bind CanLaunch(CatalogModel.CurrentItem)}" >
                         <AppBarButton.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
                         </AppBarButton.Icon>

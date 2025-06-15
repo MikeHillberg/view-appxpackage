@@ -1,26 +1,27 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
+using Windows.Foundation;
+using Windows.Graphics.Imaging;
 using Windows.Management.Deployment;
+using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
-using System.IO;
-using System.IO.Compression;
-using Microsoft.Win32;
-using Windows.Foundation;
-using Microsoft.UI.Xaml.Input;
-using Windows.Storage;
-using System.Threading;
-using Microsoft.UI.Dispatching;
-using System.Text;
 
 namespace ViewAppxPackage;
 
@@ -34,35 +35,19 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     // Goes true on DispatcherQueue.ShutdownStarting
     static internal bool IsShuttingDown = false;
 
-    // MCP Server instance for serving package data via Model Context Protocol
-    private McpServerService _mcpServer;
-
-    /// <summary>
-    /// True if running in MCP server mode (headless)
-    /// </summary>
-    private bool IsMcpServerMode => _mcpServer != null;
-
     public MainWindow()
     {
         Instance = this;
-        MyThreading.SetCurrentAsUIThread();
 
         CatalogModel = PackageCatalogModel.Instance;
 
-        ProcessCommandLineArguments();
 
         // bugbug: there's a race where we load the initial set here but
         // haven't set up the change event listeners yet
-        StartLoadPackages();
-
-        // In MCP server mode, we only need package loading, not UI initialization
-        if (IsMcpServerMode)
-        {
-            return;
-        }
 
         this.InitializeComponent();
 
+        // Get notifications from PackageCatalogModel
         HookCatalogModelEvents();
 
         // Hack to reference code behind from within a template
@@ -84,7 +69,6 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         Closed += (s, e) =>
         {
             _logViewerWindow?.Close();
-            _mcpServer?.Stop();
         };
 
         EnsureSampleSettings();
@@ -131,6 +115,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         };
 
         // Take down the "loading..." dialog when all the packages are read and the key properties fetched
+        IsLoading = true;
         CatalogModel.MinimallyLoaded += (s, e) =>
         {
             IsLoading = false;
@@ -173,7 +158,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
 
         _filterBox.Focus(FocusState.Programmatic);
 
-        if (_commandLineProvided)
+        if (App.CommandLineFilterProvided)
         {
             _lv.SelectedIndex = 0;
         }
@@ -270,7 +255,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             RaisePropertyChanged();
 
             // Need to re-load packages
-            StartLoadPackages();
+            StartReloadPackages();
 
             // Show what mode we're in in the window title
             SetWindowTitle();
@@ -302,88 +287,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         IsAllUsers = !IsAllUsers;
     }
 
-    // Test/debug flag
-    internal static bool LazyPreload = false;
-
-    bool _commandLineProvided = false;
-
-    void ProcessCommandLineArguments()
-    {
-        var args = Environment.GetCommandLineArgs();
-        if (args != null && args.Length > 1)
-        {
-            // Loop through all arguments to find flags, allowing them in any order
-            bool foundSpecialFlag = false;
-            for (int i = 1; i < args.Length; i++)
-            {
-                string arg = args[i].ToLower();
-                
-                if (arg == "-lazy")
-                {
-                    // For debugging
-                    LazyPreload = true;
-                    foundSpecialFlag = true;
-                }
-                else if (arg == "-mcpserver")
-                {
-                    // Start MCP server mode - this will run as a separate instance
-                    StartMcpServerMode();
-                    foundSpecialFlag = true;
-                }
-            }
-
-            // If we found special flags, don't treat remaining args as filter
-            if (foundSpecialFlag)
-            {
-                return;
-            }
-
-            // Use first non-flag argument as filter
-            _commandLineProvided = true;
-            CatalogModel.Filter = args[1];
-            return;
-        }
-
-        // Read input from the console, which will have content if this was launched
-        // from a PowerShell pipe.
-        // The pipe input comes in just like the output of get-appxpackage, so we're looking for e.g.
-        //
-        //   PackageFamilyName : view-appxpackage_9exbdrchsqpwm
-
-        using (StreamReader reader = new(Console.OpenStandardInput()))
-        {
-            List<string> names = new();
-            string line;
-            var found = false;
-            while ((line = reader.ReadLine()) != null)
-            {
-                var parts = line.Split(':');
-                if (parts.Length != 2)
-                {
-                    continue;
-                }
-
-                if (parts[0].Trim() == "PackageFullName")
-                {
-                    found = true;
-                    names.Add(parts[1].Trim());
-                }
-            }
-
-            if (found)
-            {
-                CatalogModel.PipeInputPackages = names.ToArray();
-
-                // Set the filter box to "$input" indicating we should use this list of names
-                CatalogModel.Filter = PipeInputFilterString;
-            }
-        }
-    }
-
     /// <summary>
     /// Magic value for the filter string that means we're using the input from the stdin
     /// </summary>
-    static public string PipeInputFilterString = "$input";
 
     internal static FrameworkElement RootElement { get; private set; }
 
@@ -493,23 +399,25 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    async void StartLoadPackages()
+    /// <summary>
+    /// Reload packages (happens if AllUsers is turned off or on)
+    /// </summary>
+    void StartReloadPackages()
     {
+        // Go back to the initial UI state
         IsLoading = true;
-
-        // After loading is complete we need some time to get search cached
         IsSearchEnabled = false;
 
         var isAllUsers = App.IsProcessElevated() && IsAllUsers;
 
-        // Everything we do with actual Package APIs is on a single background thread
-        await MyThreading.CreateWorkerThreadAsync();
+        _ = MyThreading.RunOnWorkerAsync(() =>
+        {
+            PackageCatalogModel.Instance.Initialize(
+                isAllUsers: isAllUsers,
+                preloadFullName: PackageCatalogModel.Instance.Filter == App.PipeInputFilterString,
+                useSettings: true);
+        });
 
-        // Do all the package loading on the worker thread
-        _ = MyThreading.RunOnWorkerAsync(
-            () => CatalogModel.WorkerThread(
-               isAllUsers: isAllUsers,
-               isInput: MainWindow.PipeInputFilterString != null));
     }
 
     /// <summary>
@@ -1194,30 +1102,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    /// <summary>
-    /// Starts the application in MCP (Model Context Protocol) server mode.
-    /// In this mode, the application runs headlessly and serves package data via MCP tools
-    /// without showing the UI. This allows external systems to query package information.
-    /// </summary>
-    private async void StartMcpServerMode()
-    {
-        try
-        {
-            // Initialize the MCP server
-            _mcpServer = new McpServerService();
 
-            // Start the server - this will wait for package loading to complete
-            // and then serve MCP tools
-            await _mcpServer.StartAsync();
-        }
-        catch (Exception ex)
-        {
-            DebugLog.Append($"Failed to start MCP server: {ex.Message}");
             
-            // Exit the application if server startup fails
-            App.Current?.Exit();
-        }
-    }
 }
 
 

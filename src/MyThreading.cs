@@ -23,11 +23,6 @@ namespace ViewAppxPackage
             _uiThreadDispatcherQueue = DispatcherQueue.GetForCurrentThread();
         }
 
-        static internal void SetWorkerThread(Thread thread)
-        {
-            _workerThread = thread;
-        }
-
         /// <summary>
         /// Run a sync action on the worker thread (complete when it's done)
         /// </summary>
