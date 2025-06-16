@@ -1,11 +1,15 @@
 ﻿using Microsoft.UI.Dispatching;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Xml;
 using ViewAppxPackage;
+using Windows.ApplicationModel;
 using Windows.Foundation;
 using Windows.Management.Deployment;
 
 namespace TestProject1;
+
 
 [TestClass]
 [DoNotParallelize]
@@ -17,12 +21,31 @@ public sealed class UnitTests
     static DispatcherQueue _uiDispatcherQueue = null!;
     static PackageCatalogModel _catalogModel = null!;
     const string viewAppPackageName = "2775CoffeeZeit.28328C7222DA6";
+    const string testPackageName = "a60d2c46-59cf-4c4f-87b5-a39bf0be42c9";
+
+    static readonly string tempDirectoryPath = Path.Combine(Path.GetTempPath(), "view-appxpackage.Test");
+    static readonly string testMsixPath = Path.Combine(tempDirectoryPath, "TestPackage.msixbundle");
 
     [ClassInitialize]
     async public static Task ClassInitializeAsync(TestContext context)
     {
+        // Make sure any leftover test package from a previous run is gone
+        // Do this before initializing the PackageCatalogManager, to avoid confusion
+        await RemoveTestPackage();
+
+        // Create a directory for all temp files for this test run
+        if (Directory.Exists(tempDirectoryPath))
+        {
+            Directory.Delete(tempDirectoryPath, true);
+        }
+        Directory.CreateDirectory(tempDirectoryPath);
+
+        // Put the test package into a file
+        var packageBytes = Resource1.TestPackage_1_0_1_0_x86;
+        File.WriteAllBytes(testMsixPath, packageBytes);
+
         // Create a worker thread
-        await MyThreading.CreateWorkerThreadAsync();
+        await MyThreading.EnsureWorkerThreadAsync();
 
         // Create a UI thread
         var controller = DispatcherQueueController.CreateOnDedicatedThread();
@@ -48,11 +71,31 @@ public sealed class UnitTests
         });
     }
 
+    private static async Task RemoveTestPackage()
+    {
+        try
+        {
+            PackageManager packageManager = new();
+            await packageManager.RemovePackageAsync("a60d2c46-59cf-4c4f-87b5-a39bf0be42c9_1.0.1.0_x86__tx8btddkt3yjy");
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine($"Failed RemovePackage");
+            Debug.WriteLine(e.Message);
+        }
+    }
+
     [ClassCleanup]
     public static void ClassCleanup()
     {
+        // bugbug: had this as an await call, and this method async,
+        // but this call was never completing (except when in the debugger)
+        _ = RemoveTestPackage();
+
         MyThreading.ShutdownWorkerThread();
-        _uiDispatcherQueue.EnqueueEventLoopExit();
+
+        Directory.Delete(tempDirectoryPath, true);
+
     }
 
     [UITestMethod]
@@ -190,6 +233,62 @@ public sealed class UnitTests
         Assert.IsTrue(wamPackages.Count() == PackageCatalogModel.Instance.PackageCount);
     }
 
+    /// <summary>
+    /// Verify the PackageModel properties
+    /// </summary>
+    /// <returns></returns>
+    [WorkerTestMethod]
+    async public Task ValidatePackageModelProperties()
+    {
+        // Get view-appxpackage's PackageModel
+        var package = GetViewAppxPackage();
+
+        // Get the PackageModel filled in
+        package.EnsureInitializeAsync();
+
+        Assert.IsTrue(package.Name == "2775CoffeeZeit.28328C7222DA6");
+        Assert.IsTrue(package.DisplayName == "view-appxpackage");
+        Assert.IsTrue(package.InstalledDate > DateTime.MinValue 
+            && package.InstalledDate < DateTime.Now);
+
+        Assert.IsTrue(package.Publisher == "CN=1BD61FE2-F217-4D46-9A05-EE02A424756D");
+        Assert.IsTrue(package.PublisherId == "tpt8xzg3yk1mm");
+        Assert.IsTrue(package.Version.Major == 1 && package.Version.Minor == 0);
+        Assert.IsTrue(package.FullName.StartsWith("2775CoffeeZeit.28328C7222DA6") 
+            && package.FullName.EndsWith("tpt8xzg3yk1mm"));
+        Assert.IsTrue(package.FamilyName == "2775CoffeeZeit.28328C7222DA6_tpt8xzg3yk1mm");
+        Assert.IsTrue(package.Capabilities == "packageManagement, runFullTrust");
+        Assert.IsTrue(package.Architecture != Windows.System.ProcessorArchitecture.Unknown);
+        Assert.IsTrue(package.InstalledPath.Contains("view-appxpackage"));
+        Assert.IsTrue(package.ApplicationDataPath.Contains("CoffeeZeit"));
+        Assert.IsTrue(package.EffectivePath.Contains("view-appxpackage"));
+        Assert.IsTrue(package.SignatureKind == PackageSignatureKind.None);
+        Assert.IsTrue(package.IsDevelopmentMode);
+        Assert.IsTrue(package.Status == "Ok");
+        Assert.IsTrue(package.AppEntries.Count == 1);
+        Assert.IsTrue(package.AppEntries[0].Id == "App");
+        Assert.IsTrue(package.AppEntries[0].DisplayName == "ViewAppxPackage");
+        Assert.IsTrue(package.AppEntries[0].Description == "ViewAppxPackage");
+        Assert.IsTrue(package.AppEntries[0].ExecutionAliases == "view-appxpackage.exe, view-msixpackage.exe");
+        Assert.IsTrue(package.AppEntries[0].AppUserModelId == "2775CoffeeZeit.28328C7222DA6_tpt8xzg3yk1mm!App");
+
+        // The EnsureInitialize doesn't wait to calculate the Size,
+        // give that a chance to get figured out
+        for (int i = 0; i < 20; i++)
+        {
+            if (package.Size != "")
+            {
+                break;
+            }
+
+            // bugbug: sleep is bad
+            await Task.Delay(100);
+        }
+
+        // Sanity check the package size
+        var size = package.Size.Split(' ')[0].Trim();
+        Assert.IsTrue(Int32.Parse(size) > 25);
+    }
 
     [TestMethod]
     async public Task TestMyThreading()
@@ -262,24 +361,242 @@ public sealed class UnitTests
         await Task.Run(() => sem.WaitOne());
     }
 
-    [WorkerTestMethod]
+    [TestMethod]
     async public Task TestDependentsAndDependencies()
+    {
+        PackageModel? viewAppxPackage = null;
+        PackageModel? winAppRuntime = null;
+
+        // Get the PackageModel for view-appxpackage
+        await MyThreading.RunOnUIAsync(() =>
+        {
+            viewAppxPackage = GetViewAppxPackage();
+            Assert.IsTrue(viewAppxPackage != null);
+        });
+
+        // Initialize that PackageModel on the worker thread,
+        // and verify that it has the WinAppSDK as a dependency
+        await MyThreading.RunOnWorkerAsync(async () =>
+        {
+            // Initializing a package causes it to add itself to
+            // the dependents of dependency packages
+            viewAppxPackage!.EnsureInitializeAsync();
+
+            winAppRuntime = viewAppxPackage!.Dependencies.FirstOrDefault(p => p.Name.StartsWith("Microsoft.WindowsAppRuntime."));
+            Assert.IsTrue(winAppRuntime != null);
+
+            // Let the UI thread tick to process that Dependents update
+            await MyThreading.RunOnUIAsync(() =>
+            {
+            },
+            DispatcherQueuePriority.Low);
+        });
+
+        // Verify that that WinAppSDK package has, in turn, view-appxpackage as a dependent
+        await MyThreading.RunOnUIAsync(() =>
+        {
+            var appPackage2 = winAppRuntime!.Dependents.FirstOrDefault(p => p.Name == viewAppPackageName);
+            Assert.IsTrue(appPackage2 != null);
+            Assert.IsTrue(appPackage2.FullName == viewAppxPackage!.FullName);
+        });
+    }
+
+    [WorkerTestMethod]
+    async public Task TestVerify()
+    {
+        var package = GetViewAppxPackage();
+        var valid = await package.VerifyAsync();
+        Assert.IsTrue(valid);
+    }
+
+    /// <summary>
+    /// Get the PackageModel for view-appxpackage
+    /// </summary>
+    /// <returns></returns>
+    PackageModel GetViewAppxPackage()
     {
         var appPackage = _catalogModel.Packages.FirstOrDefault(p => p.Name == viewAppPackageName);
         Assert.IsTrue(appPackage != null);
+        return appPackage;
+    }
 
-        var winAppRuntime = appPackage.Dependencies.FirstOrDefault(p => p.Name.StartsWith("Microsoft.WindowsAppRuntime."));
-        Assert.IsTrue(winAppRuntime != null);
+    static PackageModel? GetTestPackage()
+    {
+        var appPackage = _catalogModel.Packages.FirstOrDefault(p => p.Name == testPackageName);
+        return appPackage;
+    }
 
-        // Initializing a package causes it to add itself to
-        // the dependents of dependency packages
-        appPackage.EnsureInitializeAsync();
 
-        // Let the UI thread tick to process that Dependents update
-        await MyThreading.RunOnUIAsync(() =>
+    [TestMethod]
+    async public Task TestAddRemove()
+    {
+        await AddRemoveHelper(sideload: false);
+    }
+
+    [TestMethod]
+    async public Task TestSideload()
+    {
+        await AddRemoveHelper(sideload: true);
+    }
+
+    async public Task AddRemoveHelper(bool sideload)
+    {
+        var package = GetTestPackage();
+        Assert.IsTrue(package == null);
+
+        // Register the test package, either as an Add Package or as a loose file deployment of an XML
+        await MyThreading.RunOnWorkerAsync(async () =>
         {
+            bool progressCalled = false;
+
+            if (sideload)
+            {
+                // Unzip the package and find the appxmanifest.xml
+                var unzipFolder = Path.Combine(tempDirectoryPath, "TestPackage.Unzip");
+                var manifestPath = _catalogModel.UnzipPackage(testMsixPath, unzipFolder);
+                Assert.IsTrue(!string.IsNullOrEmpty(manifestPath));
+
+                // Register the appxmanifest.xml
+                Uri msixUri = new(manifestPath);
+                await _catalogModel.RegisterPackageByUriAsync(msixUri, async (op) =>
+                {
+                    progressCalled = true;
+                    var result = await op;
+                    Assert.IsTrue(result.IsRegistered);
+                });
+            }
+            else
+            {
+                // Register the signed package
+                Uri msixUri = new Uri(testMsixPath);
+                await _catalogModel.AddPackageAsync(msixUri, async (op) =>
+                {
+                    progressCalled = true;
+                    var result = await op;
+                    Assert.IsTrue(result.IsRegistered);
+                });
+            }
+            Assert.IsTrue(progressCalled);
         });
 
+        // Wait for the notification to come in that the package has been added
+        // (When it does, it will be added to CatalogModel.Packages)
+        var found = await RetryLoop.RunAsync(
+            TimeSpan.FromMilliseconds(200),
+            200,
+            async () =>
+            {
+                await MyThreading.RunOnUIAsync(() =>
+                {
+                    package = GetTestPackage();
+                });
+
+                if (package != null)
+                {
+                    return true;
+                }
+                return false;
+            });
+        Assert.IsTrue(found);
+
+        // Now remove the package
+        await MyThreading.RunOnWorkerAsync(async () =>
+        {
+            bool progressCalled = false;
+            await _catalogModel.RemovePackageAsync(package, async (op) =>
+            {
+                progressCalled = true;
+            });
+            Assert.IsTrue(progressCalled);
+        });
+
+        // Now the package should disappear when a notification comes in
+        found = await RetryLoop.RunAsync(
+            TimeSpan.FromMilliseconds(200),
+            200,
+            async () =>
+            {
+                await MyThreading.RunOnUIAsync(() =>
+                {
+                    package = GetTestPackage();
+                });
+
+                if (package == null)
+                {
+                    return true;
+                }
+                return false;
+            });
+        Assert.IsTrue(found);
+    }
+
+    [TestMethod]
+    async public Task TestFilter()
+    {
+        var catalogModel = PackageCatalogModel.Instance;
+
+        await MyThreading.RunOnUIAsync(() =>
+        {
+            try
+            {
+                // Updating the Filter causes Packages to be recalculated synchronously
+                catalogModel.Filter = "*28328C7222DA6*";
+                Assert.IsTrue(catalogModel.Packages.Count == 1);
+
+                var package = catalogModel.Packages[0];
+                Assert.IsTrue(package.Name == viewAppPackageName);
+            }
+            finally
+            {
+                catalogModel.Filter = null;
+            }
+        });
+    }
+
+    [TestMethod]
+    async public Task TestSearch()
+    {
+        var catalogModel = PackageCatalogModel.Instance;
+
+        await MyThreading.RunOnUIAsync(() =>
+        {
+            try
+            {
+                // Updating the SearchText causes Packages to be recalculated synchronously
+                // Search for something other than name (which you can already search with the Filter)
+                catalogModel.SearchText = "view-appxpackage.exe";
+                Assert.IsTrue(catalogModel.Packages.Count == 1);
+
+                var package = catalogModel.Packages[0];
+                Assert.IsTrue(package.Name == viewAppPackageName);
+            }
+            finally
+            {
+                catalogModel.SearchText = null;
+            }
+        });
+    }
+
+    [WorkerTestMethod]
+    public void TestManifest()
+    {
+        var package = GetViewAppxPackage();
+        Assert.IsTrue(package != null);
+        Assert.IsTrue(!string.IsNullOrEmpty(package.AppxManifestContent));
+
+        // Sanity check by looking for the Id attribute on /Package/Applications/Application
+
+        var xmlDoc = System.Xml.Linq.XDocument.Parse(package.AppxManifestContent);
+        Assert.IsTrue(xmlDoc != null && xmlDoc.Root != null);
+
+        var applications = (from e in xmlDoc.Root.Elements() where e.Name.LocalName == "Applications" select e).FirstOrDefault();
+        Assert.IsTrue(applications != null);
+
+        var application = (from e in applications.Elements() where e.Name.LocalName == "Application" select e).FirstOrDefault();
+        Assert.IsTrue(application != null);
+
+        var id = application.Attribute("Executable");
+        Assert.IsTrue(id?.Value == @"view-appxpackage\view-appxpackage.exe");
         var appPackage2 = winAppRuntime.Dependents.FirstOrDefault(p => p.Name == viewAppPackageName);
         Assert.IsTrue(appPackage2 != null);
         Assert.IsTrue(appPackage2.FullName == appPackage.FullName);

@@ -9,8 +9,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+namespace ViewAppxPackage;
 
 namespace ViewAppxPackage
 {
@@ -67,13 +66,13 @@ namespace ViewAppxPackage
             this.InitializeComponent();
         }
 
-        internal static void WaitForDebugger()
+    internal static void WaitForDebugger()
+    {
+        while (!Debugger.IsAttached)
         {
-            while (!Debugger.IsAttached)
-            {
-                System.Threading.Thread.Sleep(100);
-            }
+            System.Threading.Thread.Sleep(100);
         }
+    }
 
 
         /// <summary>
@@ -208,17 +207,16 @@ namespace ViewAppxPackage
 
         private Window m_window;
 
-        static bool? _isProcessElevated = null;
-        public static bool IsProcessElevated()
+    static bool? _isProcessElevated = null;
+    public static bool IsProcessElevated()
+    {
+        if (_isProcessElevated == null)
         {
-            if (_isProcessElevated == null)
-            {
-                WindowsIdentity identity = WindowsIdentity.GetCurrent();
-                WindowsPrincipal principal = new WindowsPrincipal(identity);
-                _isProcessElevated = principal.IsInRole(WindowsBuiltInRole.Administrator);
-            }
-
-            return _isProcessElevated.Value;
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new WindowsPrincipal(identity);
+            _isProcessElevated = principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
+
+        return _isProcessElevated.Value;
     }
 }

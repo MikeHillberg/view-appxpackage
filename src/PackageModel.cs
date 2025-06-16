@@ -525,6 +525,22 @@ namespace ViewAppxPackage
         ObservableCollection<PackageModel> _dependents = new();
 
         /// <summary>
+        /// Verify content integrity
+        /// </summary>
+        async internal Task<bool> VerifyAsync()
+        {
+            try
+            {
+                return await _package.VerifyContentIntegrityAsync();
+            }
+            catch (Exception e)
+            {
+                DebugLog.Append($"Exception calling VerifyContentIntegrityAsync on {this.Name}: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Find packages that match a regex string
         /// </summary>
         public static List<PackageModel> FindPackages(

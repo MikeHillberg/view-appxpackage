@@ -88,6 +88,11 @@
                                         Click="{x:Bind ToggleAllUsers}"
                                     ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. Requires this app to be run elevated."/>
 
+                    <AppBarButton Label="Verify" 
+                                  Icon="Accept" 
+                                  Click="VerifyPackage"
+                                  ToolTipService.ToolTip="Verify that the contents of the package have not been modified" />
+
                     <AppBarButton Label="PowerShell" Click="RunPowershellAsPackage"
                                   IsEnabled="{x:Bind CanLaunch(CatalogModel.CurrentItem)}" >
                         <AppBarButton.Icon>
@@ -102,7 +107,6 @@
                     </AppBarButton>
 
                     <!--<AppBarButton Label="Test" Click="AppBarButton_Click"/>-->
-
                 </CommandBar>
 
                 <!-- Search and Filter text boxes -->
