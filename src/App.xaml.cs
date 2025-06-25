@@ -8,11 +8,26 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using Windows.ApplicationModel.Background;
+using Windows.ApplicationModel.AppService;
 
 namespace ViewAppxPackage;
 
 /// <summary>
 /// Provides application-specific behavior to supplement the default Application class.
+/// 
+/// App Actions Implementation:
+/// This application implements App Actions using the proper IActionProvider approach
+/// following Microsoft's App Actions guidelines, making package information queries 
+/// discoverable via Windows Search and context menu.
+/// 
+/// The App Actions provide three main functions mirroring the MCP tools:
+/// 1. List Package Family Names - Lists all MSIX/AppX package family names
+/// 2. Get Package Properties - Retrieves detailed properties for a specific package
+/// 3. Find Packages by Property - Searches packages containing specific property values
+/// 
+/// All App Actions reuse the same logic as the corresponding MCP tools in McpServer.cs,
+/// ensuring consistency between different invocation methods.
 /// </summary>
 public partial class App : Application
 {
@@ -69,6 +84,19 @@ public partial class App : Application
         while (!Debugger.IsAttached)
         {
             System.Threading.Thread.Sleep(100);
+        }
+    }
+
+    /// <summary>
+    /// Handle background activation for App Service (App Actions)
+    /// </summary>
+    /// <param name="args">Background activation arguments</param>
+    protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
+    {
+        if (args.TaskInstance.TriggerDetails is AppServiceTriggerDetails appServiceTrigger)
+        {
+            // Handle App Actions via App Service
+            AppActionProvider.OnAppServiceConnected(appServiceTrigger);
         }
     }
 

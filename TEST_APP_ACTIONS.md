@@ -1,121 +1,119 @@
-# App Actions Testing Guide
+# Testing App Actions Implementation
 
-This document provides guidance for testing the newly implemented App Actions functionality.
+## Overview
 
-## Prerequisites
-- Windows 10/11 machine with Windows App SDK runtime
-- Built and deployed view-appxpackage application
-- Some MSIX/AppX packages installed on the system
+This document describes how to test the App Actions implementation in the ViewAppxPackage application. The App Actions follow Microsoft's official App Actions guidelines using IActionProvider interface and proper manifest declarations.
 
-## App Actions to Test
+## App Actions Available
 
-### 1. List Package Family Names
+The application provides three App Actions that mirror the functionality of the existing MCP tools:
 
-**Command Line Testing:**
+1. **ListPackageFamilyNames** - Lists all MSIX/AppX package family names
+2. **GetPackageProperties** - Gets properties for a specific package family name
+3. **FindPackagesContainingProperty** - Finds packages containing specific property values
+
+## Implementation Details
+
+### Proper Architecture
+
+The implementation follows Microsoft's App Actions best practices:
+
+- **App Service**: Uses `windows.appService` extension in manifest
+- **App Actions Declaration**: Uses `windows.appActions` extension with proper action IDs
+- **JSON Action Definitions**: Each action has a JSON file defining parameters and examples
+- **Background Activation**: Handles App Service requests via `OnBackgroundActivated`
+
+### Key Files
+
+- `src/AppActionProvider.cs` - App Service handler for App Actions
+- `src/AppActions/ListPackageFamilyNames.json` - Action definition for list action
+- `src/AppActions/GetPackageProperties.json` - Action definition for properties action
+- `src/AppActions/FindPackagesContainingProperty.json` - Action definition for find action
+- `Package/Package.appxmanifest` - Manifest with App Service and App Actions declarations
+
+## Testing Steps
+
+### 1. Deploy the Application
+
+First, deploy the application to test App Actions integration:
+
 ```cmd
-# Using -action parameter
-view-appxpackage.exe -action list
-
-# Using alias command (after deployment)
-view-appx-list.exe
-
-# Help
-view-appxpackage.exe -help
+# Build and deploy the package
+# App Actions will be registered with the system after deployment
 ```
 
-**Protocol Testing:**
-```cmd
-# From Run dialog or command line
-start view-appxpackage-list://
+### 2. Windows Search Integration
+
+After deployment, App Actions should be discoverable via Windows Search:
+
+```
+1. Press Windows key and type "List Package" - should show the App Action
+2. Press Windows key and type "Get Package Properties" - should show the App Action  
+3. Press Windows key and type "Find Packages" - should show the App Action
+4. Click on any action to execute it
 ```
 
-**Expected Output:** List of package family names, one per line
+### 3. App Service Testing
 
-### 2. Get Package Properties
+App Actions communicate via App Service. Test this by:
 
-**Command Line Testing:**
-```cmd
-# Using -action parameter
-view-appxpackage.exe -action properties -param:packageFamilyName=Microsoft.WindowsCalculator_8wekyb3d8bbwe
-
-# Using alias command (after deployment)
-view-appx-properties.exe Microsoft.WindowsCalculator_8wekyb3d8bbwe
+```
+1. Actions executed from Windows Search should invoke the App Service
+2. Results should be displayed in the system's action result UI
+3. Check Windows Event Viewer for any App Service errors
 ```
 
-**Protocol Testing:**
+### 4. Verify Logic Reuse
+
+All App Actions should produce the same results as the MCP tools:
+
 ```cmd
-# From Run dialog or command line
-start "view-appxpackage-properties://?packageFamilyName=Microsoft.WindowsCalculator_8wekyb3d8bbwe"
+# Compare MCP tool output with App Action output
+# They should be identical since they use the same McpServer methods
 ```
 
-**Expected Output:** Package properties in format (Property=Value), one per line
+## Expected Behavior
 
-### 3. Find Packages by Property
+### List Package Family Names Action
+- **Input**: No parameters required
+- **Output**: Newline-separated list of all package family names
+- **Search Terms**: "List Package", "Package Family Names", "Show Packages"
 
-**Command Line Testing:**
-```cmd
-# Using -action parameter
-view-appxpackage.exe -action find -param:propertyName=Name -param:propertyValue=Calculator
+### Get Package Properties Action  
+- **Input**: `packageFamilyName` parameter
+- **Output**: Detailed properties of the specified package
+- **Search Terms**: "Get Package Properties", "Package Details", "Show Package Info"
 
-# Using alias command (after deployment)
-view-appx-find.exe Name Calculator
-```
+### Find Packages by Property Action
+- **Input**: `propertyName` and `propertyValue` parameters  
+- **Output**: List of packages matching the property criteria
+- **Search Terms**: "Find Packages", "Search Packages", "Package Property"
 
-**Protocol Testing:**
-```cmd
-# From Run dialog or command line
-start "view-appxpackage-find://?propertyName=Name&propertyValue=Calculator"
-```
+## Troubleshooting
 
-**Expected Output:** List of package family names that match the criteria
+### App Actions Not Appearing in Search
+1. Ensure application is properly deployed and registered
+2. Check that manifest declarations are valid
+3. Verify JSON action definition files are included in package
+4. Restart Windows Search service if needed
 
-## Windows Search Integration Testing
+### App Service Errors  
+1. Check Windows Event Viewer for App Service activation errors
+2. Verify App Service name matches manifest declaration
+3. Ensure background activation is handled correctly
 
-After deployment and registration:
-
-1. Open Windows Search (Win + S)
-2. Type "view-appx" - should show the alias commands as suggestions
-3. Try searching for "List Package" or "Get Package Properties" - should find the app actions
-4. Click on suggested commands to execute them
-
-## Context Menu Testing
-
-After deployment:
-1. Right-click on an MSIX/AppX file
-2. Look for "Open with" options that include the app actions
-3. Test protocol activation from file associations
-
-## Error Handling Testing
-
-Test error conditions:
-```cmd
-# Missing parameters
-view-appxpackage.exe -action properties
-view-appxpackage.exe -action find -param:propertyName=Name
-
-# Invalid action
-view-appxpackage.exe -action invalid
-
-# Invalid package family name
-view-appxpackage.exe -action properties -param:packageFamilyName=NonExistentPackage
-```
+### Incorrect Results
+1. Verify App Actions use the same McpServer methods as MCP tools
+2. Check that parameter parsing is working correctly
+3. Compare output with direct MCP tool execution
 
 ## Validation Checklist
 
-- [ ] Command line App Actions work with -action parameter
-- [ ] Command aliases work (view-appx-*.exe)
-- [ ] Protocol activation works
-- [ ] Help text displays correctly
-- [ ] Error handling works for missing parameters
-- [ ] Error handling works for invalid actions
-- [ ] Output matches MCP tool output for same operations
-- [ ] Windows Search finds App Actions
-- [ ] Context menu integration works (if applicable)
-- [ ] App exits properly after executing App Actions
-
-## Notes
-
-- App Actions should produce the same output as corresponding MCP tools
-- All App Actions exit the application after completion (no UI shown)
-- Protocol activation requires proper URL encoding for special characters
-- Command aliases require app deployment and registration with Windows
+- [ ] App Actions appear in Windows Search results
+- [ ] App Actions execute without errors  
+- [ ] Results match corresponding MCP tool output
+- [ ] Parameters are passed correctly to actions
+- [ ] Error handling works for invalid parameters
+- [ ] App Service activation works correctly
+- [ ] JSON action definitions are valid
+- [ ] Manifest declarations are correct

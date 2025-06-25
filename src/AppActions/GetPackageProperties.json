@@ -1,0 +1,29 @@
+{
+  "displayName": "Get Package Properties",
+  "description": "Retrieves detailed properties for a specific MSIX/AppX package",
+  "id": "GetPackageProperties",
+  "parameters": [
+    {
+      "name": "packageFamilyName",
+      "type": "string",
+      "description": "The package family name to get properties for",
+      "required": true
+    }
+  ],
+  "examples": [
+    {
+      "phrase": "Get properties for {packageFamilyName}",
+      "intent": "GetPackageProperties",
+      "parameters": {
+        "packageFamilyName": "{packageFamilyName}"
+      }
+    },
+    {
+      "phrase": "Show package details for {packageFamilyName}",
+      "intent": "GetPackageProperties",
+      "parameters": {
+        "packageFamilyName": "{packageFamilyName}"
+      }
+    }
+  ]
+}

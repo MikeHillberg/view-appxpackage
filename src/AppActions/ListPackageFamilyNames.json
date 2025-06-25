@@ -1,0 +1,16 @@
+{
+  "displayName": "List Package Family Names",
+  "description": "Lists all MSIX/AppX package family names on the system",
+  "id": "ListPackageFamilyNames",
+  "parameters": [],
+  "examples": [
+    {
+      "phrase": "List all package family names",
+      "intent": "ListPackageFamilyNames"
+    },
+    {
+      "phrase": "Show package families",
+      "intent": "ListPackageFamilyNames"
+    }
+  ]
+}
