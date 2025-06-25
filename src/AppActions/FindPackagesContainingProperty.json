@@ -1,37 +1,29 @@
 {
-  "displayName": "Find Packages by Property",
-  "description": "Searches MSIX/AppX packages containing specific property values",
-  "id": "FindPackagesContainingProperty",
-  "parameters": [
+  "$schema": "http://schemas.microsoft.com/windows/ai/app-actions/1.0/app-actions-schema.json",
+  "version": "1.0.0", 
+  "actions": [
     {
-      "name": "propertyName",
-      "type": "string",
-      "description": "The property name to search for (e.g., Name, DisplayName, Publisher)",
-      "required": true
-    },
-    {
-      "name": "propertyValue",
-      "type": "string", 
-      "description": "The property value to search for",
-      "required": true
-    }
-  ],
-  "examples": [
-    {
-      "phrase": "Find packages with {propertyName} containing {propertyValue}",
-      "intent": "FindPackagesContainingProperty",
+      "id": "FindPackagesContainingProperty",
+      "displayName": "Find Packages by Property",
+      "description": "Searches MSIX/AppX packages containing specific property values",
       "parameters": {
-        "propertyName": "{propertyName}",
-        "propertyValue": "{propertyValue}"
-      }
-    },
-    {
-      "phrase": "Search packages by {propertyName} for {propertyValue}",
-      "intent": "FindPackagesContainingProperty", 
-      "parameters": {
-        "propertyName": "{propertyName}",
-        "propertyValue": "{propertyValue}"
-      }
+        "propertyName": {
+          "type": "string",
+          "description": "The property name to search for (e.g., Name, DisplayName, Publisher)",
+          "required": true
+        },
+        "propertyValue": {
+          "type": "string",
+          "description": "The property value to search for", 
+          "required": true
+        }
+      },
+      "phrases": [
+        "Find packages with {propertyName} containing {propertyValue}",
+        "Search packages by {propertyName} for {propertyValue}",
+        "Find packages where {propertyName} is {propertyValue}",
+        "Search for packages with {propertyName} {propertyValue}"
+      ]
     }
   ]
 }

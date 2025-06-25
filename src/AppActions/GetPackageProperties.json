@@ -1,29 +1,24 @@
 {
-  "displayName": "Get Package Properties",
-  "description": "Retrieves detailed properties for a specific MSIX/AppX package",
-  "id": "GetPackageProperties",
-  "parameters": [
+  "$schema": "http://schemas.microsoft.com/windows/ai/app-actions/1.0/app-actions-schema.json",
+  "version": "1.0.0",
+  "actions": [
     {
-      "name": "packageFamilyName",
-      "type": "string",
-      "description": "The package family name to get properties for",
-      "required": true
-    }
-  ],
-  "examples": [
-    {
-      "phrase": "Get properties for {packageFamilyName}",
-      "intent": "GetPackageProperties",
+      "id": "GetPackageProperties",
+      "displayName": "Get Package Properties",
+      "description": "Retrieves detailed properties for a specific MSIX/AppX package",
       "parameters": {
-        "packageFamilyName": "{packageFamilyName}"
-      }
-    },
-    {
-      "phrase": "Show package details for {packageFamilyName}",
-      "intent": "GetPackageProperties",
-      "parameters": {
-        "packageFamilyName": "{packageFamilyName}"
-      }
+        "packageFamilyName": {
+          "type": "string",
+          "description": "The package family name to get properties for",
+          "required": true
+        }
+      },
+      "phrases": [
+        "Get properties for {packageFamilyName}",
+        "Show package details for {packageFamilyName}",
+        "Get package info for {packageFamilyName}",
+        "Show properties of {packageFamilyName}"
+      ]
     }
   ]
 }

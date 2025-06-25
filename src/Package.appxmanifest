@@ -45,42 +45,40 @@
 				<uap:SplashScreen Image="Assets\SplashScreen.png" />
 			</uap:VisualElements>
 
-			<!-- App Extensions: Command aliases and protocol handlers for App Actions -->
+			<!-- App Extensions: App Service and App Actions -->
 			<Extensions>
 				<!-- Standard execution aliases for the main application -->
 				<uap3:Extension Category="windows.appExecutionAlias" Executable="view-appxpackage.exe" EntryPoint="Windows.FullTrustApplication">
 					<uap3:AppExecutionAlias>
 						<desktop:ExecutionAlias Alias="view-appxpackage.exe" />
 						<desktop:ExecutionAlias Alias="view-msixpackage.exe" />
-						<!-- App Action command aliases for Windows Search discoverability -->
-						<desktop:ExecutionAlias Alias="view-appx-list.exe" />
-						<desktop:ExecutionAlias Alias="view-appx-properties.exe" />
-						<desktop:ExecutionAlias Alias="view-appx-find.exe" />
 					</uap3:AppExecutionAlias>
 				</uap3:Extension>
 
-				<!-- App Action: List Package Family Names - Protocol handler for listing all package family names -->
-				<uap:Extension Category="windows.protocol">
-					<uap:Protocol Name="view-appxpackage-list">
-						<uap:DisplayName>List Package Family Names</uap:DisplayName>
-						<uap:Description>Lists all Package Family Names from loaded MSIX (AppX) packages</uap:Description>
-					</uap:Protocol>
+				<!-- App Service for App Actions -->
+				<uap:Extension Category="windows.appService">
+					<uap:AppService Name="ViewAppxPackageAppService" />
 				</uap:Extension>
 
-				<!-- App Action: Get Package Properties - Protocol handler for getting package properties -->
-				<uap:Extension Category="windows.protocol">
-					<uap:Protocol Name="view-appxpackage-properties">
-						<uap:DisplayName>Get Package Properties</uap:DisplayName>
-						<uap:Description>Gets properties for a specific package family name</uap:Description>
-					</uap:Protocol>
+				<!-- App Action: List Package Family Names -->
+				<uap:Extension Category="windows.appActions">
+					<uap:AppActions>
+						<uap:AppAction Id="ListPackageFamilyNames" DisplayName="List Package Family Names" />
+					</uap:AppActions>
 				</uap:Extension>
 
-				<!-- App Action: Find Packages Containing Property - Protocol handler for finding packages by property -->
-				<uap:Extension Category="windows.protocol">
-					<uap:Protocol Name="view-appxpackage-find">
-						<uap:DisplayName>Find Packages by Property</uap:DisplayName>
-						<uap:Description>Finds packages containing a specific property value</uap:Description>
-					</uap:Protocol>
+				<!-- App Action: Get Package Properties -->
+				<uap:Extension Category="windows.appActions">
+					<uap:AppActions>
+						<uap:AppAction Id="GetPackageProperties" DisplayName="Get Package Properties" />
+					</uap:AppActions>
+				</uap:Extension>
+
+				<!-- App Action: Find Packages by Property -->
+				<uap:Extension Category="windows.appActions">
+					<uap:AppActions>
+						<uap:AppAction Id="FindPackagesContainingProperty" DisplayName="Find Packages by Property" />
+					</uap:AppActions>
 				</uap:Extension>
 			</Extensions>
 
@@ -93,9 +91,5 @@
 		
 		<!-- Necessary for some packaging APIs -->
 		<rescap:Capability Name="packageManagement"/>
-		
-		<!-- Required for App Actions context menu integration -->
-		<rescap:Capability Name="appUriHandlers"/>
-		<uap:Capability Name="documentsLibrary"/>
 	</Capabilities>
 </Package>

@@ -1,16 +1,18 @@
 {
-  "displayName": "List Package Family Names",
-  "description": "Lists all MSIX/AppX package family names on the system",
-  "id": "ListPackageFamilyNames",
-  "parameters": [],
-  "examples": [
+  "$schema": "http://schemas.microsoft.com/windows/ai/app-actions/1.0/app-actions-schema.json",
+  "version": "1.0.0",
+  "actions": [
     {
-      "phrase": "List all package family names",
-      "intent": "ListPackageFamilyNames"
-    },
-    {
-      "phrase": "Show package families",
-      "intent": "ListPackageFamilyNames"
+      "id": "ListPackageFamilyNames",
+      "displayName": "List Package Family Names", 
+      "description": "Lists all MSIX/AppX package family names on the system",
+      "parameters": {},
+      "phrases": [
+        "List all package family names",
+        "Show package families", 
+        "List package names",
+        "Show all packages"
+      ]
     }
   ]
 }

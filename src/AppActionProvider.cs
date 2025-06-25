@@ -7,9 +7,9 @@ using Windows.Foundation.Collections;
 namespace ViewAppxPackage;
 
 /// <summary>
-/// App Actions provider that handles App Service requests for App Actions.
-/// This provides the proper implementation following Microsoft's App Actions guidelines,
-/// making package information queries discoverable via Windows Search and context menu.
+/// App Actions provider following Microsoft's App Actions guidelines for Windows App SDK,
+/// implementing the IActionProvider interface to make package information queries 
+/// discoverable via Windows Search and context menu.
 /// 
 /// The App Actions provide three main functions mirroring the MCP tools:
 /// 1. ListPackageFamilyNames - Lists all MSIX/AppX package family names
@@ -19,115 +19,107 @@ namespace ViewAppxPackage;
 /// All App Actions reuse the same logic as the corresponding MCP tools in McpServer.cs,
 /// ensuring consistency between different invocation methods.
 /// </summary>
-public static class AppActionProvider
+public class AppActionProvider : IActionProvider
 {
     /// <summary>
-    /// Handles App Service connection requests for App Actions.
+    /// Handles execution of App Actions following Microsoft's IActionProvider interface.
     /// </summary>
-    /// <param name="args">App Service connection event arguments</param>
-    public static async void OnAppServiceConnected(AppServiceTriggerDetails args)
+    /// <param name="actionId">The identifier of the action to execute</param>
+    /// <param name="parameters">Parameters for the action</param>
+    /// <returns>Result of the action execution</returns>
+    public async Task<ActionResult> HandleActionAsync(string actionId, IDictionary<string, object> parameters)
     {
-        var appServiceConnection = args.AppServiceConnection;
-        
-        appServiceConnection.RequestReceived += async (sender, eventArgs) =>
+        try
         {
-            var requestMessage = eventArgs.Request.Message;
-            var response = new ValueSet();
+            // Initialize threading model for App Actions (same as MCP mode)
+            MyThreading.SetCurrentAsUIThread();
+            _ = MyThreading.EnsureWorkerThreadAsync();
 
-            try
+            // Initialize the catalog model for App Actions
+            var catalogModel = PackageCatalogModel.Instance;
+            await MyThreading.RunOnWorkerAsync(() =>
             {
-                // Initialize threading model for App Actions (same as MCP mode)
-                MyThreading.SetCurrentAsUIThread();
-                _ = MyThreading.EnsureWorkerThreadAsync();
+                catalogModel.Initialize(
+                    isAllUsers: false,
+                    preloadFullName: false,
+                    useSettings: true);
+            });
 
-                // Initialize the catalog model for App Actions
-                var catalogModel = PackageCatalogModel.Instance;
-                await MyThreading.RunOnWorkerAsync(() =>
-                {
-                    catalogModel.Initialize(
-                        isAllUsers: false,
-                        preloadFullName: false,
-                        useSettings: true);
-                });
-
-                // Wait for packages to load before processing App Action
-                while (!catalogModel.IsLoaded)
-                {
-                    await Task.Delay(100);
-                }
-
-                // Get action ID from request
-                if (requestMessage.TryGetValue("action", out object actionObj) && actionObj is string actionId)
-                {
-                    // Create MCP server instance to reuse existing tool logic
-                    var mcpServer = new McpServer();
-                    string actionResult = "";
-
-                    switch (actionId.ToLower())
-                    {
-                        case "listpackagefamilynames":
-                            // App Action: List Package Family Names
-                            var familyNames = mcpServer.ListPackageFamilyNames();
-                            actionResult = string.Join("\n", familyNames);
-                            break;
-
-                        case "getpackageproperties":
-                            // App Action: Get Package Properties
-                            if (requestMessage.TryGetValue("packageFamilyName", out object packageFamilyNameObj) &&
-                                packageFamilyNameObj is string packageFamilyName)
-                            {
-                                actionResult = mcpServer.GetPackageProperties(packageFamilyName);
-                            }
-                            else
-                            {
-                                actionResult = "Error: packageFamilyName parameter is required";
-                                response["status"] = "error";
-                            }
-                            break;
-
-                        case "findpackagescontainingproperty":
-                            // App Action: Find Packages Containing Property
-                            if (requestMessage.TryGetValue("propertyName", out object propertyNameObj) &&
-                                requestMessage.TryGetValue("propertyValue", out object propertyValueObj) &&
-                                propertyNameObj is string propertyName &&
-                                propertyValueObj is string propertyValue)
-                            {
-                                actionResult = mcpServer.FindPackagesContainingProperty(propertyName, propertyValue);
-                            }
-                            else
-                            {
-                                actionResult = "Error: propertyName and propertyValue parameters are required";
-                                response["status"] = "error";
-                            }
-                            break;
-
-                        default:
-                            actionResult = $"Unknown App Action: {actionId}";
-                            response["status"] = "error";
-                            break;
-                    }
-
-                    response["result"] = actionResult;
-                    if (!response.ContainsKey("status"))
-                    {
-                        response["status"] = "success";
-                    }
-                }
-                else
-                {
-                    response["result"] = "Error: action parameter is required";
-                    response["status"] = "error";
-                }
-            }
-            catch (Exception ex)
+            // Wait for packages to load before processing App Action
+            while (!catalogModel.IsLoaded)
             {
-                response["result"] = $"Error executing App Action: {ex.Message}";
-                response["status"] = "error";
-                DebugLog.Append(ex, "App Action execution error");
+                await Task.Delay(100);
             }
 
-            // Send response back to caller
-            await eventArgs.Request.SendResponseAsync(response);
-        };
+            // Create MCP server instance to reuse existing tool logic
+            var mcpServer = new McpServer();
+            string actionResult = "";
+
+            switch (actionId.ToLower())
+            {
+                case "listpackagefamilynames":
+                    // App Action: List Package Family Names
+                    var familyNames = mcpServer.ListPackageFamilyNames();
+                    actionResult = string.Join("\n", familyNames);
+                    break;
+
+                case "getpackageproperties":
+                    // App Action: Get Package Properties
+                    if (parameters.TryGetValue("packageFamilyName", out object packageFamilyNameObj) &&
+                        packageFamilyNameObj is string packageFamilyName)
+                    {
+                        actionResult = mcpServer.GetPackageProperties(packageFamilyName);
+                    }
+                    else
+                    {
+                        return ActionResult.CreateError("Missing required parameter: packageFamilyName");
+                    }
+                    break;
+
+                case "findpackagescontainingproperty":
+                    // App Action: Find Packages Containing Property
+                    if (parameters.TryGetValue("propertyName", out object propertyNameObj) &&
+                        parameters.TryGetValue("propertyValue", out object propertyValueObj) &&
+                        propertyNameObj is string propertyName &&
+                        propertyValueObj is string propertyValue)
+                    {
+                        actionResult = mcpServer.FindPackagesContainingProperty(propertyName, propertyValue);
+                    }
+                    else
+                    {
+                        return ActionResult.CreateError("Missing required parameters: propertyName and/or propertyValue");
+                    }
+                    break;
+
+                default:
+                    return ActionResult.CreateError($"Unknown action: {actionId}");
+            }
+
+            return ActionResult.CreateSuccess(actionResult);
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Append(ex, "App Action execution error");
+            return ActionResult.CreateError($"Error executing App Action: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Legacy method for backwards compatibility with Dictionary parameters
+    /// </summary>
+    /// <param name="actionId">The identifier of the action to execute</param>
+    /// <param name="parameters">Parameters for the action as string dictionary</param>
+    /// <returns>Result tuple for backwards compatibility</returns>
+    public async Task<(bool success, string result, string errorMessage)> HandleActionAsync(string actionId, Dictionary<string, string> parameters)
+    {
+        // Convert string dictionary to object dictionary for IActionProvider interface
+        var objectParams = new Dictionary<string, object>();
+        foreach (var param in parameters)
+        {
+            objectParams[param.Key] = param.Value;
+        }
+
+        var result = await HandleActionAsync(actionId, objectParams);
+        return (result.IsSuccess, result.Content, result.ErrorMessage);
     }
 }
