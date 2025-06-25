@@ -13,23 +13,6 @@ namespace ViewAppxPackage;
 
 /// <summary>
 /// Provides application-specific behavior to supplement the default Application class.
-/// 
-/// App Actions Implementation:
-/// This application implements App Actions that mirror the functionality of existing MCP tools,
-/// making package information queries discoverable via Windows Search and context menu.
-/// 
-/// The App Actions provide three main functions:
-/// 1. List Package Family Names - Lists all MSIX/AppX package family names
-/// 2. Get Package Properties - Retrieves detailed properties for a specific package
-/// 3. Find Packages by Property - Searches packages containing specific property values
-/// 
-/// App Actions can be invoked via:
-/// - Protocol activation (view-appxpackage-list://, view-appxpackage-properties://, view-appxpackage-find://)
-/// - Command aliases (view-appx-list.exe, view-appx-properties.exe, view-appx-find.exe)
-/// - Command line flags (view-appxpackage.exe -action <action>)
-/// 
-/// All App Actions reuse the same logic as the corresponding MCP tools in McpServer.cs,
-/// ensuring consistency between different invocation methods.
 /// </summary>
 public partial class App : Application
 {
@@ -91,115 +74,6 @@ public partial class App : Application
 
 
     /// <summary>
-    /// Invoked when the application is activated via protocol (App Actions).
-    /// </summary>
-    /// <param name="args">Details about the protocol activation.</param>
-    protected override void OnActivated(Microsoft.UI.Xaml.ActivatedEventArgs args)
-    {
-        if (args.Kind == Microsoft.UI.Xaml.ActivationKind.Protocol)
-        {
-            var protocolArgs = args as Microsoft.UI.Xaml.ProtocolActivatedEventArgs;
-            if (protocolArgs != null)
-            {
-                HandleAppActionProtocol(protocolArgs.Uri);
-                return;
-            }
-        }
-
-        // Fall back to default activation handling
-        base.OnActivated(args);
-    }
-
-    /// <summary>
-    /// Handles App Action protocol activations by parsing the URI and executing the appropriate action.
-    /// App Actions mirror the functionality of MCP tools, making them discoverable via Windows Search.
-    /// </summary>
-    /// <param name="uri">The protocol URI that activated the app</param>
-    private async void HandleAppActionProtocol(Uri uri)
-    {
-        // Initialize threading model for App Actions (same as MCP mode)
-        MyThreading.SetCurrentAsUIThread();
-        _ = MyThreading.EnsureWorkerThreadAsync();
-
-        // Initialize the catalog model for App Actions
-        var catalogModel = PackageCatalogModel.Instance;
-        await MyThreading.RunOnWorkerAsync(() =>
-        {
-            catalogModel.Initialize(
-                isAllUsers: false,
-                preloadFullName: false,
-                useSettings: true);
-        });
-
-        // Wait for packages to load before processing App Action
-        while (!catalogModel.IsLoaded)
-        {
-            await Task.Delay(100);
-        }
-
-        // Create MCP server instance to reuse existing tool logic
-        var mcpServer = new McpServer();
-        string result = "";
-
-        try
-        {
-            // Parse protocol URI and execute corresponding App Action
-            switch (uri.Scheme.ToLower())
-            {
-                case "view-appxpackage-list":
-                    // App Action: List Package Family Names
-                    var familyNames = mcpServer.ListPackageFamilyNames();
-                    result = string.Join("\n", familyNames);
-                    break;
-
-                case "view-appxpackage-properties":
-                    // App Action: Get Package Properties
-                    // Extract package family name from query parameters
-                    var packageFamilyName = GetQueryParameter(uri, "packageFamilyName");
-                    if (!string.IsNullOrEmpty(packageFamilyName))
-                    {
-                        result = mcpServer.GetPackageProperties(packageFamilyName);
-                    }
-                    else
-                    {
-                        result = "Error: packageFamilyName parameter is required";
-                    }
-                    break;
-
-                case "view-appxpackage-find":
-                    // App Action: Find Packages Containing Property
-                    // Extract property name and value from query parameters
-                    var propertyName = GetQueryParameter(uri, "propertyName");
-                    var propertyValue = GetQueryParameter(uri, "propertyValue");
-                    if (!string.IsNullOrEmpty(propertyName) && !string.IsNullOrEmpty(propertyValue))
-                    {
-                        result = mcpServer.FindPackagesContainingProperty(propertyName, propertyValue);
-                    }
-                    else
-                    {
-                        result = "Error: propertyName and propertyValue parameters are required";
-                    }
-                    break;
-
-                default:
-                    result = $"Unknown App Action protocol: {uri.Scheme}";
-                    break;
-            }
-
-            // Output result to console for command-line usage
-            Console.WriteLine(result);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error executing App Action: {ex.Message}");
-            DebugLog.Append(ex, "App Action execution error");
-        }
-
-        // Exit after processing App Action (no UI needed)
-        Environment.Exit(0);
-    }
-
-    /// <summary>
     /// Invoked when the application is launched.
     /// </summary>
     /// <param name="args">Details about the launch request and process.</param>
@@ -239,91 +113,13 @@ public partial class App : Application
                 StartMcpServer();
             };
         }
-        else if (IsAppActionMode)
-        {
-            // If running in App Action mode, execute the command line App Action
-            catalogModel.MinimallyLoaded += (s, e) =>
-            {
-                ExecuteAppActionFromCommandLine();
-            };
-        }
+
         else
         {
             // Create the window
             m_window = new MainWindow();
             m_window.Activate();
         }
-    }
-
-    /// <summary>
-    /// Executes App Actions invoked from command line (alternative to protocol activation).
-    /// This allows App Actions to be used from command line: view-appxpackage.exe -action list
-    /// </summary>
-    private static async void ExecuteAppActionFromCommandLine()
-    {
-        try
-        {
-            // Create MCP server instance to reuse existing tool logic
-            var mcpServer = new McpServer();
-            string result = "";
-
-            switch (AppActionType)
-            {
-                case "list":
-                    // Command line App Action: List Package Family Names
-                    // Usage: view-appxpackage.exe -action list
-                    var familyNames = mcpServer.ListPackageFamilyNames();
-                    result = string.Join("\n", familyNames);
-                    break;
-
-                case "properties":
-                    // Command line App Action: Get Package Properties
-                    // Usage: view-appxpackage.exe -action properties -param:packageFamilyName=SomePackage_123abc
-                    if (AppActionParameters.TryGetValue("packageFamilyName", out var packageFamilyName))
-                    {
-                        result = mcpServer.GetPackageProperties(packageFamilyName);
-                    }
-                    else
-                    {
-                        result = "Error: packageFamilyName parameter is required. Use -param:packageFamilyName=YourPackageFamilyName";
-                    }
-                    break;
-
-                case "find":
-                    // Command line App Action: Find Packages Containing Property
-                    // Usage: view-appxpackage.exe -action find -param:propertyName=Name -param:propertyValue=Calculator
-                    if (AppActionParameters.TryGetValue("propertyName", out var propertyName) &&
-                        AppActionParameters.TryGetValue("propertyValue", out var propertyValue))
-                    {
-                        result = mcpServer.FindPackagesContainingProperty(propertyName, propertyValue);
-                    }
-                    else
-                    {
-                        result = "Error: propertyName and propertyValue parameters are required. Use -param:propertyName=Name -param:propertyValue=Calculator";
-                    }
-                    break;
-
-                case "help":
-                case "":
-                    result = GetAppActionHelp();
-                    break;
-
-                default:
-                    result = $"Unknown App Action: {AppActionType}\n\n{GetAppActionHelp()}";
-                    break;
-            }
-
-            // Output result to console
-            Console.WriteLine(result);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error executing App Action: {ex.Message}");
-            DebugLog.Append(ex, "Command line App Action execution error");
-        }
-
-        // Exit after processing command line App Action
-        Environment.Exit(0);
     }
 
     /// <summary>
@@ -371,46 +167,9 @@ public partial class App : Application
         }
     }
 
-    // App Action mode flags - allow command line invocation of App Actions
-    internal static bool IsAppActionMode = false;
-    internal static string AppActionType = "";
-    internal static Dictionary<string, string> AppActionParameters = new();
-
     private static void ProcessCommandLine()
     {
         var args = Environment.GetCommandLineArgs();
-
-        if (args != null && args.Length > 0)
-        {
-            // Check if launched via App Action alias commands
-            var executableName = System.IO.Path.GetFileNameWithoutExtension(args[0]).ToLower();
-            if (executableName == "view-appx-list")
-            {
-                IsAppActionMode = true;
-                AppActionType = "list";
-            }
-            else if (executableName == "view-appx-properties")
-            {
-                IsAppActionMode = true;
-                AppActionType = "properties";
-                // First argument should be package family name
-                if (args.Length > 1)
-                {
-                    AppActionParameters["packageFamilyName"] = args[1];
-                }
-            }
-            else if (executableName == "view-appx-find")
-            {
-                IsAppActionMode = true;
-                AppActionType = "find";
-                // First two arguments should be property name and value
-                if (args.Length > 2)
-                {
-                    AppActionParameters["propertyName"] = args[1];
-                    AppActionParameters["propertyValue"] = args[2];
-                }
-            }
-        }
 
         if (args != null && args.Length > 1)
         {
@@ -432,113 +191,11 @@ public partial class App : Application
                     continue;
                 }
 
-                // App Action command line support - allows direct invocation without protocol
-                else if (arg == "-action")
-                {
-                    IsAppActionMode = true;
-                    if (i + 1 < args.Length)
-                    {
-                        AppActionType = args[++i].ToLower().Trim();
-                    }
-                    continue;
-                }
-
-                else if (arg == "-help" || arg == "--help" || arg == "/?" || arg == "/help")
-                {
-                    IsAppActionMode = true;
-                    AppActionType = "help";
-                    continue;
-                }
-
-                else if (arg.StartsWith("-param:"))
-                {
-                    // Parse parameter: -param:key=value
-                    var paramPart = arg.Substring(7); // Remove "-param:"
-                    var equalIndex = paramPart.IndexOf('=');
-                    if (equalIndex > 0)
-                    {
-                        var key = paramPart.Substring(0, equalIndex);
-                        var value = paramPart.Substring(equalIndex + 1);
-                        AppActionParameters[key] = value;
-                    }
-                    continue;
-                }
-
-                // Use first non-flag argument as filter (existing behavior)
-                if (!IsAppActionMode)
-                {
-                    CommandLineFilterProvided = true;
-                    PackageCatalogModel.Instance.Filter = arg;
-                }
+                // Use first non-flag argument as filter
+                CommandLineFilterProvided = true;
+                PackageCatalogModel.Instance.Filter = arg;
             }
         }
-    }
-
-    /// <summary>
-    /// Returns help text for App Actions functionality.
-    /// </summary>
-    /// <returns>Formatted help text explaining App Actions usage</returns>
-    private static string GetAppActionHelp()
-    {
-        return @"ViewAppxPackage App Actions - Query MSIX/AppX package information
-
-COMMAND LINE USAGE:
-  view-appxpackage.exe -action <action> [parameters]
-
-ALIAS COMMANDS (discoverable via Windows Search):
-  view-appx-list.exe                               Lists all package family names
-  view-appx-properties.exe <packageFamilyName>     Gets properties for a package
-  view-appx-find.exe <propertyName> <value>        Finds packages by property value
-
-PROTOCOL ACTIVATION:
-  view-appxpackage-list://                         Lists all package family names
-  view-appxpackage-properties://?packageFamilyName=<name>    Gets package properties
-  view-appxpackage-find://?propertyName=<name>&propertyValue=<value>    Finds packages
-
-AVAILABLE ACTIONS:
-  list        Lists all Package Family Names from loaded MSIX (AppX) packages
-  properties  Gets properties for a specific package family name
-  find        Finds packages containing a specific property value
-  help        Shows this help message
-
-EXAMPLES:
-  view-appxpackage.exe -action list
-  view-appxpackage.exe -action properties -param:packageFamilyName=Microsoft.WindowsCalculator_8wekyb3d8bbwe
-  view-appxpackage.exe -action find -param:propertyName=Name -param:propertyValue=Calculator
-
-  view-appx-list.exe
-  view-appx-properties.exe Microsoft.WindowsCalculator_8wekyb3d8bbwe
-  view-appx-find.exe Name Calculator
-
-PROPERTIES (for find action):
-  Name, DisplayName, InstalledDate, Size, PublisherName, PublisherID, Version, FullName,
-  Capabilities, Architecture, PublisherDisplayName, SignatureKind, Status";
-    }
-
-    /// <summary>
-    /// Helper method to extract query parameters from URI without System.Web dependency.
-    /// </summary>
-    /// <param name="uri">The URI to parse</param>
-    /// <param name="parameterName">The parameter name to extract</param>
-    /// <returns>The parameter value, or null if not found</returns>
-    private static string GetQueryParameter(Uri uri, string parameterName)
-    {
-        if (string.IsNullOrEmpty(uri.Query))
-            return null;
-
-        var query = uri.Query.TrimStart('?');
-        var parameters = query.Split('&');
-        
-        foreach (var parameter in parameters)
-        {
-            var keyValue = parameter.Split('=');
-            if (keyValue.Length == 2 && keyValue[0].Equals(parameterName, StringComparison.OrdinalIgnoreCase))
-            {
-                return Uri.UnescapeDataString(keyValue[1]);
-            }
-        }
-        
-        return null;
     }
 
     // If we got input on the command line (piped from get-appxpackage),
