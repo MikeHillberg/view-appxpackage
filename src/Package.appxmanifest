@@ -45,7 +45,9 @@
 				<uap:SplashScreen Image="Assets\SplashScreen.png" />
 			</uap:VisualElements>
 
+			<!-- App Extensions: Command aliases and protocol handlers for App Actions -->
 			<Extensions>
+				<!-- Standard execution aliases for the main application -->
 				<uap3:Extension Category="windows.appExecutionAlias" Executable="view-appxpackage.exe" EntryPoint="Windows.FullTrustApplication">
 					<uap3:AppExecutionAlias>
 						<desktop:ExecutionAlias Alias="view-appxpackage.exe" />
@@ -57,7 +59,7 @@
 					</uap3:AppExecutionAlias>
 				</uap3:Extension>
 
-				<!-- App Action: List Package Family Names -->
+				<!-- App Action: List Package Family Names - Protocol handler for listing all package family names -->
 				<uap:Extension Category="windows.protocol">
 					<uap:Protocol Name="view-appxpackage-list">
 						<uap:DisplayName>List Package Family Names</uap:DisplayName>
@@ -65,7 +67,7 @@
 					</uap:Protocol>
 				</uap:Extension>
 
-				<!-- App Action: Get Package Properties -->
+				<!-- App Action: Get Package Properties - Protocol handler for getting package properties -->
 				<uap:Extension Category="windows.protocol">
 					<uap:Protocol Name="view-appxpackage-properties">
 						<uap:DisplayName>Get Package Properties</uap:DisplayName>
@@ -73,7 +75,7 @@
 					</uap:Protocol>
 				</uap:Extension>
 
-				<!-- App Action: Find Packages Containing Property -->
+				<!-- App Action: Find Packages Containing Property - Protocol handler for finding packages by property -->
 				<uap:Extension Category="windows.protocol">
 					<uap:Protocol Name="view-appxpackage-find">
 						<uap:DisplayName>Find Packages by Property</uap:DisplayName>

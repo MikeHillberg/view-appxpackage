@@ -13,6 +13,23 @@ namespace ViewAppxPackage;
 
 /// <summary>
 /// Provides application-specific behavior to supplement the default Application class.
+/// 
+/// App Actions Implementation:
+/// This application implements App Actions that mirror the functionality of existing MCP tools,
+/// making package information queries discoverable via Windows Search and context menu.
+/// 
+/// The App Actions provide three main functions:
+/// 1. List Package Family Names - Lists all MSIX/AppX package family names
+/// 2. Get Package Properties - Retrieves detailed properties for a specific package
+/// 3. Find Packages by Property - Searches packages containing specific property values
+/// 
+/// App Actions can be invoked via:
+/// - Protocol activation (view-appxpackage-list://, view-appxpackage-properties://, view-appxpackage-find://)
+/// - Command aliases (view-appx-list.exe, view-appx-properties.exe, view-appx-find.exe)
+/// - Command line flags (view-appxpackage.exe -action <action>)
+/// 
+/// All App Actions reuse the same logic as the corresponding MCP tools in McpServer.cs,
+/// ensuring consistency between different invocation methods.
 /// </summary>
 public partial class App : Application
 {
@@ -286,8 +303,13 @@ public partial class App : Application
                     }
                     break;
 
+                case "help":
+                case "":
+                    result = GetAppActionHelp();
+                    break;
+
                 default:
-                    result = $"Unknown App Action: {AppActionType}\nAvailable actions: list, properties, find";
+                    result = $"Unknown App Action: {AppActionType}\n\n{GetAppActionHelp()}";
                     break;
             }
 
@@ -421,6 +443,13 @@ public partial class App : Application
                     continue;
                 }
 
+                else if (arg == "-help" || arg == "--help" || arg == "/?" || arg == "/help")
+                {
+                    IsAppActionMode = true;
+                    AppActionType = "help";
+                    continue;
+                }
+
                 else if (arg.StartsWith("-param:"))
                 {
                     // Parse parameter: -param:key=value
@@ -443,6 +472,47 @@ public partial class App : Application
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Returns help text for App Actions functionality.
+    /// </summary>
+    /// <returns>Formatted help text explaining App Actions usage</returns>
+    private static string GetAppActionHelp()
+    {
+        return @"ViewAppxPackage App Actions - Query MSIX/AppX package information
+
+COMMAND LINE USAGE:
+  view-appxpackage.exe -action <action> [parameters]
+
+ALIAS COMMANDS (discoverable via Windows Search):
+  view-appx-list.exe                               Lists all package family names
+  view-appx-properties.exe <packageFamilyName>     Gets properties for a package
+  view-appx-find.exe <propertyName> <value>        Finds packages by property value
+
+PROTOCOL ACTIVATION:
+  view-appxpackage-list://                         Lists all package family names
+  view-appxpackage-properties://?packageFamilyName=<name>    Gets package properties
+  view-appxpackage-find://?propertyName=<name>&propertyValue=<value>    Finds packages
+
+AVAILABLE ACTIONS:
+  list        Lists all Package Family Names from loaded MSIX (AppX) packages
+  properties  Gets properties for a specific package family name
+  find        Finds packages containing a specific property value
+  help        Shows this help message
+
+EXAMPLES:
+  view-appxpackage.exe -action list
+  view-appxpackage.exe -action properties -param:packageFamilyName=Microsoft.WindowsCalculator_8wekyb3d8bbwe
+  view-appxpackage.exe -action find -param:propertyName=Name -param:propertyValue=Calculator
+
+  view-appx-list.exe
+  view-appx-properties.exe Microsoft.WindowsCalculator_8wekyb3d8bbwe
+  view-appx-find.exe Name Calculator
+
+PROPERTIES (for find action):
+  Name, DisplayName, InstalledDate, Size, PublisherName, PublisherID, Version, FullName,
+  Capabilities, Architecture, PublisherDisplayName, SignatureKind, Status";
     }
 
     /// <summary>
