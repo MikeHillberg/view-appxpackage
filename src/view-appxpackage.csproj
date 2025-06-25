@@ -3,7 +3,6 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
-    <EnableDefaultApplicationEntryPoint>false</EnableDefaultApplicationEntryPoint>
 
 	  <!-- bugbug: workaround for https://github.com/microsoft/CsWinRT/issues/1809 -->
 	  <!-- (Workaround was to also add a nuget ref to microsoft.windows.sdk.net.ref) -->

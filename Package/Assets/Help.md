@@ -46,6 +46,7 @@ get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 
 This app is an MCP server, which can be accessed by running `view-appxpackage -mcp`.
 Tools available are:
+
 * Get all package family names
 * Get package properties
 * Search for packages containing a property value

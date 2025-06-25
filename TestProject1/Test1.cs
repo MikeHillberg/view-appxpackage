@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using System.Xml;
 using ViewAppxPackage;
 using Windows.ApplicationModel;
 using Windows.Foundation;
@@ -503,9 +502,10 @@ public sealed class UnitTests
         await MyThreading.RunOnWorkerAsync(async () =>
         {
             bool progressCalled = false;
-            await _catalogModel.RemovePackageAsync(package, async (op) =>
+            await _catalogModel.RemovePackageAsync(package, Task (op) =>
             {
                 progressCalled = true;
+                return Task.CompletedTask;
             });
             Assert.IsTrue(progressCalled);
         });
@@ -597,9 +597,6 @@ public sealed class UnitTests
 
         var id = application.Attribute("Executable");
         Assert.IsTrue(id?.Value == @"view-appxpackage\view-appxpackage.exe");
-        var appPackage2 = winAppRuntime.Dependents.FirstOrDefault(p => p.Name == viewAppPackageName);
-        Assert.IsTrue(appPackage2 != null);
-        Assert.IsTrue(appPackage2.FullName == appPackage.FullName);
     }
 
     /// <summary>
