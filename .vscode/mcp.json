@@ -1,0 +1,12 @@
+{
+  "inputs": [],
+  "servers": {
+    "view-appxpackage-server": {
+      "type": "stdio",
+      "command": "view-appxpackage.exe",
+      "args": [
+        "-mcpserver -lazy"
+      ]
+    }
+  }
+}

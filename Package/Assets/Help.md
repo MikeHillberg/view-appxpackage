@@ -41,3 +41,31 @@ get-appxpackage | ? {$_.IsDevelopmentMode} | view-appxpackage
 * View the **appx log** of system MSIX activity (same as get-appxlog)
 * **Open in Store** to go to the Store page
 * Run **PowerShell** with package identity. Note that it runs Medium IL; it doesn't run in AppContainer for an AppContainer package. See [`Invoke-CommandInDesktopPackage`](https://learn.microsoft.com/powershell/module/appx/invoke-commandindesktoppackage) for more info.
+
+# MCP
+
+This app is an MCP server, which can be accessed by running `view-appxpackage -mcp`.
+Tools available are:
+
+* Get all package family names
+* Get package properties
+* Search for packages containing a property value
+
+To use from Claude desktop app, add to `claude_desktop_config.json`:
+
+```
+{
+  "mcpServers": {
+    "view-appxpackage": {
+      "command": "view-appxpackage",
+      "args": [
+        "-mcp"
+      ]
+    }
+  }
+}
+```
+
+Example prompts:
+* "What Paint MSIX package do I have on my machine"
+* What version is the package

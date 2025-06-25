@@ -556,7 +556,7 @@ namespace ViewAppxPackage
             foreach (var package in packages)
             {
                 // Search all the properties of this package
-                foreach (var property in _packageModelPropertyInfos)
+                foreach (var property in PackageModelPropertyInfos)
                 {
                     var value = property.GetValue(package);
 
@@ -592,21 +592,22 @@ namespace ViewAppxPackage
             return finds;
         }
 
-        private static void EnsurePackageModelPropertyInfos()
+        internal static void EnsurePackageModelPropertyInfos()
         {
-            if (_packageModelPropertyInfos == null)
+            if (PackageModelPropertyInfos == null)
             {
                 // Cache the PropertyInfos
 
                 // Skip some that we don't want included in a search
                 string[] _ignore = { nameof(Dependencies), nameof(IsNew), nameof(IsNewCleared), nameof(Size), nameof(IsNameLoaded), nameof(IsFullNameLoaded) };
 
-                _packageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
+                PackageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
                                               where !_ignore.Contains(property.Name)
                                               select property).ToList();
             }
         }
-        static List<PropertyInfo> _packageModelPropertyInfos = null;
+
+        internal static List<PropertyInfo> PackageModelPropertyInfos = null;
 
         internal void RaisePropertyChangedOnUIThread([CallerMemberName] string propertyName = null)
         {
@@ -638,7 +639,7 @@ namespace ViewAppxPackage
 
             EnsurePackageModelPropertyInfos();
             StringBuilder sb = null;
-            foreach (var p in _packageModelPropertyInfos)
+            foreach (var p in PackageModelPropertyInfos)
             {
                 if (p.PropertyType != typeof(bool))
                 {

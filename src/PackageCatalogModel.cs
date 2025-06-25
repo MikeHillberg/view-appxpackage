@@ -150,7 +150,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
 
         // Finish reading the Package Manager from the worker thread
         // This can be overridden from the command line (useful for debugging)
-        if (!MainWindow.LazyPreload)
+        if (!App.LazyPreload)
         {
             FinishLoading();
         }
@@ -497,7 +497,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
             List<PackageModel> filteredPackages = new();
 
             // If the filter is "$input", then we're using the list of names from stdin, which is stored in PipeInputPackages
-            var isInput = _filter.Trim() == MainWindow.PipeInputFilterString;
+            var isInput = _filter.Trim() == App.PipeInputFilterString;
 
             foreach (var p in packages)
             {

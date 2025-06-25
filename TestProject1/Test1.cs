@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using System.Xml;
 using ViewAppxPackage;
 using Windows.ApplicationModel;
 using Windows.Foundation;
@@ -503,9 +502,10 @@ public sealed class UnitTests
         await MyThreading.RunOnWorkerAsync(async () =>
         {
             bool progressCalled = false;
-            await _catalogModel.RemovePackageAsync(package, async (op) =>
+            await _catalogModel.RemovePackageAsync(package, Task (op) =>
             {
                 progressCalled = true;
+                return Task.CompletedTask;
             });
             Assert.IsTrue(progressCalled);
         });
@@ -597,5 +597,51 @@ public sealed class UnitTests
 
         var id = application.Attribute("Executable");
         Assert.IsTrue(id?.Value == @"view-appxpackage\view-appxpackage.exe");
+    }
+
+    /// <summary>
+    /// Test MCP Server functionality - package family name extraction
+    /// </summary>
+    [WorkerTestMethod]
+    public void TestMcpServerPackageFamilyNames()
+    {
+        // Create the MCP server service
+        var mcpServer = new McpServer();
+
+        // Get package family names directly from the tool method
+        var familyNames = mcpServer.ListPackageFamilyNames();
+
+        // Verify we get some family names
+        Assert.IsNotNull(familyNames);
+        var familyNameList = familyNames.ToList();
+        Assert.IsTrue(familyNameList.Count > 0, "Should have at least one package family name");
+
+        // Verify we have the same number of unique family names as packages
+        var packageCount = PackageCatalogModel.Instance.Packages.Count;
+        var packagesWithFamilyNames = PackageCatalogModel.Instance.Packages
+            .Where(p => !string.IsNullOrEmpty(p.FamilyName))
+            .Select(p => p.FamilyName)
+            .Distinct()
+            .Count();
+
+        Assert.AreEqual(packagesWithFamilyNames, familyNameList.Count,
+            "Number of unique family names should match packages with family names");
+
+        // Verify family names are sorted
+        var sortedFamilyNames = familyNameList.OrderBy(name => name).ToList();
+        CollectionAssert.AreEqual(sortedFamilyNames, familyNameList,
+            "Family names should be returned in sorted order");
+
+        var winAppruntime = familyNameList.FirstOrDefault(name => name.StartsWith("Microsoft.WindowsAppRuntime."));
+        Assert.IsNotNull(winAppruntime, "Should find the Windows App Runtime package family name in the list");
+    }
+
+    [WorkerTestMethod]
+    public void TestMcpServerFindContainingProperty()
+    {
+        // Create the MCP server service
+        var mcpServer = new McpServer();
+        var packages = mcpServer.FindPackagesContainingProperty("Name", "Paint");
+        Assert.IsTrue(packages.Contains("Paint"));
     }
 }
