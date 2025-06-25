@@ -45,7 +45,7 @@
 				<uap:SplashScreen Image="Assets\SplashScreen.png" />
 			</uap:VisualElements>
 
-			<!-- App Extensions: App Service and App Actions -->
+			<!-- App Extensions -->
 			<Extensions>
 				<!-- Standard execution aliases for the main application -->
 				<uap3:Extension Category="windows.appExecutionAlias" Executable="view-appxpackage.exe" EntryPoint="Windows.FullTrustApplication">
@@ -55,30 +55,15 @@
 					</uap3:AppExecutionAlias>
 				</uap3:Extension>
 
-				<!-- App Service for App Actions -->
-				<uap:Extension Category="windows.appService">
-					<uap:AppService Name="ViewAppxPackageAppService" />
-				</uap:Extension>
-
-				<!-- App Action: List Package Family Names -->
-				<uap:Extension Category="windows.appActions">
-					<uap:AppActions>
-						<uap:AppAction Id="ListPackageFamilyNames" DisplayName="List Package Family Names" />
-					</uap:AppActions>
-				</uap:Extension>
-
-				<!-- App Action: Get Package Properties -->
-				<uap:Extension Category="windows.appActions">
-					<uap:AppActions>
-						<uap:AppAction Id="GetPackageProperties" DisplayName="Get Package Properties" />
-					</uap:AppActions>
-				</uap:Extension>
-
-				<!-- App Action: Find Packages by Property -->
-				<uap:Extension Category="windows.appActions">
-					<uap:AppActions>
-						<uap:AppAction Id="FindPackagesContainingProperty" DisplayName="Find Packages by Property" />
-					</uap:AppActions>
+				<!-- App Actions Extension -->
+				<uap:Extension Category="windows.appExtension">
+					<uap:AppExtension Name="microsoft.windows.appActions" Id="ViewAppxPackageActions">
+						<uap:Properties>
+							<Registration>
+								<ActionDefinitionFile Path="AppActions.json" />
+							</Registration>
+						</uap:Properties>
+					</uap:AppExtension>
 				</uap:Extension>
 			</Extensions>
 
