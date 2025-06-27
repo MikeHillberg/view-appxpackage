@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schemas.microsoft.com/windows/ai/app-actions/1.0/app-actions-schema.json",
+  "version": "1.0.0",
+  "actions": [
+    {
+      "id": "ListPackageFamilyNames",
+      "description": "Lists all MSIX/AppX package family names on the system",
+      "parameters": [],
+      "phrases": [
+        "List all package family names",
+        "Show package families", 
+        "List package names",
+        "Show all packages"
+      ]
+    },
+    {
+      "id": "GetPackageProperties",
+      "description": "Retrieves detailed properties for a specific MSIX/AppX package",
+      "parameters": [
+        {
+          "name": "packageFamilyName",
+          "type": "string",
+          "description": "The package family name to get properties for",
+          "required": true
+        }
+      ],
+      "phrases": [
+        "Get properties for {packageFamilyName}",
+        "Show package details for {packageFamilyName}",
+        "Get package info for {packageFamilyName}",
+        "Show properties of {packageFamilyName}"
+      ]
+    },
+    {
+      "id": "FindPackagesContainingProperty",
+      "description": "Searches MSIX/AppX packages containing specific property values",
+      "parameters": [
+        {
+          "name": "propertyName",
+          "type": "string",
+          "description": "The property name to search for (e.g., Name, DisplayName, Publisher)",
+          "required": true
+        },
+        {
+          "name": "propertyValue",
+          "type": "string",
+          "description": "The property value to search for", 
+          "required": true
+        }
+      ],
+      "phrases": [
+        "Find packages with {propertyName} containing {propertyValue}",
+        "Search packages by {propertyName} for {propertyValue}",
+        "Find packages where {propertyName} is {propertyValue}",
+        "Search for packages with {propertyName} {propertyValue}"
+      ]
+    }
+  ]
+}

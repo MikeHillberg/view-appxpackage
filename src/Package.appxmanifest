@@ -45,13 +45,26 @@
 				<uap:SplashScreen Image="Assets\SplashScreen.png" />
 			</uap:VisualElements>
 
+			<!-- App Extensions -->
 			<Extensions>
+				<!-- Standard execution aliases for the main application -->
 				<uap3:Extension Category="windows.appExecutionAlias" Executable="view-appxpackage.exe" EntryPoint="Windows.FullTrustApplication">
 					<uap3:AppExecutionAlias>
 						<desktop:ExecutionAlias Alias="view-appxpackage.exe" />
 						<desktop:ExecutionAlias Alias="view-msixpackage.exe" />
 					</uap3:AppExecutionAlias>
 				</uap3:Extension>
+
+				<!-- App Actions Extension -->
+				<uap:Extension Category="windows.appExtension">
+					<uap:AppExtension Name="microsoft.windows.appActions" Id="ViewAppxPackageActions">
+						<uap:Properties>
+							<Registration>
+								<ActionDefinitionFile Path="AppActions.json" />
+							</Registration>
+						</uap:Properties>
+					</uap:AppExtension>
+				</uap:Extension>
 			</Extensions>
 
 
