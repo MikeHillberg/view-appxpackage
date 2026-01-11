@@ -6,7 +6,8 @@
     <RootNamespace>view_appxpackage.TestPackage</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Platforms>AnyCPU;x86</Platforms>
+    <Platforms>x64;x86</Platforms>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
   </PropertyGroup>
 
 </Project>

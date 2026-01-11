@@ -26,6 +26,7 @@ public sealed partial class PackageSettingView : TreeViewItem
     public static readonly DependencyProperty PackageSettingValueProperty =
         DependencyProperty.Register("PackageSettingValue", typeof(PackageSettingBase), typeof(PackageSettingView), 
             new PropertyMetadata(null,(d,dp) => (d as PackageSettingView).PackageSettingChanged()));
+
     void PackageSettingChanged()
     {
         IsValue = PackageSettingValue is PackageSettingValue;
@@ -41,6 +42,8 @@ public sealed partial class PackageSettingView : TreeViewItem
     }
     public static readonly DependencyProperty IsValueProperty =
         DependencyProperty.Register("IsValue", typeof(bool), typeof(PackageSettingView), new PropertyMetadata(false));
+
+    public SettingEditBox EditBox => _editBox;
 
     // Context menu handler
     private void DeleteSettingClick(object sender, RoutedEventArgs e)

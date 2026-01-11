@@ -1108,35 +1108,41 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     void EnsureSampleSettings()
     {
-        var createSettings = (ApplicationDataContainer container) =>
+        var createSettings = (ApplicationDataContainer container, string tag) =>
         {
-            EnsureSampleSetting(container, "StringSample1", "Test 1");
-            EnsureSampleSetting(container, "StringSample2", "Test 2");
-            EnsureSampleSetting(container, "Int32Sample", (int)123);
-            EnsureSampleSetting(container, "DateSample", DateTimeOffset.Now);
-            EnsureSampleSetting(container, "IntArraySample", new int[] { 1, 2, 3 });
-            EnsureSampleSetting(container, "StringArraySample", new string[] { "Hello", "world" });
-            EnsureSampleSetting(container, "PointArraySample", new Point[] { new Point(0, 1), new Point(2, 3) });
-            EnsureSampleSetting(container, "RectArraySample", new Rect[] { new Rect(1, 2, 3, 4), new Rect(5, 6, 7, 8) });
-            EnsureSampleSetting(container, "SizeArraySample", new Size[] { new Size(1, 2), new Size(3, 4) });
+            EnsureSampleSetting(container, $"StringSample1 ({tag})", "Test 1");
+            EnsureSampleSetting(container, $"StringSample2 ({tag})", "Test 2");
+            EnsureSampleSetting(container, $"Int32Sample ({tag})", (int)123);
+            EnsureSampleSetting(container, $"DateSample ({tag})", DateTimeOffset.Now);
+            EnsureSampleSetting(container, $"IntArraySample ({tag})", new int[] { 1, 2, 3 });
+            EnsureSampleSetting(container, $"StringArraySample ({tag})", new string[] { "Hello", "world" });
+            EnsureSampleSetting(container, $"PointArraySample ({tag})", new Point[] { new Point(0, 1), new Point(2, 3) });
+            EnsureSampleSetting(container, $"RectArraySample ({tag})", new Rect[] { new Rect(1, 2, 3, 4), new Rect(5, 6, 7, 8) });
+            EnsureSampleSetting(container, $"SizeArraySample ({tag})", new Size[] { new Size(1, 2), new Size(3, 4) });
 
             StringBuilder sb = new();
             sb.AppendLine("Line 1");
             sb.AppendLine("Line 2");
-            EnsureSampleSetting(container, "MultiLineSample", sb.ToString());
+            EnsureSampleSetting(container, $"MultiLineSample ({tag})", sb.ToString());
 
         };
         ApplicationDataContainer localSettingsContainer = ApplicationData.Current.LocalSettings;
-        createSettings(localSettingsContainer);
+        createSettings(localSettingsContainer, "LocalSettings");
 
         var child = localSettingsContainer.CreateContainer("Container1", ApplicationDataCreateDisposition.Always);
-        createSettings(child);
+        createSettings(child, "Container1");
 
         child = localSettingsContainer.CreateContainer("Container2", ApplicationDataCreateDisposition.Always);
-        createSettings(child);
+        createSettings(child, "Container2");
 
         child = child.CreateContainer("Container3", ApplicationDataCreateDisposition.Always);
-        createSettings(child);
+        createSettings(child, "Container3");
+
+        ApplicationDataContainer roamingSettingsContainer = ApplicationData.Current.RoamingSettings;
+        createSettings(roamingSettingsContainer, "RoamingSettings");
+
+        child = roamingSettingsContainer.CreateContainer("RoamingContainer1", ApplicationDataCreateDisposition.Always);
+        createSettings(child, "RoamingContainer1");
     }
 
     void EnsureSampleSetting<T>(

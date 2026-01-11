@@ -19,10 +19,17 @@ namespace ViewAppxPackage
     // (Happens on YourPhone app, might requiring setting IsExpanded=true in the template)
     public partial class PackageSettingBase : ObservableObject
     {
-        public PackageSettingBase()
+        public PackageSettingBase(bool isRoaming)
         {
             This = this;
+            IsRoaming = isRoaming;
         }
+
+        /// <summary>
+        /// True if this is from RoamingSettings rather than LocalSettings
+        /// Real value comes from subclass
+        /// </summary>
+        public bool IsRoaming { get; private set; }
 
         public string Name { get; set; }
         public PackageSettingBase Parent;
@@ -145,9 +152,21 @@ namespace ViewAppxPackage
 
     public class PackageSettingValue : PackageSettingBase
     {
+        public PackageSettingValue(bool isRoaming) : base(isRoaming)
+        {
+        }
+
+        //// To make this a required property it has to be set on the subclass
+        //override public required bool IsRoaming { get; set; }
     }
 
     public class PackageSettingContainer : PackageSettingBase
     {
+        public PackageSettingContainer(bool isRoaming) : base(isRoaming)
+        {
+        }
+
+        //// To make this a required property it has to be set on the subclass
+        //override public required bool IsRoaming { get; set; }
     }
 }

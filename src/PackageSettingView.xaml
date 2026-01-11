@@ -33,16 +33,25 @@
                            Padding="0,0,5,0"
                            Style="{StaticResource BaseTextBlockStyle}"
                            IsTextSelectionEnabled="True"/>
+
+                    <!-- Show the type if editing -->
                     <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.IsEditing)}">
                     (<Run Text="{x:Bind PackageSettingValue.ValueType.Name}" />)
                     </TextBlock>
+                    
+                    <!-- If not editing, show if it's a roaming setting -->
+                    <StackPanel Visibility="{x:Bind local:Utils.IsCollapsedIf(_editBox.IsEditing)}">
+                        <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.PackageSettingValue.IsRoaming)}">
+                        [roaming]
+                        </TextBlock>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- This is a TextBlock or a TextBox for the value -->
                 <local:SettingEditBox 
-                x:Name="_editBox"
-                PackageSettingValue="{x:Bind PackageSettingValue}" 
-                IsSelected="{x:Bind IsSelected}"/>
+                        x:Name="_editBox"
+                        PackageSettingValue="{x:Bind PackageSettingValue}" 
+                        IsSelected="{x:Bind IsSelected}"/>
 
             </StackPanel>
 
@@ -55,6 +64,11 @@
                             FontWeight="Bold"
                             Style="{StaticResource BaseTextBlockStyle}"
                             IsTextSelectionEnabled="True"/>
+                
+                <!-- Show if this is a roaming setting container -->
+                <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(PackageSettingValue.IsRoaming)}">
+                    [roaming]
+                </TextBlock>
             </StackPanel>
 
         </Grid>

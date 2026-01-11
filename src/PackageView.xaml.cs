@@ -181,35 +181,9 @@ public sealed partial class PackageView : UserControl
         }
     }
 
-    /// <summary>
-    /// Get the ApplicationDataContainer parent of a PackageSetting value or container
-    /// (The ADCs aren't kept open forever)
-    /// </summary>
-    static internal ApplicationDataContainer GetAppDataContainerForPackage(PackageModel package, PackageSettingBase settingBase)
-    {
-        // A setting with no parent is at the root, return the package's ApplicationData.LocalSettings
-        if (settingBase == null || settingBase.Parent == null)
-        {
-            ApplicationData applicationData = package.GetApplicationData();
-            if (applicationData == null)
-            {
-                DebugLog.Append($"Coudln't get ApplicationData for {package.FullName}");
-            }
 
-            return applicationData?.LocalSettings;
-        }
 
-        // For a setting with a parent (setting is in a child Container),
-        // walk up the setting's parent chain then back down getting ADCs
-        else
-        {
-            var parentContainer = GetAppDataContainerForPackage(package, settingBase.Parent);
 
-            return (settingBase is PackageSettingContainer)
-                ? parentContainer.Containers[settingBase.Name]
-                : parentContainer;
-        }
-    }
 
     public bool IsLoadingSettings
     {
@@ -261,7 +235,7 @@ public sealed partial class PackageView : UserControl
             return;
         }
 
-        var parentContainer = GetAppDataContainerForPackage(this.Package, setting);
+        var parentContainer = this.Package.GetAppDataContainerForSetting(setting);
         if (setting is PackageSettingContainer)
         {
             parentContainer.DeleteContainer(setting.Name);
@@ -270,6 +244,8 @@ public sealed partial class PackageView : UserControl
         {
             parentContainer.Values.Remove(setting.Name);
         }
+
+        //applicationData.SignalDataChanged();
 
         // Re-read the settings, which should now not include {name}
         ReadSettingsAsync();
@@ -289,20 +265,14 @@ public sealed partial class PackageView : UserControl
             return;
         }
 
-        "foo".Equals("bar");
-        string.Compare("foo", "bar", StringComparison.OrdinalIgnoreCase);
-
         var container = _settingsTree.ContainerFromItem(item) as TreeViewItem;
         if (container == null)
         {
             return;
         }
 
-        // bugbug: probably a better way to dig out the SettingEditBox
-        var stackPanel = container.Content as StackPanel;
-        stackPanel = stackPanel.Children[0] as StackPanel;
-        var editBox = stackPanel.Children[1] as SettingEditBox;
-        editBox.StartEditing();
+        PackageSettingView settingView = container as PackageSettingView;
+        settingView.EditBox.StartEditing();
     }
 
     /// <summary>
@@ -394,7 +364,7 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewSetting(PackageSettingBase referenceSetting)
     {
-        var targetContainer = GetAppDataContainerForPackage(this.Package, referenceSetting);
+        var targetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
 
         var newSettingDialog = new NewPackageSettingValue(targetContainer);
 
@@ -413,6 +383,13 @@ public sealed partial class PackageView : UserControl
 
             var newValueString = PackageSettingBase.ConvertSettingValueToString(newSettingDialog.NewValue);
             targetContainer.Values[newSettingDialog.SettingName] = newSettingDialog.NewValue;
+            
+            //var applicationData = Package.GetApplicationData();
+            //if (applicationData != null)
+            //{
+            //    applicationData.SignalDataChanged();
+            //}
+            
             ReadSettingsAsync();
         }
     }
@@ -430,7 +407,7 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewContainer(PackageSettingBase referenceSetting)
     {
-        var targetContainer = GetAppDataContainerForPackage(this.Package, referenceSetting);
+        var targetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
 
         var newSettingDialog = new NewPackageSettingContainer(targetContainer);
         newSettingDialog.XamlRoot = this.XamlRoot;
@@ -444,6 +421,13 @@ public sealed partial class PackageView : UserControl
             }
 
             targetContainer.CreateContainer(newSettingDialog.ContainerName, ApplicationDataCreateDisposition.Always);
+            
+            //var applicationData = Package.GetApplicationData();
+            //if (applicationData != null)
+            //{
+            //    applicationData.SignalDataChanged();
+            //}
+            
             ReadSettingsAsync();
         }
     }
