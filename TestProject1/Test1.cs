@@ -1,11 +1,14 @@
 ﻿using Microsoft.UI.Dispatching;
+//using Microsoft.Windows.Storage;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using ViewAppxPackage;
 using Windows.ApplicationModel;
 using Windows.Foundation;
+using Windows.Management.Core;
 using Windows.Management.Deployment;
+using Windows.Storage;
 
 namespace TestProject1;
 
@@ -19,7 +22,9 @@ public sealed class UnitTests
 
     static DispatcherQueue _uiDispatcherQueue = null!;
     static PackageCatalogModel _catalogModel = null!;
+
     const string viewAppPackageName = "2775CoffeeZeit.28328C7222DA6";
+    const string viewAppPackageFamilyName = "2775CoffeeZeit.28328C7222DA6_tpt8xzg3yk1mm";
     const string testPackageName = "a60d2c46-59cf-4c4f-87b5-a39bf0be42c9";
 
     static readonly string tempDirectoryPath = Path.Combine(Path.GetTempPath(), "view-appxpackage.Test");
@@ -38,6 +43,8 @@ public sealed class UnitTests
             Directory.Delete(tempDirectoryPath, true);
         }
         Directory.CreateDirectory(tempDirectoryPath);
+
+        InitializeSettingsTest();
 
         // Put the test package into a file
         var packageBytes = Resource1.TestPackage_1_0_1_0_x86;
@@ -68,6 +75,18 @@ public sealed class UnitTests
 
             _catalogModel = PackageCatalogModel.Instance;
         });
+    }
+
+    static void InitializeSettingsTest()
+    {
+        var applicationData = ApplicationDataManager.CreateForPackageFamily(viewAppPackageFamilyName);
+        Assert.IsNotNull(applicationData, "Failed to get ApplicationData for test package");
+
+        applicationData.LocalSettings.Values.Remove("LocalStringSetting");
+        applicationData.RoamingSettings.Values.Remove("RoamingStringSetting");
+
+        applicationData.LocalSettings.DeleteContainer("LocalContainer");
+        applicationData.RoamingSettings.DeleteContainer("RoamingContainer");
     }
 
     private static async Task RemoveTestPackage()
@@ -131,14 +150,15 @@ public sealed class UnitTests
         ValidatePackageSettingParseFor<Guid>((s) => Guid.Parse(s));
 
         // These types have commas, so the array form has newlines
-        ValidatePackageSettingParseFor<Point>((s) => SettingEditBox.ParsePoint(s), hasCommas: true);
-        ValidatePackageSettingParseFor<Rect>((s) => SettingEditBox.ParseRect(s), hasCommas: true);
-        ValidatePackageSettingParseFor<Size>((s) => SettingEditBox.ParseSize(s), hasCommas: true);
+        ValidatePackageSettingParseFor<Point>((s) => PackageSettingValue.ParsePoint(s), hasCommas: true);
+        ValidatePackageSettingParseFor<Rect>((s) => PackageSettingValue.ParseRect(s), hasCommas: true);
+        ValidatePackageSettingParseFor<Size>((s) => PackageSettingValue.ParseSize(s), hasCommas: true);
 
         // The start string for these have non-default formats
         ValidatePackageSettingParseFor<DateTimeOffset>((s) => DateTimeOffset.Parse(s));
         ValidatePackageSettingParseFor<TimeSpan>((s) => TimeSpan.Parse(s));
     }
+
 
     void ValidatePackageSettingParseFor<T>(Func<string, T> parse, bool hasCommas = false)
     {
@@ -148,7 +168,7 @@ public sealed class UnitTests
         var exampleString = NewPackageSettingValue.ExampleString(type, isArray: false);
 
         // Parse the example string with app code
-        var parsed = SettingEditBox.TryParseValue(typeof(T), exampleString, out var parsedValue);
+        var parsed = PackageSettingValue.TryParseValue(typeof(T), exampleString, out var parsedValue);
         Assert.IsTrue(parsed);
         Assert.IsTrue(parsedValue is T);
 
@@ -166,7 +186,7 @@ public sealed class UnitTests
         var exampleString = NewPackageSettingValue.ExampleString(typeof(T), isArray: true);
 
         // Validate that it can be parsed with app code
-        var parsed = SettingEditBox.TryParseValue(arrayType, exampleString, out var parsedValue);
+        var parsed = PackageSettingValue.TryParseValue(arrayType, exampleString, out var parsedValue);
         Assert.IsTrue(parsed);
         Assert.IsTrue(parsedValue is T[]);
 
@@ -643,5 +663,82 @@ public sealed class UnitTests
         var mcpServer = new McpServer();
         var packages = mcpServer.FindPackagesContainingProperty("Name", "Paint");
         Assert.IsTrue(packages.Contains("Paint"));
+    }
+
+    [WorkerTestMethod]
+    async public Task TestWritePackageSettings()
+    {
+        // Get the app package
+        var package = this.GetViewAppxPackage();
+        Assert.IsNotNull(package, "App package must be installed first");
+
+        // Get the ApplicationData for the app package
+        var applicationData = ApplicationDataManager.CreateForPackageFamily(package.FamilyName);
+        Assert.IsNotNull(applicationData, "Failed to get ApplicationData for app package");
+
+        // Write a string setting to LocalSettings
+        applicationData.LocalSettings.Values["LocalStringSetting"] = "LocalTestValue";
+
+        // Write a string setting to RoamingSettings
+        applicationData.RoamingSettings.Values["RoamingStringSetting"] = "RoamingTestValue";
+
+        // Create a container in LocalSettings and add a string property
+        var localContainer = applicationData.LocalSettings.CreateContainer(
+            "LocalContainer",
+            ApplicationDataCreateDisposition.Always);
+        localContainer.Values["LocalContainerString"] = "LocalContainerValue";
+
+        // Create a container in RoamingSettings and add a string property
+        var roamingContainer = applicationData.RoamingSettings.CreateContainer(
+            "RoamingContainer",
+            ApplicationDataCreateDisposition.Always);
+        roamingContainer.Values["RoamingContainerString"] = "RoamingContainerValue";
+
+        // Verify the settings were written by reading them back using PackageModel
+        var allSettings = await package.GetAllSettingsAsync();
+        Assert.IsNotNull(allSettings, "Should be able to read settings from package");
+        Assert.IsTrue(allSettings.Count > 0, "Should have settings");
+
+        // Find the LocalSettings root (LocalSettings values and containers)
+        var localSettings = allSettings.Where(s => !s.IsRoaming).ToList();
+        Assert.IsTrue(localSettings.Count > 0, "Should have local settings");
+
+        // Find the RoamingSettings root (RoamingSettings values and containers)
+        var roamingSettings = allSettings.Where(s => s.IsRoaming).ToList();
+        Assert.IsTrue(roamingSettings.Count > 0, "Should have roaming settings");
+
+        // Verify LocalStringSetting
+        var localStringSetting = localSettings.OfType<PackageSettingValue>()
+            .FirstOrDefault(s => s.Name == "LocalStringSetting");
+        Assert.IsNotNull(localStringSetting, "LocalStringSetting should exist");
+        Assert.AreEqual("LocalTestValue", localStringSetting.ValueAsString);
+
+        // Verify RoamingStringSetting
+        var roamingStringSetting = roamingSettings.OfType<PackageSettingValue>()
+            .FirstOrDefault(s => s.Name == "RoamingStringSetting");
+        Assert.IsNotNull(roamingStringSetting, "RoamingStringSetting should exist");
+        Assert.AreEqual("RoamingTestValue", roamingStringSetting.ValueAsString);
+
+        // Verify LocalContainer and its string property
+        var localContainerSetting = localSettings.OfType<PackageSettingContainer>()
+            .FirstOrDefault(s => s.Name == "LocalContainer");
+        Assert.IsNotNull(localContainerSetting, "LocalContainer should exist");
+        Assert.IsNotNull(localContainerSetting.Children, "LocalContainer should have children");
+        
+        var localContainerString = localContainerSetting.Children.OfType<PackageSettingValue>()
+            .FirstOrDefault(s => s.Name == "LocalContainerString");
+        Assert.IsNotNull(localContainerString, "LocalContainerString should exist in LocalContainer");
+        Assert.AreEqual("LocalContainerValue", localContainerString.ValueAsString);
+
+        // Verify RoamingContainer and its string property
+        var roamingContainerSetting = roamingSettings.OfType<PackageSettingContainer>()
+            .FirstOrDefault(s => s.Name == "RoamingContainer");
+        Assert.IsNotNull(roamingContainerSetting, "RoamingContainer should exist");
+        Assert.IsNotNull(roamingContainerSetting.Children, "RoamingContainer should have children");
+        
+        var roamingContainerString = roamingContainerSetting.Children.OfType<PackageSettingValue>()
+            .FirstOrDefault(s => s.Name == "RoamingContainerString");
+        Assert.IsNotNull(roamingContainerString, "RoamingContainerString should exist in RoamingContainer");
+        Assert.AreEqual("RoamingContainerValue", roamingContainerString.ValueAsString);
     }
 }

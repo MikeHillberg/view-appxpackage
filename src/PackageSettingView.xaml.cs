@@ -18,18 +18,18 @@ public sealed partial class PackageSettingView : TreeViewItem
         this.InitializeComponent();
     }
 
-    public PackageSettingBase PackageSettingValue
+    public PackageSettingBase PackageSettingBase
     {
-        get { return (PackageSettingBase)GetValue(PackageSettingValueProperty); }
-        set { SetValue(PackageSettingValueProperty, value); }
+        get { return (PackageSettingBase)GetValue(PackageSettingBaseProperty); }
+        set { SetValue(PackageSettingBaseProperty, value); }
     }
-    public static readonly DependencyProperty PackageSettingValueProperty =
-        DependencyProperty.Register("PackageSettingValue", typeof(PackageSettingBase), typeof(PackageSettingView), 
+    public static readonly DependencyProperty PackageSettingBaseProperty =
+        DependencyProperty.Register("PackageSettingBase", typeof(PackageSettingBase), typeof(PackageSettingView), 
             new PropertyMetadata(null,(d,dp) => (d as PackageSettingView).PackageSettingChanged()));
 
     void PackageSettingChanged()
     {
-        IsValue = PackageSettingValue is PackageSettingValue;
+        IsValue = PackageSettingBase is PackageSettingValue;
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public sealed partial class PackageSettingView : TreeViewItem
     // Context menu handler
     private void DeleteSettingClick(object sender, RoutedEventArgs e)
     {
-        DeleteRequested?.Invoke(this, this.PackageSettingValue);
+        DeleteRequested?.Invoke(this, this.PackageSettingBase);
     }
 
     // Edit a setting value
@@ -61,13 +61,13 @@ public sealed partial class PackageSettingView : TreeViewItem
     // Create a new setting value
     private void NewSettingValue_Click(object sender, RoutedEventArgs e)
     {
-        NewSettingValueRequested?.Invoke(this, this.PackageSettingValue);
+        NewSettingValueRequested?.Invoke(this, this.PackageSettingBase);
     }
 
     // Create a new setting container
     private void NewSettingContainer_Click(object sender, RoutedEventArgs e)
     {
-        NewContainerRequested?.Invoke(this, this.PackageSettingValue);
+        NewContainerRequested?.Invoke(this, this.PackageSettingBase);
     }
 
     // Raise these event when the context menu item is clicked.

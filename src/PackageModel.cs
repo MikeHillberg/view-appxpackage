@@ -1230,7 +1230,7 @@ namespace ViewAppxPackage
                 var localSettings = GetSettings(applicationData.LocalSettings, null);
                 var roamingSettings = GetSettings(applicationData.RoamingSettings, null);
 
-                return localSettings.Union(roamingSettings).ToList();
+                return localSettings.Union(roamingSettings).OrderBy(s => s.Name).ToList();
             }
             catch (Exception e)
             {
@@ -1329,7 +1329,7 @@ namespace ViewAppxPackage
             {
                 var valueString = PackageSettingBase.ConvertSettingValueToString(settingValue.Value);
                 var valueType = settingValue.Value.GetType();
-                if (!SettingEditBox.TryParseValue(valueType, valueString, out var parsedValue)
+                if (!PackageSettingValue.TryParseValue(valueType, valueString, out var parsedValue)
                     || PackageSettingBase.ConvertSettingValueToString(parsedValue) != valueString)
                 {
                     if (valueType != typeof(ApplicationDataCompositeValue))

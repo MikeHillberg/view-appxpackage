@@ -27,7 +27,7 @@
                 <!-- Use align-left so that the TextBlock doesn't fill and steal the right-click space for an ancestor context menu -->
                 <!-- But give it a little right-side padding too to enable selection -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                    <TextBlock Text="{x:Bind PackageSettingValue.Name}" 
+                    <TextBlock Text="{x:Bind PackageSettingBase.Name}" 
                            FontWeight="Bold"
                            HorizontalAlignment="Left"
                            Padding="0,0,5,0"
@@ -36,7 +36,7 @@
 
                     <!-- Show the type if editing -->
                     <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.IsEditing)}">
-                    (<Run Text="{x:Bind PackageSettingValue.ValueType.Name}" />)
+                    (<Run Text="{x:Bind PackageSettingBase.ValueType.Name}" />)
                     </TextBlock>
                     
                     <!-- If not editing, show if it's a roaming setting -->
@@ -50,7 +50,7 @@
                 <!-- This is a TextBlock or a TextBox for the value -->
                 <local:SettingEditBox 
                         x:Name="_editBox"
-                        PackageSettingValue="{x:Bind PackageSettingValue}" 
+                        PackageSettingValue="{x:Bind PackageSettingBase.AsValue()}" 
                         IsSelected="{x:Bind IsSelected}"/>
 
             </StackPanel>
@@ -60,13 +60,13 @@
             <StackPanel Orientation="Horizontal" Spacing="10" Background="Transparent"
                         Visibility="{x:Bind local:Utils.IsCollapsedIf(IsValue)}">
                 <SymbolIcon>Folder</SymbolIcon>
-                <TextBlock Text="{x:Bind PackageSettingValue.Name}"
+                <TextBlock Text="{x:Bind PackageSettingBase.Name}"
                             FontWeight="Bold"
                             Style="{StaticResource BaseTextBlockStyle}"
                             IsTextSelectionEnabled="True"/>
                 
                 <!-- Show if this is a roaming setting container -->
-                <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(PackageSettingValue.IsRoaming)}">
+                <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(PackageSettingBase.IsRoaming)}">
                     [roaming]
                 </TextBlock>
             </StackPanel>

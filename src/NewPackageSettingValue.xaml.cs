@@ -98,7 +98,7 @@ namespace ViewAppxPackage
             {
                 type = type.MakeArrayType();
             }
-            return SettingEditBox.TryParseValue(Types[this.SelectedIndex], ValueString, out parsedValue);
+            return PackageSettingValue.TryParseValue(Types[this.SelectedIndex], ValueString, out parsedValue);
         }
 
         /// <summary>

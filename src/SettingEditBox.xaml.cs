@@ -70,13 +70,13 @@ public sealed partial class SettingEditBox : UserControl
         }
     }
 
-    public PackageSettingBase PackageSettingValue
+    public PackageSettingValue PackageSettingValue
     {
-        get { return (PackageSettingBase)GetValue(PackageSettingValueProperty); }
+        get { return (PackageSettingValue)GetValue(PackageSettingValueProperty); }
         set { SetValue(PackageSettingValueProperty, value); }
     }
     public static readonly DependencyProperty PackageSettingValueProperty =
-        DependencyProperty.Register("PackageSettingValue", typeof(PackageSettingBase), typeof(SettingEditBox),
+        DependencyProperty.Register("PackageSettingValue", typeof(PackageSettingValue), typeof(SettingEditBox),
             new PropertyMetadata(null));
 
     public PackageModel Package { get; set; }
@@ -165,257 +165,55 @@ public sealed partial class SettingEditBox : UserControl
     /// <summary>
     /// Save the value in the TextBox back to the system if the new value is valid
     /// </summary>
-    bool TrySave()
-    {
-        // Try to parse the new value according to the type we read in originally
-        if (TryParseValue(PackageSettingValue.ValueType, NewValue, out var parsedNewValue))
-        {
-            // We have a valid new value. Write it to the ApplicationDataContainer
-            // Wrap in try because these APIs throw a lot
-            // Bugbug: should this be done off UI thread?
-            try
-            {
-                // Set to the correct container
-                var parentContainer = PackageSettingValue.Package.GetAppDataContainerForSetting(PackageSettingValue);
-                parentContainer.Values[PackageSettingValue.Name] = parsedNewValue;
-
-                Debug.Assert(parsedNewValue is not null);
-                if (parsedNewValue is null)
-                {
-                    return false;
-                }
-
-                //var applicationData = PackageSettingValue.Package.GetApplicationData();
-                //if (applicationData != null)
-                //{
-                //    applicationData.SignalDataChanged();
-                //}
-
-                // Also write it to the model
-                PackageSettingValue.ValueAsString = PackageSettingBase.ConvertSettingValueToString(parsedNewValue);
-
-                DebugLog.Append($"Saved setting `{PackageSettingValue.Name}`: {parsedNewValue}");
-                return true;
-            }
-            catch (Exception e)
-            {
-                DebugLog.Append(e, $"Failed to update setting: {PackageSettingValue.Name}");
-                return false;
-            }
-        }
-        else
-        {
-            if (PackageSettingValue.ValueType != typeof(ApplicationDataCompositeValue))
-            {
-                DebugLog.Append($"Couldn't parse {PackageSettingValue.Name} as {PackageSettingValue.ValueType.Name}: {NewValue}");
-            }
-        }
-
-        return false;
-    }
-
-    //https://docs.microsoft.com/uwp/api/Windows.Foundation.PropertyType
-    //public enum PropertyType
+    //bool TrySave()
     //{
-    //    Boolean = 11,
-    //    BooleanArray = 1035,
-    //    Char16 = 10,
-    //    Char16Array = 1034,
-    //    DateTime = 14,
-    //    DateTimeArray = 1038,
-    //    Double = 9,
-    //    DoubleArray = 1033,
-    //    Empty = 0,
-    //    Guid = 16,
-    //    GuidArray = 1040,
-    //    Inspectable = 13,
-    //    InspectableArray = 1037,
-    //    Int16 = 2,
-    //    Int16Array = 1026,
-    //    Int32 = 4,
-    //    Int32Array = 1028,
-    //    Int64 = 6,
-    //    Int64Array = 1030,
-    //    OtherType = 20,
-    //    OtherTypeArray = 1044,
-    //    Point = 17,
-    //    PointArray = 1041,
-    //    Rect = 19,
-    //    RectArray = 1043,
-    //    Single = 8,
-    //    SingleArray = 1032,
-    //    Size = 18,
-    //    SizeArray = 1042,
-    //    String = 12,
-    //    StringArray = 1036,
-    //    TimeSpan = 15,
-    //    TimeSpanArray = 1039,
-    //    UInt16 = 3,
-    //    UInt16Array = 1027,
-    //    UInt32 = 5,
-    //    UInt32Array = 1029,
-    //    UInt64 = 7,
-    //    UInt64Array = 1031,
-    //    UInt8 = 1,
-    //    UInt8Array = 1025,
+    //    // Try to parse the new value according to the type we read in originally
+    //    if (TryParseValue(PackageSettingValue.ValueType, NewValue, out var parsedNewValue))
+    //    {
+    //        // We have a valid new value. Write it to the ApplicationDataContainer
+    //        // Wrap in try because these APIs throw a lot
+    //        try
+    //        {
+    //            // Set to the correct container
+    //            var parentContainer = PackageSettingValue.Package.GetAppDataContainerForSetting(PackageSettingValue);
+    //            parentContainer.Values[PackageSettingValue.Name] = parsedNewValue;
+
+    //            Debug.Assert(parsedNewValue is not null);
+    //            if (parsedNewValue is null)
+    //            {
+    //                return false;
+    //            }
+
+    //            //var applicationData = PackageSettingValue.Package.GetApplicationData();
+    //            //if (applicationData != null)
+    //            //{
+    //            //    applicationData.SignalDataChanged();
+    //            //}
+
+    //            // Also write it to the model
+    //            PackageSettingValue.ValueAsString = PackageSettingBase.ConvertSettingValueToString(parsedNewValue);
+
+    //            DebugLog.Append($"Saved setting `{PackageSettingValue.Name}`: {parsedNewValue}");
+    //            return true;
+    //        }
+    //        catch (Exception e)
+    //        {
+    //            DebugLog.Append(e, $"Failed to update setting: {PackageSettingValue.Name}");
+    //            return false;
+    //        }
+    //    }
+    //    else
+    //    {
+    //        if (PackageSettingValue.ValueType != typeof(ApplicationDataCompositeValue))
+    //        {
+    //            DebugLog.Append($"Couldn't parse {PackageSettingValue.Name} as {PackageSettingValue.ValueType.Name}: {NewValue}");
+    //        }
+    //    }
+
+    //    return false;
     //}
 
-    /// <summary>
-    /// Parse a string according to the specified type.
-    /// </summary>
-    internal static bool TryParseValue(Type type, string value, out object parsedValue)
-    {
-        parsedValue = null;
 
-        try
-        {
-            if (type == typeof(ApplicationDataCompositeValue))
-            {
-                // This is the only valid type that can't parsed yet
-                return false;
-            }
-
-            // Recurse for arrays
-            if (type.IsArray)
-            {
-                var arrayType = type.GetElementType();
-
-                // Types with commas (like Point or String) are separated by lines.
-                // Everything else (default case) is separated by commas
-                switch (arrayType)
-                {
-                    case Type t when t == typeof(string):
-                        string[] lines = ReadLines(value);
-                        var strings = new String[lines.Length];
-                        for (int i = 0; i < lines.Length; i++)
-                        {
-                            strings[i] = lines[i].Trim();
-                        }
-                        parsedValue = strings;
-                        return true;
-
-                    case Type t when t == typeof(Point):
-                        lines = ReadLines(value);
-                        var points = new Point[lines.Length];
-                        for (int i = 0; i < lines.Length; i++)
-                        {
-                            points[i] = ParsePoint(lines[i]);
-                        }
-                        parsedValue = points;
-                        return true;
-
-                    case Type t when t == typeof(Rect):
-                        lines = ReadLines(value);
-                        var rects = new Rect[lines.Length];
-                        for (int i = 0; i < lines.Length; i++)
-                        {
-                            rects[i] = ParseRect(lines[i]);
-                        }
-                        parsedValue = rects;
-                        return true;
-
-                    case Type t when t == typeof(Size):
-                        lines = ReadLines(value);
-                        var sizes = new Size[lines.Length];
-                        for (int i = 0; i < lines.Length; i++)
-                        {
-                            sizes[i] = ParseSize(lines[i]);
-                        }
-                        parsedValue = sizes;
-                        return true;
-
-                    default:
-                        lines = value.Split(',');
-                        var array = Array.CreateInstance(arrayType, lines.Length);
-                        for (int i = 0; i < lines.Length; i++)
-                        {
-                            if (!TryParseValue(arrayType, lines[i].Trim(), out var element))
-                            {
-                                return false;
-                            }
-                            array.SetValue(element, i);
-                        }
-                        parsedValue = array;
-                        return true;
-                }
-            }
-
-            // Parse the non-array value according to the type
-            parsedValue = type switch
-            {
-                Type t when t == typeof(bool)
-                    => bool.Parse(value),
-
-                Type t when t == typeof(int)
-                    => int.Parse(value),
-                Type t when t == typeof(long)
-                    => long.Parse(value),
-                Type t when t == typeof(short)
-                    => short.Parse(value),
-                Type t when t == typeof(char) // Char16
-                    => char.Parse(value),
-
-                Type t when t == typeof(uint)
-                    => uint.Parse(value),
-                Type t when t == typeof(ulong)
-                    => ulong.Parse(value),
-                Type t when t == typeof(ushort)
-                    => ushort.Parse(value),
-                Type t when t == typeof(byte)
-                    => byte.Parse(value),
-
-                Type t when t == typeof(float)
-                    => float.Parse(value),
-                Type t when t == typeof(double)
-                    => double.Parse(value),
-
-                Type t when t == typeof(DateTimeOffset)
-                    => DateTimeOffset.Parse(value),
-                Type t when t == typeof(DateTime)
-                    => DateTime.Parse(value),
-                Type t when t == typeof(TimeSpan)
-                    => TimeSpan.Parse(value),
-
-                Type t when t == typeof(Guid)
-                    => Guid.Parse(value),
-                Type t when t == typeof(Point)
-                    => ParsePoint(value),
-                Type t when t == typeof(Rect)
-                    => ParseRect(value),
-                Type t when t == typeof(Size)
-                    => ParseSize(value),
-
-                Type t when t == typeof(string)
-                    => value,
-
-                _ => throw new ArgumentException("Invalid value")
-            };
-        }
-        catch (Exception e)
-        {
-            DebugLog.Append(e, $"Couldn't parse as {type.Name}: `{value}`");
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Read a string into a string array of lines
-    /// </summary>
-    private static string[] ReadLines(string value)
-    {
-        StringReader reader = new(value);
-        List<string> linesList = new();
-        string line;
-        while ((line = reader.ReadLine()) != null)
-        {
-            linesList.Add(line);
-        }
-
-        var lines = linesList.ToArray();
-        return lines;
-    }
 
     string ExampleString(Type type)
     {
@@ -425,56 +223,6 @@ public sealed partial class SettingEditBox : UserControl
             type = type.GetElementType();
         }
         return NewPackageSettingValue.ExampleString(type, isArray);
-    }
-
-    public static Point ParsePoint(string pointString)
-    {
-        var coordinates = pointString.Split(',');
-
-        if (coordinates.Length == 2 &&
-            double.TryParse(coordinates[0], out double x) &&
-            double.TryParse(coordinates[1], out double y))
-        {
-            return new Point(x, y);
-        }
-        else
-        {
-            throw new Exception($"Failed to parse point: {pointString}");
-        }
-    }
-
-    public static Rect ParseRect(string rectString)
-    {
-        string[] values = rectString.Split(',');
-
-        if (values.Length == 4 &&
-            double.TryParse(values[0], out double x) &&
-            double.TryParse(values[1], out double y) &&
-            double.TryParse(values[2], out double width) &&
-            double.TryParse(values[3], out double height))
-        {
-            return new Rect(x, y, width, height);
-        }
-        else
-        {
-            throw new Exception($"Couldn't parse Rect: {rectString}");
-        }
-    }
-
-    public static Size ParseSize(string sizeString)
-    {
-        string[] values = sizeString.Split(',');
-
-        if (values.Length == 2 &&
-            double.TryParse(values[0], out double width) &&
-            double.TryParse(values[1], out double height))
-        {
-            return new Size(width, height);
-        }
-        else
-        {
-            throw new Exception($"Couldn't parse size: {sizeString}");
-        }
     }
 
     private void _textBox_Loaded(object sender, RoutedEventArgs e)
@@ -602,7 +350,7 @@ public sealed partial class SettingEditBox : UserControl
         _justSelectedByPointer = false;
 
         // Validate that we can edit this type by seeing if we can parse the value that comes from the actual package setting
-        if (!TryParseValue(PackageSettingValue.ValueType, PackageSettingValue.ValueAsString, out var parsedValue)
+        if (!ViewAppxPackage.PackageSettingValue.TryParseValue(PackageSettingValue.ValueType, PackageSettingValue.ValueAsString, out var parsedValue)
             || PackageSettingBase.ConvertSettingValueToString(parsedValue) != PackageSettingValue.ValueAsString)
         {
             // Turn on an error message
@@ -655,7 +403,7 @@ public sealed partial class SettingEditBox : UserControl
             return;
         }
 
-        if (TrySave())
+        if ((PackageSettingValue as PackageSettingValue).TrySave(NewValue))
         {
             IsError = false;
             IsEditing = false;
