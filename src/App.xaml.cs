@@ -19,6 +19,9 @@ public partial class App : Application
     // Test/debug flag
     internal static bool LazyPreload = false;
 
+    // Flag to skip some things when running tests
+    public static bool HeadlessTestMode = false;
+
     // In MCP mode there's no Window, and we watch console input for MCP requests
     internal static bool IsMcpServerMode = false;
 

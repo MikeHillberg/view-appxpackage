@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Documents;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Windows.Management.Deployment;
 using Windows.Storage;
 using WinRT;
 
@@ -235,13 +236,14 @@ public sealed partial class PackageView : UserControl
             return;
         }
 
-        var parentContainer = this.Package.GetAppDataContainerForSetting(setting);
         if (setting is PackageSettingContainer)
         {
+            var parentContainer = this.Package.GetAppDataContainerForSettingParent(setting);
             parentContainer.DeleteContainer(setting.Name);
         }
         else
         {
+            var parentContainer = this.Package.GetAppDataContainerForSetting(setting);
             parentContainer.Values.Remove(setting.Name);
         }
 
@@ -364,9 +366,18 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewSetting(PackageSettingBase referenceSetting)
     {
-        var targetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
+        ApplicationDataContainer? initialTargetContainer = null;
+        if (referenceSetting != null)
+        {
+            initialTargetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
+        }
 
-        var newSettingDialog = new NewPackageSettingValue(targetContainer);
+        ApplicationData applicationData = this.Package.GetApplicationData();
+
+        var newSettingDialog = new NewPackageSettingValue(
+            initialTargetContainer,
+            applicationData.LocalSettings,
+            applicationData.RoamingSettings);
 
         // bugbug: without this it crashes the native debugger, doesn't crash into the managed debugger
         newSettingDialog.XamlRoot = this.XamlRoot;
@@ -381,15 +392,16 @@ public sealed partial class PackageView : UserControl
                 return;
             }
 
+            // Use the final target container from the dialog, not the initialTargetContainer
             var newValueString = PackageSettingBase.ConvertSettingValueToString(newSettingDialog.NewValue);
-            targetContainer.Values[newSettingDialog.SettingName] = newSettingDialog.NewValue;
-            
+            newSettingDialog.TargetContainer.Values[newSettingDialog.SettingName] = newSettingDialog.NewValue;
+
             //var applicationData = Package.GetApplicationData();
             //if (applicationData != null)
             //{
             //    applicationData.SignalDataChanged();
             //}
-            
+
             ReadSettingsAsync();
         }
     }
@@ -407,9 +419,15 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewContainer(PackageSettingBase referenceSetting)
     {
-        var targetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
+        ApplicationDataContainer initialTargetContainer = null;
 
-        var newSettingDialog = new NewPackageSettingContainer(targetContainer);
+        if (referenceSetting != null)
+        {
+            initialTargetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
+        }
+
+        var applicationData = this.Package.GetApplicationData();
+        var newSettingDialog = new NewPackageSettingContainer(initialTargetContainer, applicationData.LocalSettings, applicationData.RoamingSettings);
         newSettingDialog.XamlRoot = this.XamlRoot;
 
         var result = await newSettingDialog.ShowAsync();
@@ -420,14 +438,15 @@ public sealed partial class PackageView : UserControl
                 return;
             }
 
-            targetContainer.CreateContainer(newSettingDialog.ContainerName, ApplicationDataCreateDisposition.Always);
-            
+            // Use the final target container from the dialog, not the initialTargetContainer
+            newSettingDialog.TargetContainer.CreateContainer(newSettingDialog.ContainerName, ApplicationDataCreateDisposition.Always);
+
             //var applicationData = Package.GetApplicationData();
             //if (applicationData != null)
             //{
             //    applicationData.SignalDataChanged();
             //}
-            
+
             ReadSettingsAsync();
         }
     }

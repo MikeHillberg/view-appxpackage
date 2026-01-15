@@ -1256,16 +1256,29 @@ namespace ViewAppxPackage
 
 
         /// <summary>
-        /// Get the ApplicationDataContainer parent of a PackageSetting value or container
+        /// Get the ApplicationDataContainer of a PackageSetting value or container
         /// (The ADCs aren't kept open forever)
         /// </summary>
         /// 
-
         public ApplicationDataContainer GetAppDataContainerForSetting(
                     PackageSettingBase settingBase)
         {
             return this.GetAppDataContainerForSetting(
                     settingBase,
+                    settingBase.IsRoaming);
+        }
+
+        /// <summary>
+        /// Get the ApplicationDataContainer _parent_ of a PackageSetting value or container
+        /// Get the ApplicationDataContainer of a PackageSetting value or container
+        /// (The ADCs aren't kept open forever)
+        /// </summary>
+        /// 
+        public ApplicationDataContainer GetAppDataContainerForSettingParent(
+            PackageSettingBase settingBase)
+        {
+            return this.GetAppDataContainerForSetting(
+                    settingBase.Parent,
                     settingBase.IsRoaming);
         }
 
@@ -1300,11 +1313,11 @@ namespace ViewAppxPackage
             // walk up the setting's parent chain then back down getting ADCs
             else
             {
-                var parentContainer = GetAppDataContainerForSetting(settingBase.Parent, settingBase.IsRoaming);
+                var parentAppDataContainer = GetAppDataContainerForSetting(settingBase.Parent, settingBase.IsRoaming);
 
                 return (settingBase is PackageSettingContainer)
-                    ? parentContainer.Containers[settingBase.Name]
-                    : parentContainer;
+                    ? parentAppDataContainer.Containers[settingBase.Name]
+                    : parentAppDataContainer;
             }
         }
 

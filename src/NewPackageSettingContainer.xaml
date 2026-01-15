@@ -12,12 +12,13 @@
     >
 
     <Grid ColumnDefinitions="Auto,*"
-          RowDefinitions="Auto,Auto"
+          RowDefinitions="Auto,Auto,Auto"
           RowSpacing="10"
           ColumnSpacing="10"
           HorizontalAlignment="Center" 
           MinWidth="400"
-          Margin="50">
+          Margin="40"
+          Padding="10">
         <Grid.Resources>
             <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"/>
         </Grid.Resources>
@@ -26,8 +27,12 @@
         <TextBox Grid.Column="1"
                  Text="{x:Bind ContainerName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
+        <CheckBox Grid.Row="1"
+                  IsChecked="{x:Bind IsRoaming, Mode=TwoWay}" Content="Roaming"
+                  Visibility="{x:Bind NeedsTargetContainer}"/>
+
         <TextBlock 
-            Grid.Row="1"
+            Grid.Row="2"
             Grid.ColumnSpan="2"
             Visibility="{x:Bind local:Utils.IsVisibleIf(IsDuplicateName)}"
             Foreground="Red">Container name already exists</TextBlock>

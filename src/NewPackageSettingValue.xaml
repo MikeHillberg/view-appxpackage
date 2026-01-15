@@ -12,20 +12,24 @@
     PrimaryButtonText="Save"
     >
     <Grid HorizontalAlignment="Center" 
-          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
           ColumnDefinitions="Auto,*"
           RowSpacing="10"
           ColumnSpacing="10"
           MinWidth="400"
-          Margin="50">
+          Margin="40"
+          Padding="10">
         <Grid.Resources>
             <Style TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}"/>
         </Grid.Resources>
 
         <!-- Name -->
         <TextBlock >Name:</TextBlock>
-        <TextBox Grid.Column="1"
-                 Text="{x:Bind SettingName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <StackPanel Grid.Column="1">
+            <TextBox Text="{x:Bind SettingName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+            <CheckBox IsChecked="{x:Bind IsRoaming, Mode=TwoWay}" Content="Roaming"
+                      Visibility="{x:Bind NeedsTargetContainer}"/>
+        </StackPanel>
 
         <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
                    Visibility="{x:Bind local:Utils.IsVisibleIf(IsDuplicateName)}"
@@ -59,6 +63,7 @@
                    Foreground="Red">
             Invalid value
         </TextBlock>
+        
 
         <!-- Show example syntax -->
         <TextBlock Grid.Row="4">Example:</TextBlock>
