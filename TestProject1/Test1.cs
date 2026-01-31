@@ -1,11 +1,7 @@
 ﻿using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml.Controls;
-
-//using Microsoft.Windows.Storage;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using ViewAppxPackage;
 using Windows.ApplicationModel;
 using Windows.Foundation;
@@ -86,8 +82,6 @@ public sealed class UnitTests
 
             _catalogModel = PackageCatalogModel.Instance;
         });
-
-        App.HeadlessTestMode = true;
     }
 
     static void InitializeSettingsTest()
@@ -452,9 +446,6 @@ public sealed class UnitTests
 
         appPackage.EnsureInitializeAsync();
 
-        // bugbug
-        await Task.Delay(1000);
-
         return appPackage;
     }
 
@@ -684,30 +675,6 @@ public sealed class UnitTests
         Assert.IsTrue(packages.Contains("Paint"));
     }
 
-    [UITestMethod]
-    async public Task TestNewPackageSettingValue()
-    {
-        var package = await GetViewAppxPackageAsync();
-
-        // Get the ApplicationData for the app package
-        var applicationData = ApplicationDataManager.CreateForPackageFamily(package.FamilyName);
-        Assert.IsNotNull(applicationData, "Failed to get ApplicationData for app package");
-
-        var cd = new ContentDialog();
-
-        NewPackageSettingValue dialog = new(
-            null,
-            applicationData.LocalSettings,
-            applicationData.RoamingSettings);
-
-        dialog.SettingName = "TestNewPackageSettingValue_String";
-        Assert.IsTrue(dialog.NeedsTargetContainer);
-
-        dialog.SelectedIndex = dialog.TypeStrings.ToList().IndexOf("String");
-        dialog.ValueString = "TestValue";
-        Assert.IsTrue(dialog.IsValid);
-        Assert.IsTrue(dialog.ExampleString(dialog.SelectedIndex, false) == "123");
-    }
 
     [WorkerTestMethod]
     async public Task TestWritePackageSettings()

@@ -16,10 +16,7 @@ namespace ViewAppxPackage
             ApplicationDataContainer roamingContainer)
             : base(targetContainer, localContainer, roamingContainer)
         {
-            if (!App.HeadlessTestMode)
-            {
-                this.InitializeComponent();
-            }
+            this.InitializeComponent();
 
             TypeStrings = from type in Types
                           select type.Name;
@@ -70,7 +67,6 @@ namespace ViewAppxPackage
         };
 
         public IEnumerable<string> TypeStrings;
-
 
         public Type NewType;
         public object NewValue;
@@ -262,6 +258,5 @@ namespace ViewAppxPackage
                 return false;
             }
         }
-
     }
 }

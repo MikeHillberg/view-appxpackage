@@ -62,9 +62,6 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     [ObservableProperty]
     internal int packageCount;
 
-
-
-
     /// <summary>
     /// Initialize the catalog model
     /// </summary>

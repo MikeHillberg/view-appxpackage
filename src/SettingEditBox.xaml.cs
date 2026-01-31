@@ -162,59 +162,6 @@ public sealed partial class SettingEditBox : UserControl
     public static readonly DependencyProperty IsErrorProperty =
         DependencyProperty.Register("IsError", typeof(bool), typeof(SettingEditBox), new PropertyMetadata(false));
 
-    /// <summary>
-    /// Save the value in the TextBox back to the system if the new value is valid
-    /// </summary>
-    //bool TrySave()
-    //{
-    //    // Try to parse the new value according to the type we read in originally
-    //    if (TryParseValue(PackageSettingValue.ValueType, NewValue, out var parsedNewValue))
-    //    {
-    //        // We have a valid new value. Write it to the ApplicationDataContainer
-    //        // Wrap in try because these APIs throw a lot
-    //        try
-    //        {
-    //            // Set to the correct container
-    //            var parentContainer = PackageSettingValue.Package.GetAppDataContainerForSetting(PackageSettingValue);
-    //            parentContainer.Values[PackageSettingValue.Name] = parsedNewValue;
-
-    //            Debug.Assert(parsedNewValue is not null);
-    //            if (parsedNewValue is null)
-    //            {
-    //                return false;
-    //            }
-
-    //            //var applicationData = PackageSettingValue.Package.GetApplicationData();
-    //            //if (applicationData != null)
-    //            //{
-    //            //    applicationData.SignalDataChanged();
-    //            //}
-
-    //            // Also write it to the model
-    //            PackageSettingValue.ValueAsString = PackageSettingBase.ConvertSettingValueToString(parsedNewValue);
-
-    //            DebugLog.Append($"Saved setting `{PackageSettingValue.Name}`: {parsedNewValue}");
-    //            return true;
-    //        }
-    //        catch (Exception e)
-    //        {
-    //            DebugLog.Append(e, $"Failed to update setting: {PackageSettingValue.Name}");
-    //            return false;
-    //        }
-    //    }
-    //    else
-    //    {
-    //        if (PackageSettingValue.ValueType != typeof(ApplicationDataCompositeValue))
-    //        {
-    //            DebugLog.Append($"Couldn't parse {PackageSettingValue.Name} as {PackageSettingValue.ValueType.Name}: {NewValue}");
-    //        }
-    //    }
-
-    //    return false;
-    //}
-
-
-
     string ExampleString(Type type)
     {
         var isArray = type.IsArray;

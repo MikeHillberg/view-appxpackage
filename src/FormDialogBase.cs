@@ -39,6 +39,9 @@ public class FormDialogBase : ContentDialog
     protected ApplicationDataContainer LocalContainer { get; }
     protected ApplicationDataContainer RoamingContainer { get; }
 
+    /// <summary>
+    /// Need to pick a container (local or roaming root)
+    /// </summary>
     public bool NeedsTargetContainer;
 
     /// <summary>

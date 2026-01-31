@@ -43,7 +43,7 @@ namespace ViewAppxPackage
         /// this will post to the worker thread and raise a change notification.
         /// </summary>
         /// <param name="debug"></param>
-        public void EnsureInitializeAsync(bool debug = false)
+       public async Task EnsureInitializeAsync(bool debug = false)
         {
             if (_initialized || Initializing)
             {
@@ -59,7 +59,7 @@ namespace ViewAppxPackage
             }
 
             // Do the work on the worker thread
-            _ = MyThreading.RunOnWorkerAsync(() =>
+            await MyThreading.RunOnWorkerAsync(() =>
             {
                 // Load the entries in the <Applications> of the appx manifest
                 // Note that this is converted to a list now, otherwise below when we're iterating through

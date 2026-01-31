@@ -1,10 +1,8 @@
-namespace ViewAppxPackage;
 
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
-using Windows.System;
 
+namespace ViewAppxPackage;
 /// <summary>
 /// Dialog for creating a new setting container in the package
 /// </summary>

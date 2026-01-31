@@ -366,6 +366,8 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewSetting(PackageSettingBase referenceSetting)
     {
+        // Calculate the target container that we'll pass in to the dialog.
+        // Will be null if this is the root
         ApplicationDataContainer? initialTargetContainer = null;
         if (referenceSetting != null)
         {
@@ -380,6 +382,7 @@ public sealed partial class PackageView : UserControl
             applicationData.RoamingSettings);
 
         // bugbug: without this it crashes the native debugger, doesn't crash into the managed debugger
+        // (Not supposed to work, but should go to the correct debugger)
         newSettingDialog.XamlRoot = this.XamlRoot;
 
         var result = await newSettingDialog.ShowAsync();
