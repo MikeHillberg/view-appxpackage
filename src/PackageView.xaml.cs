@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Documents;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Windows.Management.Deployment;
 using Windows.Storage;
 using WinRT;
 
@@ -181,35 +182,9 @@ public sealed partial class PackageView : UserControl
         }
     }
 
-    /// <summary>
-    /// Get the ApplicationDataContainer parent of a PackageSetting value or container
-    /// (The ADCs aren't kept open forever)
-    /// </summary>
-    static internal ApplicationDataContainer GetAppDataContainerForPackage(PackageModel package, PackageSettingBase settingBase)
-    {
-        // A setting with no parent is at the root, return the package's ApplicationData.LocalSettings
-        if (settingBase == null || settingBase.Parent == null)
-        {
-            ApplicationData applicationData = package.GetApplicationData();
-            if (applicationData == null)
-            {
-                DebugLog.Append($"Coudln't get ApplicationData for {package.FullName}");
-            }
 
-            return applicationData?.LocalSettings;
-        }
 
-        // For a setting with a parent (setting is in a child Container),
-        // walk up the setting's parent chain then back down getting ADCs
-        else
-        {
-            var parentContainer = GetAppDataContainerForPackage(package, settingBase.Parent);
 
-            return (settingBase is PackageSettingContainer)
-                ? parentContainer.Containers[settingBase.Name]
-                : parentContainer;
-        }
-    }
 
     public bool IsLoadingSettings
     {
@@ -261,15 +236,18 @@ public sealed partial class PackageView : UserControl
             return;
         }
 
-        var parentContainer = GetAppDataContainerForPackage(this.Package, setting);
         if (setting is PackageSettingContainer)
         {
+            var parentContainer = this.Package.GetAppDataContainerForSettingParent(setting);
             parentContainer.DeleteContainer(setting.Name);
         }
         else
         {
+            var parentContainer = this.Package.GetAppDataContainerForSetting(setting);
             parentContainer.Values.Remove(setting.Name);
         }
+
+        //applicationData.SignalDataChanged();
 
         // Re-read the settings, which should now not include {name}
         ReadSettingsAsync();
@@ -289,20 +267,14 @@ public sealed partial class PackageView : UserControl
             return;
         }
 
-        "foo".Equals("bar");
-        string.Compare("foo", "bar", StringComparison.OrdinalIgnoreCase);
-
         var container = _settingsTree.ContainerFromItem(item) as TreeViewItem;
         if (container == null)
         {
             return;
         }
 
-        // bugbug: probably a better way to dig out the SettingEditBox
-        var stackPanel = container.Content as StackPanel;
-        stackPanel = stackPanel.Children[0] as StackPanel;
-        var editBox = stackPanel.Children[1] as SettingEditBox;
-        editBox.StartEditing();
+        PackageSettingView settingView = container as PackageSettingView;
+        settingView.EditBox.StartEditing();
     }
 
     /// <summary>
@@ -394,11 +366,23 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewSetting(PackageSettingBase referenceSetting)
     {
-        var targetContainer = GetAppDataContainerForPackage(this.Package, referenceSetting);
+        // Calculate the target container that we'll pass in to the dialog.
+        // Will be null if this is the root
+        ApplicationDataContainer? initialTargetContainer = null;
+        if (referenceSetting != null)
+        {
+            initialTargetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
+        }
 
-        var newSettingDialog = new NewPackageSettingValue(targetContainer);
+        ApplicationData applicationData = this.Package.GetApplicationData();
+
+        var newSettingDialog = new NewPackageSettingValue(
+            initialTargetContainer,
+            applicationData.LocalSettings,
+            applicationData.RoamingSettings);
 
         // bugbug: without this it crashes the native debugger, doesn't crash into the managed debugger
+        // (Not supposed to work, but should go to the correct debugger)
         newSettingDialog.XamlRoot = this.XamlRoot;
 
         var result = await newSettingDialog.ShowAsync();
@@ -411,8 +395,16 @@ public sealed partial class PackageView : UserControl
                 return;
             }
 
+            // Use the final target container from the dialog, not the initialTargetContainer
             var newValueString = PackageSettingBase.ConvertSettingValueToString(newSettingDialog.NewValue);
-            targetContainer.Values[newSettingDialog.SettingName] = newSettingDialog.NewValue;
+            newSettingDialog.TargetContainer.Values[newSettingDialog.SettingName] = newSettingDialog.NewValue;
+
+            //var applicationData = Package.GetApplicationData();
+            //if (applicationData != null)
+            //{
+            //    applicationData.SignalDataChanged();
+            //}
+
             ReadSettingsAsync();
         }
     }
@@ -430,9 +422,15 @@ public sealed partial class PackageView : UserControl
 
     private async Task AddNewContainer(PackageSettingBase referenceSetting)
     {
-        var targetContainer = GetAppDataContainerForPackage(this.Package, referenceSetting);
+        ApplicationDataContainer initialTargetContainer = null;
 
-        var newSettingDialog = new NewPackageSettingContainer(targetContainer);
+        if (referenceSetting != null)
+        {
+            initialTargetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);
+        }
+
+        var applicationData = this.Package.GetApplicationData();
+        var newSettingDialog = new NewPackageSettingContainer(initialTargetContainer, applicationData.LocalSettings, applicationData.RoamingSettings);
         newSettingDialog.XamlRoot = this.XamlRoot;
 
         var result = await newSettingDialog.ShowAsync();
@@ -443,7 +441,15 @@ public sealed partial class PackageView : UserControl
                 return;
             }
 
-            targetContainer.CreateContainer(newSettingDialog.ContainerName, ApplicationDataCreateDisposition.Always);
+            // Use the final target container from the dialog, not the initialTargetContainer
+            newSettingDialog.TargetContainer.CreateContainer(newSettingDialog.ContainerName, ApplicationDataCreateDisposition.Always);
+
+            //var applicationData = Package.GetApplicationData();
+            //if (applicationData != null)
+            //{
+            //    applicationData.SignalDataChanged();
+            //}
+
             ReadSettingsAsync();
         }
     }

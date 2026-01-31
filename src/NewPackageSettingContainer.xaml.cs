@@ -1,22 +1,21 @@
-namespace ViewAppxPackage;
 
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
-using Windows.System;
 
+namespace ViewAppxPackage;
 /// <summary>
 /// Dialog for creating a new setting container in the package
 /// </summary>
 public sealed partial class NewPackageSettingContainer : FormDialogBase
 {
-    public NewPackageSettingContainer(ApplicationDataContainer targetContainer)
+    public NewPackageSettingContainer(
+        ApplicationDataContainer targetContainer,
+        ApplicationDataContainer localContainer,
+        ApplicationDataContainer roamingContainer)
+        : base(targetContainer, localContainer, roamingContainer)
     {
-        _targetContainer = targetContainer;
         this.InitializeComponent();
     }
-
-    ApplicationDataContainer _targetContainer;
 
     /// <summary>
     /// Name of the new setting container
@@ -34,7 +33,7 @@ public sealed partial class NewPackageSettingContainer : FormDialogBase
     {
         // Validate the container name
         IsDuplicateName = false;
-        if (_targetContainer.Containers.ContainsKey(ContainerName))
+        if (TargetContainer.Containers.ContainsKey(ContainerName))
         {
             IsDuplicateName = true;
             IsValid = false;

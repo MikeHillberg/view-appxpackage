@@ -229,7 +229,7 @@
                                         <!-- (ItemsSource will be null in the value case) -->
                                         <!-- Tried an ItemTemplateSelector instead but couldn't get it to work, search "BugBug(d5aecdc)" -->
                                         <local:PackageSettingView 
-                                                    PackageSettingValue="{x:Bind This}"
+                                                    PackageSettingBase="{x:Bind This}"
                                                     DeleteRequested="PackageSettingView_DeleteRequested"
                                                     NewSettingValueRequested="PackageSettingView_NewRequested"
                                                     NewContainerRequested="PackageSettingView_NewContainerRequested"

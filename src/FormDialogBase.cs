@@ -2,6 +2,7 @@
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Storage;
 using Windows.System;
 
 /// <summary>
@@ -9,8 +10,23 @@ using Windows.System;
 /// </summary>
 public class FormDialogBase : ContentDialog
 {
-    protected FormDialogBase()
+    protected FormDialogBase(
+        ApplicationDataContainer targetContainer, 
+        ApplicationDataContainer localContainer, 
+        ApplicationDataContainer roamingContainer)
     {
+        TargetContainer = targetContainer;
+        LocalContainer = localContainer;
+        RoamingContainer = roamingContainer;
+
+        // This bool turns on UI to pick a container if necessary
+        // Defaults to local
+        NeedsTargetContainer = targetContainer == null;
+        if(NeedsTargetContainer)
+        {
+            TargetContainer = LocalContainer;
+        }
+
         // The dialog doesn't get key events. Wait for the subclass to construct, then hook PreviewKeyDown
         MyThreading.PostToUI(() =>
         {
@@ -18,6 +34,40 @@ public class FormDialogBase : ContentDialog
             root.PreviewKeyDown += RootKeyDown;
         });
     }
+
+    public ApplicationDataContainer TargetContainer { get; protected set; }
+    protected ApplicationDataContainer LocalContainer { get; }
+    protected ApplicationDataContainer RoamingContainer { get; }
+
+    /// <summary>
+    /// Need to pick a container (local or roaming root)
+    /// </summary>
+    public bool NeedsTargetContainer;
+
+    /// <summary>
+    /// If a root setting, indicates if LocalSettings or RemoteSettings.
+    /// </summary>
+    public bool IsRoaming
+    {
+        get { return (bool)GetValue(IsRoamingProperty); }
+        set { SetValue(IsRoamingProperty, value); }
+    }
+    public static readonly DependencyProperty IsRoamingProperty =
+        DependencyProperty.Register("IsRoaming", typeof(bool), typeof(FormDialogBase), 
+            new PropertyMetadata(false, (d,dp) => (d as FormDialogBase).IsRoamingChanged()));
+
+    void IsRoamingChanged()
+    {
+        if (IsRoaming)
+        {
+            TargetContainer = RoamingContainer;
+        }
+        else
+        {
+            TargetContainer = LocalContainer;
+        }
+    }
+
 
     /// <summary>
     /// When this is set, close the dialog when the Enter key is pressed

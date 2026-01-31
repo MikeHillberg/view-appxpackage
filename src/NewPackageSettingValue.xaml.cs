@@ -1,21 +1,21 @@
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Windows.Foundation;
 using Windows.Storage;
-using Windows.System;
 
 namespace ViewAppxPackage
 {
     public sealed partial class NewPackageSettingValue : FormDialogBase
     {
-        public NewPackageSettingValue(ApplicationDataContainer targetContainer)
+        public NewPackageSettingValue(
+            ApplicationDataContainer targetContainer,
+            ApplicationDataContainer localContainer,
+            ApplicationDataContainer roamingContainer)
+            : base(targetContainer, localContainer, roamingContainer)
         {
-            _targetContainer = targetContainer;
-
             this.InitializeComponent();
 
             TypeStrings = from type in Types
@@ -25,8 +25,6 @@ namespace ViewAppxPackage
             // Don't submit (save) on pressing just the Enter key
             this.SubmitOnEnter = false;
         }
-
-        ApplicationDataContainer _targetContainer;
 
         public string ValueString
         {
@@ -68,8 +66,7 @@ namespace ViewAppxPackage
             typeof(string),
         };
 
-        IEnumerable<string> TypeStrings;
-
+        public IEnumerable<string> TypeStrings;
 
         public Type NewType;
         public object NewValue;
@@ -98,13 +95,13 @@ namespace ViewAppxPackage
             {
                 type = type.MakeArrayType();
             }
-            return SettingEditBox.TryParseValue(Types[this.SelectedIndex], ValueString, out parsedValue);
+            return PackageSettingValue.TryParseValue(Types[this.SelectedIndex], ValueString, out parsedValue);
         }
 
         /// <summary>
         /// Produce a example string for the currently-selected type
         /// </summary>
-        string ExampleString(int selectedIndex, bool isArray)
+        public string ExampleString(int selectedIndex, bool isArray)
         {
             var type = Types[selectedIndex];
             return ExampleString(type, isArray);
@@ -227,7 +224,7 @@ namespace ViewAppxPackage
                     return false;
                 }
 
-                if (_targetContainer.Values.ContainsKey(this.SettingName))
+                if (TargetContainer.Values.ContainsKey(this.SettingName))
                 {
                     IsDuplicateName = true;
                 }
@@ -261,6 +258,5 @@ namespace ViewAppxPackage
                 return false;
             }
         }
-
     }
 }

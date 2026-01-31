@@ -43,7 +43,7 @@ namespace ViewAppxPackage
         /// this will post to the worker thread and raise a change notification.
         /// </summary>
         /// <param name="debug"></param>
-        public void EnsureInitializeAsync(bool debug = false)
+       public async Task EnsureInitializeAsync(bool debug = false)
         {
             if (_initialized || Initializing)
             {
@@ -59,7 +59,7 @@ namespace ViewAppxPackage
             }
 
             // Do the work on the worker thread
-            _ = MyThreading.RunOnWorkerAsync(() =>
+            await MyThreading.RunOnWorkerAsync(() =>
             {
                 // Load the entries in the <Applications> of the appx manifest
                 // Note that this is converted to a list now, otherwise below when we're iterating through
@@ -602,8 +602,8 @@ namespace ViewAppxPackage
                 string[] _ignore = { nameof(Dependencies), nameof(IsNew), nameof(IsNewCleared), nameof(Size), nameof(IsNameLoaded), nameof(IsFullNameLoaded) };
 
                 PackageModelPropertyInfos = (from property in typeof(PackageModel).GetProperties()
-                                              where !_ignore.Contains(property.Name)
-                                              select property).ToList();
+                                             where !_ignore.Contains(property.Name)
+                                             select property).ToList();
             }
         }
 
@@ -1227,9 +1227,10 @@ namespace ViewAppxPackage
 
 
                 // Get all the settings and parent to the root node
-                var settings = GetSettings(applicationData.LocalSettings, null);
+                var localSettings = GetSettings(applicationData.LocalSettings, null);
+                var roamingSettings = GetSettings(applicationData.RoamingSettings, null);
 
-                return settings;
+                return localSettings.Union(roamingSettings).OrderBy(s => s.Name).ToList();
             }
             catch (Exception e)
             {
@@ -1253,6 +1254,73 @@ namespace ViewAppxPackage
             return applicationData;
         }
 
+
+        /// <summary>
+        /// Get the ApplicationDataContainer of a PackageSetting value or container
+        /// (The ADCs aren't kept open forever)
+        /// </summary>
+        /// 
+        public ApplicationDataContainer GetAppDataContainerForSetting(
+                    PackageSettingBase settingBase)
+        {
+            return this.GetAppDataContainerForSetting(
+                    settingBase,
+                    settingBase.IsRoaming);
+        }
+
+        /// <summary>
+        /// Get the ApplicationDataContainer _parent_ of a PackageSetting value or container
+        /// Get the ApplicationDataContainer of a PackageSetting value or container
+        /// (The ADCs aren't kept open forever)
+        /// </summary>
+        /// 
+        public ApplicationDataContainer GetAppDataContainerForSettingParent(
+            PackageSettingBase settingBase)
+        {
+            return this.GetAppDataContainerForSetting(
+                    settingBase.Parent,
+                    settingBase.IsRoaming);
+        }
+
+
+        /// <summary>
+        /// Internal implementation of public GetAppDataContainerForSetting that
+        /// takes in the isRoaming parameter. You can get this from the PackageSettingBase,
+        /// but in the recursion that ends up being null
+        /// </summary>
+        private ApplicationDataContainer GetAppDataContainerForSetting(
+            PackageSettingBase settingBase,
+            bool isRoaming)
+        {
+            // A setting with no parent is at the root, return the package's ApplicationData Local or Roaming Settings
+            if (settingBase == null)
+            {
+                ApplicationData applicationData = this.GetApplicationData();
+                if (applicationData == null)
+                {
+                    DebugLog.Append($"Coudln't get ApplicationData for {this.FullName}");
+                    return null;
+                }
+
+                if (isRoaming)
+                {
+                    return applicationData.RoamingSettings;
+                }
+                return applicationData.LocalSettings;
+            }
+
+            // For a setting with a parent (setting is in a child Container),
+            // walk up the setting's parent chain then back down getting ADCs
+            else
+            {
+                var parentAppDataContainer = GetAppDataContainerForSetting(settingBase.Parent, settingBase.IsRoaming);
+
+                return (settingBase is PackageSettingContainer)
+                    ? parentAppDataContainer.Containers[settingBase.Name]
+                    : parentAppDataContainer;
+            }
+        }
+
         private IList<PackageSettingBase> GetSettings(
             ApplicationDataContainer container,
             PackageSettingBase parent)
@@ -1260,7 +1328,7 @@ namespace ViewAppxPackage
             List<PackageSettingBase> childContainerSettings = new();
             foreach (var childContainer in container.Containers)
             {
-                var settingContainer = new PackageSettingContainer()
+                var settingContainer = new PackageSettingContainer(container.Locality == ApplicationDataLocality.Roaming)
                 {
                     Name = childContainer.Key,
                     Parent = parent
@@ -1274,7 +1342,7 @@ namespace ViewAppxPackage
             {
                 var valueString = PackageSettingBase.ConvertSettingValueToString(settingValue.Value);
                 var valueType = settingValue.Value.GetType();
-                if (!SettingEditBox.TryParseValue(valueType, valueString, out var parsedValue)
+                if (!PackageSettingValue.TryParseValue(valueType, valueString, out var parsedValue)
                     || PackageSettingBase.ConvertSettingValueToString(parsedValue) != valueString)
                 {
                     if (valueType != typeof(ApplicationDataCompositeValue))
@@ -1287,7 +1355,7 @@ namespace ViewAppxPackage
 
             var containerSettings = from value in container.Values
                                     orderby value.Key
-                                    select new PackageSettingValue()
+                                    select new PackageSettingValue(container.Locality == ApplicationDataLocality.Roaming)
                                     {
                                         Name = value.Key,
                                         ValueAsString = PackageSettingBase.ConvertSettingValueToString(value.Value),
