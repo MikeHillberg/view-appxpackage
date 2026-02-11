@@ -5,9 +5,10 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap uap3 uap5 rescap">
 
 	<Identity
 	  Name="2775CoffeeZeit.28328C7222DA6"
@@ -53,6 +54,20 @@
 						<desktop:ExecutionAlias Alias="view-msixpackage.exe" />
 					</uap3:AppExecutionAlias>
 				</uap3:Extension>
+				
+				<!-- App Service for App Actions -->
+				<uap:Extension Category="windows.appService" EntryPoint="ViewAppxPackage.App">
+					<uap:AppService Name="ViewAppxPackageAppActions" />
+				</uap:Extension>
+				
+				<!-- App Actions -->
+				<uap5:Extension Category="windows.appActions">
+					<uap5:AppActions>
+						<uap5:AppAction Id="ListPackageFamilyNames" DisplayName="List Package Family Names" Description="Lists all MSIX/AppX package family names on the system" />
+						<uap5:AppAction Id="GetPackageProperties" DisplayName="Get Package Properties" Description="Retrieves detailed properties for a specific MSIX/AppX package" />
+						<uap5:AppAction Id="FindPackagesContainingProperty" DisplayName="Find Packages by Property" Description="Searches MSIX/AppX packages containing specific property values" />
+					</uap5:AppActions>
+				</uap5:Extension>
 			</Extensions>
 
 		</Application>
