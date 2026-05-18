@@ -33,7 +33,7 @@ namespace ViewAppxPackage
 
         // We're in the Initializing state until all of the Package has been read
         // Preinitializing is while we're loading the first few properties for the initial UI
-        public bool Initializing { get; private set; } = false;
+        internal bool Initializing { get; private set; } = false;
         bool _initialized = false;
         bool _preloaded = false;
 
@@ -116,7 +116,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Members of the Applications element in the appx manifest (or null if none)
         /// </summary>
-        public IList<AppListEntryModel> AppEntries { get; private set; }
+        internal IList<AppListEntryModel> AppEntries { get; private set; }
 
         /// <summary>
         /// Ensure the preload properties are loaded.
@@ -238,9 +238,9 @@ namespace ViewAppxPackage
         /// <summary>
         /// Indicates if this was installed after the last refresh
         /// </summary>
-        public bool IsNew => !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
+        internal bool IsNew => !IsNewCleared && (InstalledDate > LastInstalledDateOnRefresh);
 
-        public bool IsNewCleared
+        internal bool IsNewCleared
         {
             get => _isNewCleared;
             set
@@ -257,7 +257,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// UI helper to make text of new packages bold
         /// </summary>
-        public FontWeight BoldIfNew => IsNew ? FontWeights.Bold : FontWeights.Normal;
+        internal FontWeight BoldIfNew => IsNew ? FontWeights.Bold : FontWeights.Normal;
 
         public override string ToString()
         {
@@ -287,7 +287,7 @@ namespace ViewAppxPackage
             return model;
         }
 
-        public bool CanOpenStore => _package.SignatureKind == PackageSignatureKind.Store;
+        internal bool CanOpenStore => _package.SignatureKind == PackageSignatureKind.Store;
 
         /// <summary>
         /// URI of the AppInstaller (if present). If this exists, the
@@ -307,7 +307,7 @@ namespace ViewAppxPackage
         /// <summary>
         /// Helper property that's set if AppInstallerUri is set
         /// </summary>
-        public bool HasAppInstaller => AppInstallerUri != null;
+        internal bool HasAppInstaller => AppInstallerUri != null;
 
         /// <summary>
         /// Fixes a bug in the Windows API where the Version is all zeros.
@@ -365,8 +365,8 @@ namespace ViewAppxPackage
             return wamPackage.Id.FullName;
         }
 
-        public bool IsFullNameLoaded => _fullName.Initialized;
-        public bool IsNameLoaded => _name.Initialized;
+        internal bool IsFullNameLoaded => _fullName.Initialized;
+        internal bool IsNameLoaded => _name.Initialized;
 
 
         PackageModel(Package package)
@@ -642,6 +642,11 @@ namespace ViewAppxPackage
             foreach (var p in PackageModelPropertyInfos)
             {
                 if (p.PropertyType != typeof(bool))
+                {
+                    continue;
+                }
+
+                if(p.GetGetMethod()?.IsPublic != true)
                 {
                     continue;
                 }
@@ -1179,6 +1184,19 @@ namespace ViewAppxPackage
                 return model._package.DisplayName;
             }
         });
+
+        string _volumeName = null;
+        public string VolumeName
+        {
+            get
+            {
+                if (_volumeName == null && PackageVolumeHelper.IsCacheReady)
+                {
+                    _volumeName = PackageVolumeHelper.FindVolumeNameForPackage(this._package.Id.FamilyName);
+                }
+                return _volumeName;
+            }
+        }
 
         public Uri Logo => _logo.Value(this);
         PackageProperty<Uri> _logo = new(model =>

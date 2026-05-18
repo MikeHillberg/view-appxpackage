@@ -45,24 +45,6 @@
 
                     <AppBarSeparator/>
 
-                    <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
-                    <AppBarButton x:Name="_launchButton" 
-                                  Icon="Play" Label="Launch"
-                                  IsEnabled="{x:Bind CanLaunch(CatalogModel.CurrentItem)}"
-                                  Click="LaunchPackage2">
-                    </AppBarButton>
-
-                    <AppBarButton Click="{x:Bind OpenStore}" Icon="Shop" 
-                          Label="Open in Store" 
-                          IsEnabled="{x:Bind CanOpenStore(IsMultiSelect)}"/>
-
-                    <AppBarButton Click="{x:Bind OpenManifest}" Icon="Document" Label="Manifest"
-                          IsEnabled="{x:Bind CanOpenManifest(IsMultiSelect)}"/>
-
-                    <AppBarSeparator/>
-
-                    <AppBarButton Click="RemovePackage" Icon="Delete" Label="Remove" />
-
                     <AppBarButton Click="AddPackage" Icon="Add" Label="Add"
                                   ToolTipService.ToolTip="Add a package (must be signed with a trusted certificate)"/>
 
@@ -88,24 +70,6 @@
                                         Click="{x:Bind ToggleAllUsers}"
                                     ToolTipService.ToolTip="Enable/disable All Users. When disabled, only current user packages are shown. Requires this app to be run elevated."/>
 
-                    <AppBarButton Label="Verify" 
-                                  Icon="Accept" 
-                                  Click="VerifyPackage"
-                                  ToolTipService.ToolTip="Verify that the contents of the package have not been modified" />
-
-                    <AppBarButton Label="PowerShell" Click="RunPowershellAsPackage"
-                                  IsEnabled="{x:Bind CanLaunch(CatalogModel.CurrentItem)}" >
-                        <AppBarButton.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
-                        </AppBarButton.Icon>
-
-                        <ToolTipService.ToolTip>
-                            <local:ComplexToolTip
-                                Title="Run PowerShell as package"
-                                Subtitle="This opens a new PowerShell window that's running with package identity. See help for more info." />
-                        </ToolTipService.ToolTip>
-                    </AppBarButton>
-
                     <!--<AppBarButton Label="Test" Click="AppBarButton_Click"/>-->
                 </CommandBar>
 
@@ -114,7 +78,7 @@
 
                     <!-- Search and Find text boxes-->
                     <!-- Limited to that they don't get wider than the ListView -->
-                    <StackPanel MaxWidth="{x:Bind MaxListWidth, Mode=OneWay}">
+                    <StackPanel MaxWidth="{x:Bind MaxListWidth, Mode=OneWay}" Margin="8,0,0,0" Spacing="1">
                         <TextBox x:Name="_searchBox"
                              Text="{x:Bind CatalogModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              IsSpellCheckEnabled="False"
@@ -128,6 +92,33 @@
                              IsSpellCheckEnabled="False"
                              HorizontalAlignment="Stretch"
                              PlaceholderText="{x:Bind FilterPlaceholderText}" />
+
+                        <Expander Header="Advanced filters" IsExpanded="False" HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch" Margin="0,4,0,0">
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto"
+                                  ColumnSpacing="8" RowSpacing="4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Package type" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                          ItemsSource="{x:Bind local:PackageCatalogModel.PackageTypeFilterOptions}"
+                                          SelectedItem="{x:Bind CatalogModel.PackageTypeFilter, Mode=TwoWay}"
+                                          ToolTipService.ToolTip="Filter by package type" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Volume" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                          ItemsSource="{x:Bind CatalogModel.VolumeFilterOptions}"
+                                          SelectedItem="{x:Bind CatalogModel.VolumeFilter, Mode=TwoWay}"
+                                          IsEnabled="{x:Bind CatalogModel.IsVolumeFilterEnabled}"
+                                          ToolTipService.ToolTip="Filter by package volume" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="User" VerticalAlignment="Center"
+                                           Visibility="{x:Bind local:Utils.IsVisibleIf(IsAllUsers)}" />
+                                <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch"
+                                         Text="{x:Bind CatalogModel.UserFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         IsSpellCheckEnabled="False"
+                                         PlaceholderText="Filter by user name"
+                                         Visibility="{x:Bind local:Utils.IsVisibleIf(IsAllUsers)}" />
+                            </Grid>
+                        </Expander>
                     </StackPanel>
 
                     <!-- Message showing the package count, next to a sort button -->

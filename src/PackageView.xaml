@@ -8,13 +8,51 @@
     >
 
     <Grid x:Name="_root"
-          RowDefinitions="Auto, Auto, *"
+          RowDefinitions="Auto, Auto, Auto, *"
           Background="{ThemeResource SystemControlBackgroundAltHighBrush}"
           Padding="20"
           Visibility="{x:Bind NotEmpty(Package)}">
 
+        <!-- Command bar for package actions -->
+        <CommandBar x:Name="_detailCommandBar"
+                    Grid.Row="0"
+                    HorizontalAlignment="Left"
+                    DefaultLabelPosition="Right">
+
+            <!-- This might do a launch (single aumid case) or show a menu (multi aumid case) -->
+            <AppBarButton x:Name="_launchButton" 
+                          Icon="Play" Label="Launch"
+                          IsEnabled="{x:Bind CanLaunch(Package)}"
+                          Click="LaunchPackage">
+            </AppBarButton>
+
+            <AppBarButton Click="{x:Bind OpenStore}" Icon="Shop" 
+                  Label="Open in Store" 
+                  IsEnabled="{x:Bind CanOpenStore(Package)}"/>
+
+            <AppBarButton Click="{x:Bind OpenManifest}" Icon="Document" Label="Manifest"
+                  IsEnabled="{x:Bind CanOpenManifest(Package)}"/>
+
+            <AppBarSeparator/>
+
+            <AppBarButton Click="RemovePackage" Icon="Delete" Label="Remove" />
+
+            <AppBarButton Label="PowerShell" Click="RunPowershellAsPackage"
+                          IsEnabled="{x:Bind CanLaunch(Package)}" >
+                <AppBarButton.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xe756;"/>
+                </AppBarButton.Icon>
+
+                <ToolTipService.ToolTip>
+                    <local:ComplexToolTip
+                        Title="Run PowerShell as package"
+                        Subtitle="This opens a new PowerShell window that's running with package identity. See help for more info." />
+                </ToolTipService.ToolTip>
+            </AppBarButton>
+        </CommandBar>
+
         <!-- Title area with logo and display name -->
-        <Grid Grid.Row="0"
+        <Grid Grid.Row="1"
             ColumnDefinitions="75,*" ColumnSpacing="22" HorizontalAlignment="Stretch" Height="75" >
 
             <Image Grid.Column="0" 
@@ -25,24 +63,42 @@
                 </Image.Source>
             </Image>
 
-            <TextBlock Grid.Column="1"
-                           Text="{x:Bind Package.DisplayName}"
-                           VerticalAlignment="Center"
-                           Style="{StaticResource SubheaderTextBlockStyle}"
-                           TextWrapping="Wrap"
-                           TextTrimming="CharacterEllipsis"
-                           IsTextSelectionEnabled="True"
-                           Margin="0,0,0,10" />
+            <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" VerticalAlignment="Center" HorizontalAlignment="Left" ColumnSpacing="12" Margin="0,0,0,10">
+                <TextBlock x:Name="_displayNameText" Grid.Column="0" 
+                               Text="{x:Bind Package.DisplayName}"
+                               Style="{StaticResource SubheaderTextBlockStyle}"
+                               TextWrapping="NoWrap"
+                               TextTrimming="CharacterEllipsis"
+                               IsTextSelectionEnabled="True" />
+
+                <!-- Progress ring while verifying -->
+                <ProgressRing Grid.Column="1"
+                              IsActive="True"
+                              Width="20" Height="20"
+                              VerticalAlignment="Center"
+                              Visibility="{x:Bind VerifyProgressVisibility}"
+                              ToolTipService.ToolTip="Verifying package content integrity…" />
+
+                <!-- Verify result icon: green checkmark or red X -->
+                <FontIcon x:Name="_verifyIcon"
+                          Grid.Column="2"
+                          VerticalAlignment="Center"
+                          FontSize="{x:Bind _displayNameText.FontSize}"
+                          Glyph="{x:Bind VerifyGlyph}"
+                          Foreground="{x:Bind VerifyBrush}"
+                          Visibility="{x:Bind VerifyIconVisibility}"
+                          ToolTipService.ToolTip="{x:Bind VerifyTooltip}" />
+            </Grid>
         </Grid>
 
-        <TextBlock Grid.Row="1"
+        <TextBlock Grid.Row="2"
             Text="{x:Bind Package.Description}" Margin="0,0,0,10"
                        Style="{StaticResource BaseTextBlockStyle}"
                        IsTextSelectionEnabled="True"
                        TextWrapping="Wrap"
                        local:CollapseIfEmpty.IsEnabled="True" />
 
-        <TabView Grid.Row="2" IsAddTabButtonVisible="False" 
+        <TabView Grid.Row="3" IsAddTabButtonVisible="False" 
                  CanDragTabs="False" CanReorderTabs="False">
 
             <!-- Properties tab -->
@@ -70,6 +126,7 @@
                             <local:PackageViewRow Label="Application Data" LinkValue="{x:Bind Package.ApplicationDataPath}"/>
                             <local:PackageViewRow Label='Effective External Path' LinkValue='{x:Bind Package.EffectiveExternalPath}'/>
                             <local:PackageViewRow Label='Effective Path' LinkValue='{x:Bind Package.EffectivePath}'/>
+                            <local:PackageViewRow Label="Volume" Value="{x:Bind Package.VolumeName}"/>
                             <local:PackageViewRow Label='Machine External Path' LinkValue='{x:Bind Package.MachineExternalPath}'/>
                             <local:PackageViewRow Label='Mutable Path' LinkValue='{x:Bind Package.MutablePath}'/>
                             <local:PackageViewRow Label='User External Path' LinkValue='{x:Bind Package.UserExternalPath}'/>

@@ -1,6 +1,8 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -38,11 +40,119 @@ public sealed partial class PackageView : UserControl
         _root.Visibility = Package == null ? Visibility.Collapsed : Visibility.Visible;
 
         ReadSettingsAsync();
+        RunAutoVerifyAsync();
+    }
+
+    // Verify state
+    string _verifyGlyph = "";
+    Brush _verifyBrush = null;
+    Visibility _verifyIconVisibility = Visibility.Collapsed;
+    Visibility _verifyProgressVisibility = Visibility.Collapsed;
+    string _verifyTooltip = "";
+
+    public string VerifyGlyph => _verifyGlyph;
+    public Brush VerifyBrush => _verifyBrush;
+    public Visibility VerifyIconVisibility => _verifyIconVisibility;
+    public Visibility VerifyProgressVisibility => _verifyProgressVisibility;
+    public string VerifyTooltip => _verifyTooltip;
+
+    async void RunAutoVerifyAsync()
+    {
+        // Show progress ring, hide result icon
+        _verifyIconVisibility = Visibility.Collapsed;
+        _verifyProgressVisibility = Visibility.Visible;
+        UpdateVerifyBindings();
+
+        var package = Package;
+        if (package == null)
+        {
+            _verifyProgressVisibility = Visibility.Collapsed;
+            UpdateVerifyBindings();
+            return;
+        }
+
+        bool verified;
+        try
+        {
+            verified = await package.VerifyAsync();
+        }
+        catch
+        {
+            verified = false;
+        }
+
+        // Check that the package hasn't changed while we were verifying
+        if (Package != package)
+            return;
+
+        if (verified)
+        {
+            _verifyGlyph = "\uE73E"; // Checkmark
+            _verifyBrush = new SolidColorBrush(Colors.Green);
+            _verifyTooltip = $"{package.Name} has not been modified";
+        }
+        else
+        {
+            _verifyGlyph = "\uE711"; // X / Cancel
+            _verifyBrush = new SolidColorBrush(Colors.Red);
+            _verifyTooltip = $"{package.Name} has been modified";
+        }
+
+        _verifyProgressVisibility = Visibility.Collapsed;
+        _verifyIconVisibility = Visibility.Visible;
+        UpdateVerifyBindings();
+    }
+
+    void UpdateVerifyBindings()
+    {
+        Bindings.Update();
     }
 
     Visibility NotEmpty(PackageModel package)
     {
         return package == null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    bool CanLaunch(PackageModel package)
+    {
+        if (package == null)
+            return false;
+        return package.AppEntries != null && package.AppEntries.Count != 0;
+    }
+
+    bool CanOpenStore(PackageModel package)
+    {
+        return package != null && package.CanOpenStore;
+    }
+
+    bool CanOpenManifest(PackageModel package)
+    {
+        return package != null;
+    }
+
+    private void OpenStore()
+    {
+        MainWindow.Instance.OpenStore();
+    }
+
+    private void OpenManifest()
+    {
+        MainWindow.Instance.OpenManifest();
+    }
+
+    private void LaunchPackage(object sender, RoutedEventArgs e)
+    {
+        MainWindow.Instance.LaunchPackage(_launchButton);
+    }
+
+    private void RemovePackage(object sender, RoutedEventArgs e)
+    {
+        MainWindow.Instance.RemovePackage();
+    }
+
+    private void RunPowershellAsPackage(object sender, RoutedEventArgs e)
+    {
+        MainWindow.Instance.RunPowershellAsPackage();
     }
 
     /// <summary>

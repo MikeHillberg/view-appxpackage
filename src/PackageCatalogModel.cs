@@ -25,6 +25,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     Queue<PackageModel> _packagesToLoad;
     string _filter;
     string _searchText;
+    string _packageTypeFilter = "All";
     bool _preloadFullName = false;
     PackageModel _currentItem;
     bool _sortByName = false;
@@ -71,6 +72,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     {
         _useSettings = useSettings;
         _preloadFullName = preloadFullName;
+        _isFullyLoaded = false;
 
         IEnumerable<Package> wamPackages = null;
 
@@ -105,6 +107,12 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         // This is the baseline list, filter and search will produce this.Packages
         _originalPackages.Value = new(packages);
 
+        LoadVolumeFilterOptions();
+
+        // Start building the volume name cache on a background thread.
+        // VolumeName on PackageModel will return null until this completes.
+        PackageVolumeHelper.CacheReady += OnVolumeCacheReady;
+
         var initialSort = SortPackages(_originalPackages.Value);
 
         foreach (var p in _originalPackages.Value)
@@ -121,6 +129,8 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
             //    _ = p.FullName;
             //}
         }
+
+        PackageVolumeHelper.StartBuildingCache();
 
         // We're not fully loaded yet, but we're loaded _just_ enough to start showing the UI
         MyThreading.PostToUI(() =>
@@ -193,10 +203,128 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     {
         _searchText = null;
         _filter = null;
+        _packageTypeFilter = "All";
+        _userFilter = null;
+        _volumeFilter = "All";
 
         RaisePropertyChanged(nameof(Filter));
         RaisePropertyChanged(nameof(SearchText));
+        RaisePropertyChanged(nameof(PackageTypeFilter));
+        RaisePropertyChanged(nameof(UserFilter));
+        RaisePropertyChanged(nameof(VolumeFilter));
         FilterAndSearchPackages();
+    }
+
+    /// <summary>
+    /// Package type filter (None, Main, Framework, Resource, Bundle, Xap, Optional, All)
+    /// </summary>
+    internal string PackageTypeFilter
+    {
+        get { return _packageTypeFilter; }
+        set
+        {
+            if (_packageTypeFilter == value)
+                return;
+            _packageTypeFilter = value;
+            RaisePropertyChanged();
+            FilterAndSearchPackages();
+        }
+    }
+
+    internal static string[] PackageTypeFilterOptions { get; } =
+        ["All", "Main", "Framework", "Resource", "Bundle", "Optional", "Xap", "None"];
+
+    /// <summary>
+    /// User name filter for All Users mode (case-insensitive contains match on PackageUserInformation)
+    /// </summary>
+    internal string UserFilter
+    {
+        get { return _userFilter; }
+        set
+        {
+            _userFilter = value;
+            RaisePropertyChanged();
+            FilterAndSearchPackages();
+        }
+    }
+    string _userFilter;
+
+    /// <summary>
+    /// Volume name filter
+    /// </summary>
+    internal string VolumeFilter
+    {
+        get { return _volumeFilter; }
+        set
+        {
+            if (_volumeFilter == value)
+                return;
+            _volumeFilter = value;
+            RaisePropertyChanged();
+            FilterAndSearchPackages();
+        }
+    }
+    string _volumeFilter = "All";
+
+    /// <summary>
+    /// Whether the volume filter ComboBox should be enabled.
+    /// Requires both the volume cache and full package initialization to be complete.
+    /// </summary>
+    internal bool IsVolumeFilterEnabled => PackageVolumeHelper.IsCacheReady && _isFullyLoaded;
+    bool _isFullyLoaded = false;
+
+    /// <summary>
+    /// Called on the UI thread when the volume cache finishes building.
+    /// Raises PropertyChanged on all PackageModel objects so VolumeName updates,
+    /// and enables the volume filter.
+    /// </summary>
+    void OnVolumeCacheReady()
+    {
+        PackageVolumeHelper.CacheReady -= OnVolumeCacheReady;
+
+        // Re-evaluate volume filter enabled state
+        RaisePropertyChanged(nameof(IsVolumeFilterEnabled));
+
+        // Notify all package models so VolumeName bindings update
+        if (_originalPackages.Value != null)
+        {
+            foreach (var p in _originalPackages.Value)
+            {
+                p.RaisePropertyChangedOnUIThread(nameof(PackageModel.VolumeName));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Available volume names for the filter ComboBox, with "All" prepended
+    /// </summary>
+    internal ObservableCollection<string> VolumeFilterOptions { get; } = new() { "All" };
+
+    // Cache volume objects by name for use during filtering
+    Dictionary<string, PackageVolume> _volumesByName = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Populate VolumeFilterOptions from the system's package volumes
+    /// </summary>
+    void LoadVolumeFilterOptions()
+    {
+        try
+        {
+            var volumes = PackageManager.FindPackageVolumes();
+            foreach (var volume in volumes)
+            {
+                var name = volume.Name;
+                if (!string.IsNullOrEmpty(name) && !VolumeFilterOptions.Contains(name))
+                {
+                    VolumeFilterOptions.Add(name);
+                    _volumesByName[name] = volume;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            DebugLog.Append($"Exception loading volume filter options: {e.Message}");
+        }
     }
 
     public ObservableCollection<PackageModel> Packages
@@ -273,7 +401,12 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
             DebugLog.Append("Finished loading");
 
             //MyThreading.PostToUI(() => IsSearchEnabled = true);
-            MyThreading.PostToUI(() => FullyLoaded?.Invoke(this,EventArgs.Empty));
+            MyThreading.PostToUI(() =>
+            {
+                _isFullyLoaded = true;
+                RaisePropertyChanged(nameof(IsVolumeFilterEnabled));
+                FullyLoaded?.Invoke(this, EventArgs.Empty);
+            });
 
             return;
         }
@@ -526,7 +659,57 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
             packages = PackageModel.FindPackages(_searchText, packages);
         }
 
+        // Apply package type filter
+        if (!string.IsNullOrEmpty(_packageTypeFilter) && _packageTypeFilter != "All")
+        {
+            packages = packages.Where(p => MatchesPackageType(p, _packageTypeFilter));
+        }
+
+        // Apply user filter
+        if (!string.IsNullOrEmpty(_userFilter))
+        {
+            var userFilterText = _userFilter.Trim();
+            packages = packages.Where(p =>
+                p.PackageUserInformation != null
+                && p.PackageUserInformation.Contains(userFilterText, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Apply volume filter
+        if (!string.IsNullOrEmpty(_volumeFilter) && _volumeFilter != "All"
+            && _volumesByName.TryGetValue(_volumeFilter, out var volume))
+        {
+            // Build a set of family names on this volume
+            try
+            {
+                var familyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var pkg in PackageVolumeHelper.FindPackagesOnVolume(volume))
+                {
+                    familyNames.Add(pkg.Id.FamilyName);
+                }
+                packages = packages.Where(p => familyNames.Contains(p.FamilyName));
+            }
+            catch (Exception e)
+            {
+                DebugLog.Append($"Exception filtering by volume {_volumeFilter}: {e.Message}");
+            }
+        }
+
         Packages = SortPackages(packages);
+    }
+
+    static bool MatchesPackageType(PackageModel p, string typeFilter)
+    {
+        return typeFilter switch
+        {
+            "Main" => !p.IsFramework && !p.IsResourcePackage && !p.IsBundle && !p.IsOptional,
+            "Framework" => p.IsFramework,
+            "Resource" => p.IsResourcePackage,
+            "Bundle" => p.IsBundle,
+            "Optional" => p.IsOptional,
+            "Xap" => p.SignatureKind == Windows.ApplicationModel.PackageSignatureKind.None && !p.IsFramework && !p.IsResourcePackage && !p.IsBundle && !p.IsOptional,
+            "None" => false,
+            _ => true,
+        };
     }
 
     void RemoveFromCache(PackageModel package, bool anyVersion = false)

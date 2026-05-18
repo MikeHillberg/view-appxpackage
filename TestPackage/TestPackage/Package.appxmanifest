@@ -8,7 +8,7 @@
 
   <Identity
     Name="a60d2c46-59cf-4c4f-87b5-a39bf0be42c9"
-    Publisher="CN=MikeHillberg"
+    Publisher="CN=TestPackageDev"
     Version="1.0.1.0" />
 
   <Properties>

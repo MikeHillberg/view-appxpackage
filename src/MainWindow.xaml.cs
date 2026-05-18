@@ -330,22 +330,23 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// <summary>
     /// Open the Store to this package
     /// </summary>
-    private void OpenStore()
+    internal void OpenStore()
     {
-        if (!CanOpenStore(IsMultiSelect))
+        if (CatalogModel.CurrentItem == null || !CatalogModel.CurrentItem.CanOpenStore)
         {
-            Debug.Assert(false);
             return;
         }
 
         _ = Windows.System.Launcher.LaunchUriAsync(new System.Uri($"ms-windows-store://pdp/?PFN={CatalogModel.CurrentItem.FamilyName}"));
     }
 
-    private void OpenManifest()
+    internal void OpenManifest()
     {
-        Debug.Assert(CanOpenManifest(IsMultiSelect));
+        var currentItem = CatalogModel.CurrentItem;
+        if (currentItem == null)
+            return;
 
-        var path = CatalogModel.CurrentItem.InstalledPath;
+        var path = currentItem.InstalledPath;
 
         // bugbug: use https://learn.microsoft.com/windows/win32/api/appxpackaging/nf-appxpackaging-iappxpackagereader-getmanifest
         path = Path.Combine(path, "AppxManifest.xml");
@@ -498,10 +499,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     async private void RemovePackage(object sender, RoutedEventArgs e)
     {
-        var package = _lv.SelectedItem as PackageModel;
+        RemovePackage();
+    }
+
+    /// <summary>
+    /// Remove an appx package (callable from PackageView)
+    /// </summary>
+    internal async void RemovePackage()
+    {
+        var package = CatalogModel.CurrentItem;
         if (package == null)
         {
-            Debug.Assert(false);
             return;
         }
 
@@ -528,10 +536,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     async private void VerifyPackage(object sender, RoutedEventArgs e)
     {
-        var package = _lv.SelectedItem as PackageModel;
+        VerifyPackage();
+    }
+
+    /// <summary>
+    /// Call package VerifyContentIntegrity (callable from PackageView)
+    /// </summary>
+    internal async void VerifyPackage()
+    {
+        var package = CatalogModel.CurrentItem;
         if (package == null)
         {
-            Debug.Assert(false);
             return;
         }
 
@@ -649,10 +664,17 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void LaunchPackage2(object sender, RoutedEventArgs e)
     {
-        var package = _lv.SelectedItem as PackageModel;
+        LaunchPackage(sender as FrameworkElement);
+    }
+
+    /// <summary>
+    /// Launch an app from its package (callable from PackageView)
+    /// </summary>
+    internal void LaunchPackage(FrameworkElement flyoutTarget)
+    {
+        var package = CatalogModel.CurrentItem;
         if (package == null)
         {
-            Debug.Assert(false);
             return;
         }
 
@@ -687,8 +709,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
                 item.Click += (s, e) => app.Launch();
                 flyout.Items.Add(item);
             }
-            _launchButton.Flyout = flyout;
-            flyout.ShowAt(_launchButton);
+            flyout.ShowAt(flyoutTarget);
         }
     }
 
@@ -981,6 +1002,14 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
     /// Run Powershell with package identity on the process
     /// </summary>
     private void RunPowershellAsPackage(object sender, RoutedEventArgs e)
+    {
+        RunPowershellAsPackage();
+    }
+
+    /// <summary>
+    /// Run Powershell with package identity on the process (callable from PackageView)
+    /// </summary>
+    internal void RunPowershellAsPackage()
     {
         if (!CanLaunch(CatalogModel.CurrentItem))
         {
