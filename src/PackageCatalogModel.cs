@@ -388,7 +388,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         else if (_packagesToLoad != null)
         {
             package = _packagesToLoad.Dequeue();
-            package.EnsureInitializeAsync();
+            _ = package.EnsureInitializeAsync();
 
             if (_packagesToLoad.Count == 0)
             {

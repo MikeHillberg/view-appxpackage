@@ -2,3 +2,5 @@
 VIRTUAL_KEY
 GetOpenFileName
 MAX_PATH
+EnableWindow
+SetWindowLongPtr

@@ -88,7 +88,7 @@ internal class PackageProperty<T>
             // Start loading all the properties on this package, off the UI thread
             // The idea is that if we're getting this property, we probably need all of them,
             // so get them in bulk rather than raise a million change notifications
-            model.EnsureInitializeAsync(debug);
+            _ = model.EnsureInitializeAsync(debug);
             return;
         }
 

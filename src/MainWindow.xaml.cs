@@ -238,7 +238,9 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             : "Preparing for search ...";
     }
 
-    private string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
+    #pragma warning disable CS0414
+        private string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
+    #pragma warning restore CS0414
 
     public bool IsElevated => App.IsProcessElevated();
 
@@ -1153,6 +1155,12 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             sb.AppendLine("Line 1");
             sb.AppendLine("Line 2");
             EnsureSampleSetting(container, $"MultiLineSample ({tag})", sb.ToString());
+
+            var composite = new ApplicationDataCompositeValue();
+            composite["FirstName"] = "John";
+            composite["LastName"] = "Doe";
+            composite["Age"] = 42;
+            EnsureSampleSetting(container, $"ZCompositeSample ({tag})", composite);
 
         };
         ApplicationDataContainer localSettingsContainer = ApplicationData.Current.LocalSettings;

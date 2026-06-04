@@ -16,6 +16,8 @@ namespace ViewAppxPackage;
 
 public sealed partial class SettingEditBox : UserControl
 {
+    readonly ClickToEditHelper _clickToEdit = new();
+
     public SettingEditBox()
     {
         this.InitializeComponent();
@@ -31,8 +33,6 @@ public sealed partial class SettingEditBox : UserControl
     // Watch for lost focus events to commit changes when focus moves out of this control
     void LostFocusHandler()
     {
-        _justSelectedByPointer = false;
-
         // Ignore transitions through the null state
         var target = FocusManager.GetFocusedElement(this.XamlRoot) as FrameworkElement;
         if (target == null)
@@ -95,23 +95,8 @@ public sealed partial class SettingEditBox : UserControl
 
     void IsSelectedChanged()
     {
-         // Keep track if selection happens by clicking with the mouse
-        // If selection happens by mouse, it's during the pointer-down
-        if (IsPrimaryPointerButtonPressed())
-        {
-            if (IsSelected)
-            {
-                _justSelectedByPointer = true;
-            }
-        }
-        else
-        {
-            _justSelectedByPointer = false;
-        }
+        _clickToEdit.OnTreeViewSelectionChanged(IsSelected);
     }
-
-    // True if selection changed because a pointer pressed on the value TextBlock
-    bool _justSelectedByPointer = false;
 
     /// <summary>
     /// This is the value in the TextBox being edited
@@ -269,18 +254,7 @@ public sealed partial class SettingEditBox : UserControl
 
     private void TextBlock_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        // Possible to get another pointer-pressed before the Tapped
-        _justSelectedByPointer = false;
-    }
-
-    /// <summary>
-    /// See if the left mouse button (or equivalent) is down
-    /// </summary>
-    static bool IsPrimaryPointerButtonPressed()
-    {
-        // GetKeyState returns a short where the least significant bit indicates the button state
-        short state = PInvoke.GetKeyState((int)VirtualKey.LeftButton);
-        return (state & 0x8000) != 0;
+        _clickToEdit.OnPointerPressed();
     }
 
     /// <summary>
@@ -293,8 +267,13 @@ public sealed partial class SettingEditBox : UserControl
             return;
         }
 
-        Debug.Assert(!_justSelectedByPointer);
-        _justSelectedByPointer = false;
+        // Composite values get their own editor dialog
+        if (PackageSettingValue.ValueType == typeof(ApplicationDataCompositeValue))
+        {
+            var dialog = new CompositeValueEditorWindow(PackageSettingValue);
+            _ = dialog.ShowAsync();
+            return;
+        }
 
         // Validate that we can edit this type by seeing if we can parse the value that comes from the actual package setting
         if (!ViewAppxPackage.PackageSettingValue.TryParseValue(PackageSettingValue.ValueType, PackageSettingValue.ValueAsString, out var parsedValue)
@@ -363,25 +342,9 @@ public sealed partial class SettingEditBox : UserControl
 
     private void _textBlock_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        // If the TextBlock is tapped while the item is selected, go into edit mode
-        // The trick is figuring out that condition.
-        // Selection happens during PointerPressed, so by the time Tapped occurs we're already selected
-        // So we don't know if we were selected before the tap or during it
-        // Event pattern
-        //     PointerPressed
-        //     IsSelected
-        //     ... message pump ...
-        //     PointerReleased
-        //     Tapped
-        // 
-        // So what we do is track if IsSelected changes while the pointer button is pressed
-        // If so, ignore the Tapped event
-
-        if (IsSelected && !IsEditing && !_justSelectedByPointer)
+        if (_clickToEdit.ShouldEdit(IsSelected, IsEditing))
         {
             StartEditing();
         }
-
-        _justSelectedByPointer = false;
     }
 }

@@ -17,6 +17,7 @@
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Content Remove="Assets\Help.md" />
@@ -27,6 +28,7 @@
     <None Remove="AppxLogViewer.xaml" />
     <None Remove="AppxLogWindow.xaml" />
     <None Remove="ComplexToolTip.xaml" />
+    <None Remove="CompositeValueEditorWindow.xaml" />
     <None Remove="DebugLogViewer.xaml" />
     <None Remove="Help.xaml" />
     <None Remove="NewPackageSettingContainer.xaml" />
@@ -36,6 +38,7 @@
     <None Remove="ProgressOverlay.xaml" />
     <None Remove="StackListHeaderItem.xaml" />
   </ItemGroup>
+
 
 
 	<!--<ItemGroup>
@@ -90,6 +93,9 @@
     </None>
     <None Update="Assets\Icon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="CompositeValueEditorWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
     </None>
     <Page Update="NewPackageSettingContainer.xaml">
       <Generator>MSBuild:Compile</Generator>

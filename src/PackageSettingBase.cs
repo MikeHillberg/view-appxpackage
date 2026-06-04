@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Windows.Foundation;
 using Windows.Storage;
@@ -118,7 +119,7 @@ namespace ViewAppxPackage
                     return sb.ToString();
                 }
 
-                // ApplicationDataCompositeValue is a speial type that's a dictionary
+                // ApplicationDataCompositeValue is a special type that's a dictionary
                 // Write it out as
                 //    key
                 //    value
@@ -126,9 +127,19 @@ namespace ViewAppxPackage
                 else if (type.IsAssignableTo(typeof(Windows.Storage.ApplicationDataCompositeValue)))
                 {
                     StringBuilder sb = new();
+                    var firstLine = true;
                     var compositeValue = value as Windows.Storage.ApplicationDataCompositeValue;
                     foreach (var kvp in compositeValue)
                     {
+                        if(firstLine)
+                        {
+                            firstLine = false;
+                        }
+                        else
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine();
+                        }
                         var key = kvp.Key;
                         var val = kvp.Value;
 
@@ -136,8 +147,7 @@ namespace ViewAppxPackage
 
                         var valString = val?.ToString();
                         valString = valString == null ? string.Empty : valString;
-                        sb.AppendLine($"    {valString}");
-                        sb.AppendLine();
+                        sb.Append($"    {valString}");
                     }
 
                     return sb.ToString();
@@ -163,6 +173,33 @@ namespace ViewAppxPackage
         public PackageSettingValue(bool isRoaming) : base(isRoaming)
         {
         }
+
+        /// <summary>
+        /// The list of value types supported for editing
+        /// </summary>
+        public static List<Type> SupportedTypes { get; } = new()
+        {
+            typeof(bool),
+            typeof(int),
+            typeof(long),
+            typeof(short),
+            typeof(char),
+            typeof(uint),
+            typeof(ulong),
+            typeof(ushort),
+            typeof(byte),
+            typeof(float),
+            typeof(double),
+            typeof(DateTimeOffset),
+            typeof(TimeSpan),
+            typeof(Guid),
+            typeof(Point),
+            typeof(Rect),
+            typeof(Size),
+            typeof(string),
+        };
+
+        public static List<string> SupportedTypeNames { get; } = SupportedTypes.Select(t => t.Name).ToList();
 
         //// To make this a required property it has to be set on the subclass
         //override public required bool IsRoaming { get; set; }

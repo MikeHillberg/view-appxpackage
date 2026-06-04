@@ -478,7 +478,9 @@ public sealed partial class PackageView : UserControl
     {
         // Calculate the target container that we'll pass in to the dialog.
         // Will be null if this is the root
-        ApplicationDataContainer? initialTargetContainer = null;
+        #nullable enable
+                ApplicationDataContainer? initialTargetContainer = null;
+        #nullable restore
         if (referenceSetting != null)
         {
             initialTargetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);

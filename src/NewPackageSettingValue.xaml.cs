@@ -44,27 +44,7 @@ namespace ViewAppxPackage
             DependencyProperty.Register("SelectedIndex", typeof(int), typeof(NewPackageSettingValue),
                 new PropertyMetadata(0, (d, dp) => (d as NewPackageSettingValue).PropertyChanged()));
 
-        List<Type> Types = new()
-        {
-            typeof(bool),
-            typeof(int),
-            typeof(long),
-            typeof(short),
-            typeof(char),
-            typeof(uint),
-            typeof(ulong),
-            typeof(ushort),
-            typeof(byte),
-            typeof(float),
-            typeof(double),
-            typeof(DateTimeOffset),
-            typeof(TimeSpan),
-            typeof(Guid),
-            typeof(Point),
-            typeof(Rect),
-            typeof(Size),
-            typeof(string),
-        };
+        List<Type> Types => PackageSettingValue.SupportedTypes;
 
         public IEnumerable<string> TypeStrings;
 
