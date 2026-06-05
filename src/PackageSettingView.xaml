@@ -35,13 +35,15 @@
                            IsTextSelectionEnabled="True"/>
 
                     <!-- Show the type if editing -->
-                    <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.IsEditing)}">
+                    <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.IsEditing)}"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}">
                     (<Run Text="{x:Bind PackageSettingBase.ValueType.Name}" />)
                     </TextBlock>
                     
                     <!-- If not editing, show if it's a roaming setting -->
                     <StackPanel Visibility="{x:Bind local:Utils.IsCollapsedIf(_editBox.IsEditing)}">
-                        <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.PackageSettingValue.IsRoaming)}">
+                        <TextBlock Visibility="{x:Bind local:Utils.IsVisibleIf(_editBox.PackageSettingValue.IsRoaming)}"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}">
                         [roaming]
                         </TextBlock>
                     </StackPanel>

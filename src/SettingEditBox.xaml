@@ -42,8 +42,10 @@
                     Margin="0,5,0,0"
                     Visibility="{x:Bind local:Utils.IsVisibleIf(IsEditing)}"
                     Spacing="10">
-            <TextBlock VerticalAlignment="Top">Example:</TextBlock>
-            <TextBlock Text="{x:Bind ExampleString(PackageSettingValue.ValueType)}"/>
+            <TextBlock VerticalAlignment="Top"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}">Example:</TextBlock>
+            <TextBlock Text="{x:Bind ExampleString(PackageSettingValue.ValueType)}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
         </StackPanel>
 
         <!-- This is visible if there's an error -->

@@ -44,6 +44,7 @@ public class CompositeValueEntry : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(TypeName));
             OnPropertyChanged(nameof(SelectedTypeIndex));
+            OnPropertyChanged(nameof(ExampleString));
         }
     }
     private Type _valueType = typeof(string);
@@ -57,6 +58,7 @@ public class CompositeValueEntry : INotifyPropertyChanged
             _isArray = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TypeName));
+            OnPropertyChanged(nameof(ExampleString));
         }
     }
 
@@ -68,6 +70,8 @@ public class CompositeValueEntry : INotifyPropertyChanged
             return _isArray ? name + "[]" : name;
         }
     }
+
+    public string ExampleString => NewPackageSettingValue.ExampleString(ValueType ?? typeof(string), IsArray);
 
     public int SelectedTypeIndex
     {

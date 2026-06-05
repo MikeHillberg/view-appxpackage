@@ -15,8 +15,8 @@
 
         <!-- Toolbar -->
         <CommandBar HorizontalAlignment="Left" Margin="0,0,0,4">
-            <AppBarButton Click="Edit_Click" Label="Edit" Icon="Edit"/>
-            <AppBarButton Click="Delete_Click" Label="Delete" Icon="Delete"/>
+                <AppBarButton Click="Delete_Click" Label="Delete" Icon="Delete"/>
+                <AppBarButton Click="Edit_Click" Label="Edit" Icon="Edit"/>
             <AppBarButton Click="Add_Click" Label="Add" Icon="Add"/>
         </CommandBar>
         <TextBlock x:Name="_errorText" Grid.Row="1" Foreground="Red" Visibility="Collapsed" Margin="0,0,0,4"/>
@@ -29,19 +29,19 @@
                         <!-- View mode: Key bold, Value below, type shown -->
                         <StackPanel Orientation="Horizontal" Spacing="8"
                                     Visibility="{x:Bind ViewVisibility, Mode=OneWay}">
-                            <TextBlock Text="{x:Bind Key, Mode=OneWay}" FontWeight="SemiBold"
+                            <TextBlock Text="{x:Bind Key, Mode=OneWay}" FontWeight="Bold"
                                        Tapped="ViewText_Tapped"/>
-                            <TextBlock Text="{x:Bind TypeName, Mode=OneWay}"
+                            <!--<TextBlock Text="{x:Bind TypeName, Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                       Tapped="ViewText_Tapped"/>
+                                       Tapped="ViewText_Tapped"/>-->
                         </StackPanel>
                         <TextBlock Grid.Row="1" Text="{x:Bind Value, Mode=OneWay}" TextWrapping="Wrap"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,2,0,0"
+                                   Margin="0,2,0,0"
                                    Visibility="{x:Bind ViewVisibility, Mode=OneWay}"
                                    Tapped="ViewText_Tapped"/>
 
                         <!-- Edit mode: Key TextBox, Type ComboBox, Value TextBox, and item-level Save/Cancel -->
-                        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,Auto" Visibility="{x:Bind EditingVisibility, Mode=OneWay}">
+                        <Grid Grid.Row="2" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Visibility="{x:Bind EditingVisibility, Mode=OneWay}">
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                                 <TextBox Text="{x:Bind Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="Key"/>
@@ -52,8 +52,14 @@
                             </Grid>
                             <TextBox Grid.Row="1" Text="{x:Bind Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="Value" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,4,0,4"/>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                <Button Click="ItemSave_Click" Style="{StaticResource AccentButtonStyle}" Content="OK"/>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="0,0,0,4">
+                                <TextBlock VerticalAlignment="Top"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}">Example:</TextBlock>
+                                <TextBlock Text="{x:Bind ExampleString, Mode=OneWay}"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                <Button Click="ItemSave_Click" Style="{StaticResource AccentButtonStyle}" Content="Save"/>
                                 <Button Click="ItemCancel_Click" Content="Cancel"/>
                                 <TextBlock Text="Invalid value" Foreground="Red" VerticalAlignment="Center" Margin="8,0,0,0"
                                            Visibility="{x:Bind ErrorVisibility, Mode=OneWay}"/>
