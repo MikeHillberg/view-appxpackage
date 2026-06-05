@@ -52,7 +52,6 @@
         <!-- This shows if LinkValue property is set -->
         <TextBlock Grid.Column="1" 
                    local:CollapseIfEmpty.IsEnabledFor="{x:Bind LinkValue}"
-                   Style="{StaticResource BaseTextBlockStyle}"
                    TextWrapping="Wrap"
                    Margin="10,0,0,0"
                    IsTextSelectionEnabled="True">
@@ -62,7 +61,6 @@
         <!-- This shows if the LinkValue property is set -->
         <TextBlock Grid.Column="1" 
                    local:CollapseIfEmpty.IsEnabled="True"
-                   Style="{StaticResource BaseTextBlockStyle}"
                    Text="{x:Bind Value}" 
                    TextWrapping="Wrap"
                    Margin="10,0,0,0"

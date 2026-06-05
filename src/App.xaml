@@ -11,6 +11,9 @@
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
             <!-- Other app resources here -->
+
+            <Style TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}" />
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

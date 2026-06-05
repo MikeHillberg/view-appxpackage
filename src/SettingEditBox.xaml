@@ -13,7 +13,6 @@
             Text="{x:Bind PackageSettingValue.ValueAsString}"
                    Margin="0,0,0,13"
                    TextWrapping="Wrap"
-                   Style="{StaticResource BaseTextBlockStyle}"
                    IsTextSelectionEnabled="True"
                    Visibility="{x:Bind local:Utils.IsCollapsedIf(IsEditing)}"
                    PointerPressed="TextBlock_PointerPressed"

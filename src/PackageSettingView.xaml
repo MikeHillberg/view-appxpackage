@@ -31,7 +31,6 @@
                            FontWeight="Bold"
                            HorizontalAlignment="Left"
                            Padding="0,0,5,0"
-                           Style="{StaticResource BaseTextBlockStyle}"
                            IsTextSelectionEnabled="True"/>
 
                     <!-- Show the type if editing -->
@@ -64,7 +63,6 @@
                 <SymbolIcon>Folder</SymbolIcon>
                 <TextBlock Text="{x:Bind PackageSettingBase.Name}"
                             FontWeight="Bold"
-                            Style="{StaticResource BaseTextBlockStyle}"
                             IsTextSelectionEnabled="True"/>
                 
                 <!-- Show if this is a roaming setting container -->

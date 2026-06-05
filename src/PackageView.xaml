@@ -145,7 +145,7 @@
 
                             <local:StackListHeaderItem local:CollapseIfEmpty.IsEnabledFor="{x:Bind _appsList}"
                                                        Content="Apps"/>
-                            
+
                             <ItemsControl x:Name="_appsList" ItemsSource="{x:Bind Package.AppEntries}" >
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="local:AppListEntryModel">
@@ -156,7 +156,7 @@
                                                        VerticalAlignment="Center"/>
 
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    
+
                                                     <!-- Bugbug: hack to get the next TextBlock at the right horizontal offset -->
                                                     <TextBlock Opacity="0"
                                                            Width="{x:Bind local:PackageView.Instance.MinLabelWidth}">M</TextBlock>
@@ -231,7 +231,7 @@
             <!-- Settings tab -->
             <TabViewItem Header="Settings" IsClosable="False" Padding="0,8,0,8">
                 <Grid RowDefinitions="Auto,*" Padding="0,8,0,8">
-                    
+
                     <!-- Command bar at the top that doesn't scroll -->
                     <CommandBar Grid.Row="0" HorizontalAlignment="Left">
                         <AppBarButton Click="Refresh_Click" Label="Refresh"
