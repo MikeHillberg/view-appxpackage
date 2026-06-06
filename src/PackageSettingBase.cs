@@ -121,7 +121,7 @@ namespace ViewAppxPackage
 
                 // ApplicationDataCompositeValue is a special type that's a dictionary
                 // Write it out as
-                //    key
+                //    key:
                 //    value
                 //    [blank line]
                 else if (type.IsAssignableTo(typeof(Windows.Storage.ApplicationDataCompositeValue)))
@@ -143,11 +143,10 @@ namespace ViewAppxPackage
                         var key = kvp.Key;
                         var val = kvp.Value;
 
-                        sb.AppendLine($"    {key}:");
+                        sb.AppendLine($"{key}:");
 
-                        var valString = val?.ToString();
-                        valString = valString == null ? string.Empty : valString;
-                        sb.Append($"    {valString}");
+                        var valString = val != null ? ConvertSettingValueToString(val) : string.Empty;
+                        sb.Append(valString);
                     }
 
                     return sb.ToString();
