@@ -30,11 +30,13 @@ namespace ViewAppxPackage;
 ///   - Call OnListViewSelectionChanged() in the ListView's SelectionChanged handler
 ///   - Call ShouldEditInListView(isCurrentlySelected) in the item's Tapped handler; returns true if edit should begin
 /// </summary>
-internal class ClickToEditHelper
+internal class TreeListViewClickToEditHelper
 {
-    private bool _justSelectedByPointer;
-    // --- Pattern 1: For use with TreeViewItem (has per-item IsSelected property) ---
+    private bool _justSelectedByPointerInTreeView;
 
+    private bool _selectionChangedDuringThisInteractionInListView;
+
+    // --- Pattern 1: For use with TreeViewItem (has per-item IsSelected property) ---
     /// <summary>
     /// Call when the TreeViewItem's IsSelected property changes.
     /// Tracks whether the selection change happened while the pointer was pressed.
@@ -45,43 +47,43 @@ internal class ClickToEditHelper
         {
             if (isSelected)
             {
-                _justSelectedByPointer = true;
+                _justSelectedByPointerInTreeView = true;
             }
         }
         else
         {
-            _justSelectedByPointer = false;
+            _justSelectedByPointerInTreeView = false;
         }
     }
 
-    /// <summary>
-    /// Call in the text element's PointerPressed handler
-    /// </summary>
-    public void OnPointerPressed()
-    {
-        _justSelectedByPointer = false;
-    }
-
-    /// <summary>
-    /// Call in the text element's Tapped handler.
-    /// Returns true if the item was already selected (i.e., edit should begin).
-    /// </summary>
-    public bool ShouldEdit(bool isSelected, bool isEditing)
-    {
-        var result = isSelected && !isEditing && !_justSelectedByPointer;
-        _justSelectedByPointer = false;
-        return result;
-    }
-
     // --- Pattern 2: For use with ListView (no per-item IsSelected; uses list-level SelectionChanged) ---
-
     /// <summary>
     /// Call in the ListView's SelectionChanged handler.
     /// If selection changed, the click was to select, not to edit.
     /// </summary>
     public void OnListViewSelectionChanged()
     {
-        _selectionChangedDuringThisInteraction = true;
+        _selectionChangedDuringThisInteractionInListView = true;
+    }
+
+    /// <summary>
+    /// Call in the text element's PointerPressed handler
+    /// (Is this for ListView case or TreeView case?)
+    /// </summary>
+    public void OnPointerPressedInTreeView()
+    {
+        _justSelectedByPointerInTreeView = false;
+    }
+
+    /// <summary>
+    /// Call in the text element's Tapped handler.
+    /// Returns true if the item was already selected (i.e., edit should begin).
+    /// </summary>
+    public bool ShouldEditInTreeView(bool isSelected, bool isEditing)
+    {
+        var result = isSelected && !isEditing && !_justSelectedByPointerInTreeView;
+        _justSelectedByPointerInTreeView = false;
+        return result;
     }
 
     /// <summary>
@@ -92,14 +94,11 @@ internal class ClickToEditHelper
     /// </summary>
     public bool ShouldEditInListView(bool isItemCurrentlySelected)
     {
-        var result = isItemCurrentlySelected && !_selectionChangedDuringThisInteraction;
-        _selectionChangedDuringThisInteraction = false;
+        var result = isItemCurrentlySelected && !_selectionChangedDuringThisInteractionInListView;
+        _selectionChangedDuringThisInteractionInListView = false;
         return result;
     }
 
-    private bool _selectionChangedDuringThisInteraction;
-
-    // --- Shared utility ---
 
     /// <summary>
     /// See if the left mouse button (or equivalent) is down

@@ -145,7 +145,28 @@ public sealed partial class CompositeValueEditorWindow : ContentDialog
         }
     }
 
-    private readonly ClickToEditHelper _clickToEdit = new();
+    private readonly TreeListViewClickToEditHelper _clickToEdit = new();
+
+    private void ViewText_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Register with handledEventsToo so we still get events
+        // even when IsTextSelectionEnabled marks them as handled
+        if (sender is UIElement element)
+        {
+            element.AddHandler(UIElement.TappedEvent, new Microsoft.UI.Xaml.Input.TappedEventHandler(ViewText_Tapped), true);
+            element.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler(ViewText_PointerPressed), true);
+        }
+    }
+
+    private void ViewText_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        // IsTextSelectionEnabled eats pointer events, preventing the ListViewItem from selecting.
+        // Programmatically select the item when the text is clicked.
+        if ((sender as FrameworkElement)?.DataContext is CompositeValueEntry entry)
+        {
+            _listView.SelectedItem = entry;
+        }
+    }
 
     private void ViewText_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
     {

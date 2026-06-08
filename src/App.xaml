@@ -12,6 +12,7 @@
             </ResourceDictionary.MergedDictionaries>
             <!-- Other app resources here -->
 
+            <!-- Assume all text is Body unless overridden -->
             <Style TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}" />
 
         </ResourceDictionary>

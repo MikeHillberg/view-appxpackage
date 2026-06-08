@@ -16,7 +16,7 @@ namespace ViewAppxPackage;
 
 public sealed partial class SettingEditBox : UserControl
 {
-    readonly ClickToEditHelper _clickToEdit = new();
+    readonly TreeListViewClickToEditHelper _clickToEdit = new();
 
     public SettingEditBox()
     {
@@ -254,7 +254,7 @@ public sealed partial class SettingEditBox : UserControl
 
     private void TextBlock_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        _clickToEdit.OnPointerPressed();
+        _clickToEdit.OnPointerPressedInTreeView();
     }
 
     /// <summary>
@@ -342,7 +342,7 @@ public sealed partial class SettingEditBox : UserControl
 
     private void _textBlock_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (_clickToEdit.ShouldEdit(IsSelected, IsEditing))
+        if (_clickToEdit.ShouldEditInTreeView(IsSelected, IsEditing))
         {
             StartEditing();
         }
