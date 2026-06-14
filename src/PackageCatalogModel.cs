@@ -25,7 +25,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     Queue<PackageModel> _packagesToLoad;
     string _filter;
     string _searchText;
-    string _packageTypeFilter = "All";
+    PackageTypeFilter _packageTypeFilter = PackageTypeFilter.All;
     bool _preloadFullName = false;
     PackageModel _currentItem;
     bool _sortByName = false;
@@ -66,8 +66,6 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     /// <summary>
     /// Initialize the catalog model
     /// </summary>
-    /// <param name="isAllUsers">True if running elevated</param>
-    /// <param name="preloadFullName">If true, initialize FullName (so that UI thread can use it)</param>
     internal void Initialize(bool isAllUsers, bool preloadFullName, bool useSettings)
     {
         _useSettings = useSettings;
@@ -107,30 +105,26 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         // This is the baseline list, filter and search will produce this.Packages
         _originalPackages.Value = new(packages);
 
+        // Populate VolumeFilterOptions from the system's package volumes
         LoadVolumeFilterOptions();
 
         // Start building the volume name cache on a background thread.
         // VolumeName on PackageModel will return null until this completes.
-        PackageVolumeHelper.CacheReady += OnVolumeCacheReady;
+        // Bugbug: need to handle if this changes later
+        async Task LoadVolumesAsync()
+        {
+            await PackageVolumeHelper.InitializeAsync();
+            OnVolumeCacheReady();
+        }
+        _ = LoadVolumesAsync();
 
         var initialSort = SortPackages(_originalPackages.Value);
 
+        // Load synchronously the bare minimum of the package state for the initial display
         foreach (var p in _originalPackages.Value)
         {
             p.DoInitialLoad(preloadFullName);
-
-            //// Enable filtering on UI thread
-            //_ = p.Name;
-
-            //// If this was launched by piping to it from get-appxpackage,
-            //// we need to have the FullName loaded
-            //if (preloadFullName)
-            //{
-            //    _ = p.FullName;
-            //}
         }
-
-        PackageVolumeHelper.StartBuildingCache();
 
         // We're not fully loaded yet, but we're loaded _just_ enough to start showing the UI
         MyThreading.PostToUI(() =>
@@ -139,12 +133,6 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
             FilterAndSearchPackages();
 
             MinimallyLoaded?.Invoke(this, EventArgs.Empty);
-            //IsLoading = false;
-
-            //if (_loadingDialog != null)
-            //{
-            //    _loadingDialog.Hide();
-            //}
         });
 
         // Calc the most recent InstalledDate
@@ -199,11 +187,12 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     /// <summary>
     /// Reset Search and Filter properties with only one set of change notifications
     /// </summary>
+    /// bugbug: this isn't called anywhere, but a good idea. Also consolidate the "All" here and in init
     internal void ResetSearchAndFilter()
     {
         _searchText = null;
         _filter = null;
-        _packageTypeFilter = "All";
+        _packageTypeFilter = PackageTypeFilter.All;
         _userFilter = null;
         _volumeFilter = "All";
 
@@ -218,7 +207,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     /// <summary>
     /// Package type filter (None, Main, Framework, Resource, Bundle, Xap, Optional, All)
     /// </summary>
-    internal string PackageTypeFilter
+    internal PackageTypeFilter PackageTypeFilter
     {
         get { return _packageTypeFilter; }
         set
@@ -231,8 +220,8 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         }
     }
 
-    internal static string[] PackageTypeFilterOptions { get; } =
-        ["All", "Main", "Framework", "Resource", "Bundle", "Optional", "Xap", "None"];
+    internal static PackageTypeFilter[] PackageTypeFilterOptions { get; } =
+        Enum.GetValues<PackageTypeFilter>();
 
     /// <summary>
     /// User name filter for All Users mode (case-insensitive contains match on PackageUserInformation)
@@ -274,16 +263,14 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     bool _isFullyLoaded = false;
 
     /// <summary>
-    /// Called on the UI thread when the volume cache finishes building.
+    /// Called on the worker thread when the volume cache finishes building.
     /// Raises PropertyChanged on all PackageModel objects so VolumeName updates,
     /// and enables the volume filter.
     /// </summary>
     void OnVolumeCacheReady()
     {
-        PackageVolumeHelper.CacheReady -= OnVolumeCacheReady;
-
         // Re-evaluate volume filter enabled state
-        RaisePropertyChanged(nameof(IsVolumeFilterEnabled));
+        MyThreading.PostToUI(() => RaisePropertyChanged(nameof(IsVolumeFilterEnabled)));
 
         // Notify all package models so VolumeName bindings update
         if (_originalPackages.Value != null)
@@ -296,7 +283,8 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
     }
 
     /// <summary>
-    /// Available volume names for the filter ComboBox, with "All" prepended
+    /// Available volume names for the filter ComboBox, 
+    /// initially "All" but actual volume names will be added
     /// </summary>
     internal ObservableCollection<string> VolumeFilterOptions { get; } = new() { "All" };
 
@@ -597,7 +585,8 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
 
     void RaisePropertyChanged([CallerMemberName] string propertyName = null)
     {
-        this.OnPropertyChanged(new PropertyChangedEventArgs(propertyName));
+        MyThreading.PostToUI(
+            () => this.OnPropertyChanged(new PropertyChangedEventArgs(propertyName)));
     }
 
     /// <summary>
@@ -660,7 +649,7 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         }
 
         // Apply package type filter
-        if (!string.IsNullOrEmpty(_packageTypeFilter) && _packageTypeFilter != "All")
+        if (_packageTypeFilter != PackageTypeFilter.All)
         {
             packages = packages.Where(p => MatchesPackageType(p, _packageTypeFilter));
         }
@@ -678,9 +667,9 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         if (!string.IsNullOrEmpty(_volumeFilter) && _volumeFilter != "All"
             && _volumesByName.TryGetValue(_volumeFilter, out var volume))
         {
-            // Build a set of family names on this volume
             try
             {
+                // bugbug: cache
                 var familyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var pkg in PackageVolumeHelper.FindPackagesOnVolume(volume))
                 {
@@ -697,17 +686,16 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
         Packages = SortPackages(packages);
     }
 
-    static bool MatchesPackageType(PackageModel p, string typeFilter)
+    static bool MatchesPackageType(PackageModel p, PackageTypeFilter typeFilter)
     {
         return typeFilter switch
         {
-            "Main" => !p.IsFramework && !p.IsResourcePackage && !p.IsBundle && !p.IsOptional,
-            "Framework" => p.IsFramework,
-            "Resource" => p.IsResourcePackage,
-            "Bundle" => p.IsBundle,
-            "Optional" => p.IsOptional,
-            "Xap" => p.SignatureKind == Windows.ApplicationModel.PackageSignatureKind.None && !p.IsFramework && !p.IsResourcePackage && !p.IsBundle && !p.IsOptional,
-            "None" => false,
+            PackageTypeFilter.Main => !p.IsFramework && !p.IsResourcePackage && !p.IsBundle && !p.IsOptional,
+            PackageTypeFilter.Framework => p.IsFramework,
+            PackageTypeFilter.Resource => p.IsResourcePackage,
+            PackageTypeFilter.Bundle => p.IsBundle,
+            PackageTypeFilter.Optional => p.IsOptional,
+            PackageTypeFilter.Xap => p.SignatureKind == Windows.ApplicationModel.PackageSignatureKind.None && !p.IsFramework && !p.IsResourcePackage && !p.IsBundle && !p.IsOptional,
             _ => true,
         };
     }
@@ -979,4 +967,15 @@ internal partial class PackageCatalogModel : ObservableObject, INotifyPropertyCh
 
         return null;
     }
+}
+
+enum PackageTypeFilter
+{
+    All,
+    Main,
+    Framework,
+    Resource,
+    Bundle,
+    Optional,
+    Xap
 }

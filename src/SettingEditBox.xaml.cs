@@ -95,7 +95,7 @@ public sealed partial class SettingEditBox : UserControl
 
     void IsSelectedChanged()
     {
-        _clickToEdit.OnTreeViewSelectionChanged(IsSelected);
+        _clickToEdit.OnSelectionChanged(IsSelected);
     }
 
     /// <summary>
@@ -187,13 +187,6 @@ public sealed partial class SettingEditBox : UserControl
         }
     }
 
-    //private bool IsAnyModifierKeyPressed()
-    //{
-    //    return IsKeyPressed(VirtualKey.Shift)
-    //        || IsKeyPressed(VirtualKey.Control)
-    //        || IsKeyPressed(VirtualKey.Menu);
-    //}
-
     /// <summary>
     /// See if a keyboard modifier and only that modifier(s) is pressed
     /// </summary>
@@ -254,7 +247,7 @@ public sealed partial class SettingEditBox : UserControl
 
     private void TextBlock_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
     {
-        _clickToEdit.OnPointerPressedInTreeView();
+        _clickToEdit.OnPointerPressedIn();
     }
 
     /// <summary>
@@ -342,7 +335,7 @@ public sealed partial class SettingEditBox : UserControl
 
     private void _textBlock_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (_clickToEdit.ShouldEditInTreeView(IsSelected, IsEditing))
+        if (_clickToEdit.ShouldEdit(IsSelected, IsEditing))
         {
             StartEditing();
         }

@@ -20,6 +20,8 @@ public class CompositeValueEntry : INotifyPropertyChanged
 
     public static List<string> SupportedTypeNames => PackageSettingValue.SupportedTypeNames;
 
+    public string ExampleString => NewPackageSettingValue.ExampleString(ValueType ?? typeof(string), IsArray);
+
     public string Key
     {
         get => _key;
@@ -70,8 +72,6 @@ public class CompositeValueEntry : INotifyPropertyChanged
             return _isArray ? name + "[]" : name;
         }
     }
-
-    public string ExampleString => NewPackageSettingValue.ExampleString(ValueType ?? typeof(string), IsArray);
 
     public int SelectedTypeIndex
     {

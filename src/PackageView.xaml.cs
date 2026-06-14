@@ -44,29 +44,24 @@ public sealed partial class PackageView : UserControl
     }
 
     // Verify state
-    string _verifyGlyph = "";
-    Brush _verifyBrush = null;
-    Visibility _verifyIconVisibility = Visibility.Collapsed;
-    Visibility _verifyProgressVisibility = Visibility.Collapsed;
-    string _verifyTooltip = "";
 
-    public string VerifyGlyph => _verifyGlyph;
-    public Brush VerifyBrush => _verifyBrush;
-    public Visibility VerifyIconVisibility => _verifyIconVisibility;
-    public Visibility VerifyProgressVisibility => _verifyProgressVisibility;
-    public string VerifyTooltip => _verifyTooltip;
+    public string VerifyGlyph { get; private set; } = "";
+    public Brush VerifyBrush { get; private set; } = null;
+    public Visibility VerifyIconVisibility { get; private set; } = Visibility.Collapsed;
+    public Visibility VerifyProgressVisibility { get; private set; } = Visibility.Collapsed;
+    public string VerifyTooltip { get; private set; } = "";
 
     async void RunAutoVerifyAsync()
     {
         // Show progress ring, hide result icon
-        _verifyIconVisibility = Visibility.Collapsed;
-        _verifyProgressVisibility = Visibility.Visible;
+        VerifyIconVisibility = Visibility.Collapsed;
+        VerifyProgressVisibility = Visibility.Visible;
         UpdateVerifyBindings();
 
         var package = Package;
         if (package == null)
         {
-            _verifyProgressVisibility = Visibility.Collapsed;
+            VerifyProgressVisibility = Visibility.Collapsed;
             UpdateVerifyBindings();
             return;
         }
@@ -83,23 +78,25 @@ public sealed partial class PackageView : UserControl
 
         // Check that the package hasn't changed while we were verifying
         if (Package != package)
+        {
             return;
+        }
 
         if (verified)
         {
-            _verifyGlyph = "\uE73E"; // Checkmark
-            _verifyBrush = new SolidColorBrush(Colors.Green);
-            _verifyTooltip = $"{package.Name} has not been modified";
+            VerifyGlyph = "\uE73E"; // Checkmark
+            VerifyBrush = new SolidColorBrush(Colors.Green);
+            VerifyTooltip = $"{package.Name} has not been modified";
         }
         else
         {
-            _verifyGlyph = "\uE711"; // X / Cancel
-            _verifyBrush = new SolidColorBrush(Colors.Red);
-            _verifyTooltip = $"{package.Name} has been modified";
+            VerifyGlyph = "\uE711"; // X / Cancel
+            VerifyBrush = new SolidColorBrush(Colors.Red);
+            VerifyTooltip = $"{package.Name} has been modified";
         }
 
-        _verifyProgressVisibility = Visibility.Collapsed;
-        _verifyIconVisibility = Visibility.Visible;
+        VerifyProgressVisibility = Visibility.Collapsed;
+        VerifyIconVisibility = Visibility.Visible;
         UpdateVerifyBindings();
     }
 
@@ -478,9 +475,8 @@ public sealed partial class PackageView : UserControl
     {
         // Calculate the target container that we'll pass in to the dialog.
         // Will be null if this is the root
-        #nullable enable
-                ApplicationDataContainer? initialTargetContainer = null;
-        #nullable restore
+        ApplicationDataContainer initialTargetContainer = null;
+
         if (referenceSetting != null)
         {
             initialTargetContainer = this.Package.GetAppDataContainerForSetting(referenceSetting);

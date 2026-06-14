@@ -8,44 +8,33 @@ namespace ViewAppxPackage;
 /// <summary>
 /// Helper class that uses the Windows Platform SDK PackageManager APIs
 /// to look up the PackageVolume for a package.
-/// Separated from PackageModel to avoid confusion with the Windows App SDK
-/// Package APIs used elsewhere.
+/// Separated from PackageModel class in order to avoid confusion with
+/// the WinAppSDK Package APIs used elsewhere.
 /// </summary>
 internal static class PackageVolumeHelper
 {
+    // WinAppSDK PackageManager
     static PackageManager _packageManager => PackageCatalogModel.PackageManager;
 
-    // Cache: family name -> volume name
-    static volatile Dictionary<string, string> _familyToVolume;
+    // package full name -> volume name
+    // Volatile because it's written on the worker thread but read on the UI thread
+    static volatile Dictionary<string, string> _fullNameToVolumeName;
 
     /// <summary>
     /// Whether the cache has been built and is ready for lookups
     /// </summary>
-    internal static bool IsCacheReady => _familyToVolume != null;
+    internal static bool IsCacheReady => _fullNameToVolumeName != null;
 
     /// <summary>
-    /// Fired on the UI thread when the cache finishes building
+    /// Build the cache on a worker thread
     /// </summary>
-    internal static event Action CacheReady;
-
-    /// <summary>
-    /// Enumerate packages on a volume, using the current-user API when not elevated
-    /// </summary>
-    internal static IEnumerable<Windows.ApplicationModel.Package> FindPackagesOnVolume(PackageVolume volume)
+    internal static async Task InitializeAsync()
     {
-        if (App.IsProcessElevated())
-            return volume.FindPackages();
-        else
-            return volume.FindPackagesForUser(string.Empty);
-    }
-
-    /// <summary>
-    /// Build the cache on a background thread. When complete, fires CacheReady on the UI thread.
-    /// </summary>
-    internal static void StartBuildingCache()
-    {
-        _ = MyThreading.RunOnWorkerAsync(() =>
+        await Task.Run(() =>
         {
+            // There's no API to get a volume from a package, but there is an API to
+            // get all packages for a volume. So use that and build a map
+            // of package full name => volume name
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
@@ -56,8 +45,7 @@ internal static class PackageVolumeHelper
                     {
                         foreach (var pkg in FindPackagesOnVolume(volume))
                         {
-                            var familyName = pkg.Id.FamilyName;
-                            map.TryAdd(familyName, volume.Name);
+                            map.TryAdd(pkg.Id.FullName, volume.Name);
                         }
                     }
                     catch (Exception e)
@@ -71,27 +59,48 @@ internal static class PackageVolumeHelper
                 DebugLog.Append($"Exception calling FindPackageVolumes: {e.Message}");
             }
 
-            _familyToVolume = map;
-
-            // Raise on background thread
-            CacheReady?.Invoke();
+            _fullNameToVolumeName = map;
         });
+
+        return;
     }
 
     /// <summary>
-    /// Find the volume name for a package by family name.
-    /// Returns null if cache is not yet ready.
+    /// Enumerate packages on a volume
     /// </summary>
-    internal static string FindVolumeNameForPackage(string familyName)
+    internal static IEnumerable<Windows.ApplicationModel.Package> 
+        FindPackagesOnVolume(PackageVolume volume)
     {
-        if (string.IsNullOrEmpty(familyName))
-            return null;
+        if (App.IsProcessElevated())
+        {
+            // All users
+            return volume.FindPackages();
+        }
+        else
+        {
+            return volume.FindPackagesForUser(string.Empty);
+        }
+    }
 
-        var cache = _familyToVolume;
+    /// <summary>
+    /// Find the volume name for a package by full name.
+    /// Returns null if map is not yet ready.
+    /// </summary>
+    internal static string FindVolumeNameForPackage(string fullName)
+    {
+        if (string.IsNullOrEmpty(fullName))
+        {
+            return null;
+        }
+
+        // Make a local copy to be thread safe
+        var cache = _fullNameToVolumeName;
         if (cache == null)
+        {
             return null;
+        }
 
-        return cache.TryGetValue(familyName, out var volumeName) ? volumeName : "";
+        return cache.TryGetValue(fullName, out var volumeName) ? volumeName : "";
     }
 
     /// <summary>
@@ -99,6 +108,6 @@ internal static class PackageVolumeHelper
     /// </summary>
     internal static void ClearCache()
     {
-        _familyToVolume = null;
+        _fullNameToVolumeName = null;
     }
 }

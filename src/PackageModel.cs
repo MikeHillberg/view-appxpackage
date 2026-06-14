@@ -627,7 +627,7 @@ namespace ViewAppxPackage
         }
 
         /// <summary>
-        /// Find all boolean properties of this package that have a value of true.
+        /// Find all public boolean properties of this package that have a value of true.
         /// Returned as a list of names in a string
         /// </summary>
         public static string GetTrueBooleans(PackageModel package)
@@ -646,6 +646,7 @@ namespace ViewAppxPackage
                     continue;
                 }
 
+                // Ignore internal helpers like IsFullNameLoaded
                 if(p.GetGetMethod()?.IsPublic != true)
                 {
                     continue;
@@ -1192,7 +1193,7 @@ namespace ViewAppxPackage
             {
                 if (_volumeName == null && PackageVolumeHelper.IsCacheReady)
                 {
-                    _volumeName = PackageVolumeHelper.FindVolumeNameForPackage(this._package.Id.FamilyName);
+                    _volumeName = PackageVolumeHelper.FindVolumeNameForPackage(this._package.Id.FullName);
                 }
                 return _volumeName;
             }

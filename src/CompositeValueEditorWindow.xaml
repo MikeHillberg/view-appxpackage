@@ -22,8 +22,8 @@
         <TextBlock x:Name="_errorText" Grid.Row="1" Foreground="Red" Visibility="Collapsed" Margin="0,0,0,4"/>
 
         <!-- Selectable list of key/value pairs -->
-        <ListView x:Name="_listView" Grid.Row="2" SelectionMode="Single" ItemsSource="{x:Bind Entries}" SelectionChanged="ListView_SelectionChanged" ScrollViewer.VerticalScrollBarVisibility="Disabled">
-            <ListView.ItemTemplate>
+        <TreeView x:Name="_treeView" Grid.Row="2" SelectionMode="Single" ItemsSource="{x:Bind Entries}" SelectionChanged="TreeView_SelectionChanged">
+            <TreeView.ItemTemplate>
                 <DataTemplate x:DataType="local:CompositeValueEntry">
                     <Grid Padding="4,8" RowDefinitions="Auto,Auto,Auto,Auto">
                         <!-- View mode: Key bold, Value below, type shown -->
@@ -32,9 +32,6 @@
                             <TextBlock Text="{x:Bind Key, Mode=OneWay}" FontWeight="Bold"
                                        IsTextSelectionEnabled="True"
                                        Loaded="ViewText_Loaded"/>
-                            <!--<TextBlock Text="{x:Bind TypeName, Mode=OneWay}"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                       Tapped="ViewText_Tapped"/>-->
                         </StackPanel>
                         <TextBlock Grid.Row="1" Text="{x:Bind Value, Mode=OneWay}" TextWrapping="Wrap"
                                    Margin="0,2,0,0"
@@ -69,13 +66,8 @@
                         </Grid>
                     </Grid>
                 </DataTemplate>
-            </ListView.ItemTemplate>
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                </Style>
-            </ListView.ItemContainerStyle>
-        </ListView>
+            </TreeView.ItemTemplate>
+        </TreeView>
 
     </Grid>
     </ScrollViewer>

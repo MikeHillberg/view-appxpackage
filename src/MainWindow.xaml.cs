@@ -238,7 +238,7 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             : "Preparing for search ...";
     }
 
-    #pragma warning disable CS0414
+    #pragma warning disable CS0414 // Used in markup
         private string FilterPlaceholderText = "Filter with wildcards, e.g. *App* (Ctrl+F)";
     #pragma warning restore CS0414
 
@@ -1157,8 +1157,8 @@ public sealed partial class MainWindow : Window, INotifyPropertyChanged
             EnsureSampleSetting(container, $"MultiLineSample ({tag})", sb.ToString());
 
             var composite = new ApplicationDataCompositeValue();
-            composite["FirstName"] = "John";
-            composite["LastName"] = "Doe";
+            composite["FirstName"] = "Bugs";
+            composite["LastName"] = "Bunny";
             composite["Age"] = 42;
             EnsureSampleSetting(container, $"ZCompositeSample ({tag})", composite);
 
