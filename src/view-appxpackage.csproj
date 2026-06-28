@@ -18,7 +18,20 @@
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
-  </PropertyGroup>
+    <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
+    <GenerateTestArtifacts>False</GenerateTestArtifacts>
+    <AppxBundle>Never</AppxBundle>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+	
+	<!-- bugbug: work around .Net 8 bug with cross-compile, remove with .Net 10 -->
+    <PublishReadyToRun>false</PublishReadyToRun>
+
+	</PropertyGroup>
   <ItemGroup>
     <Content Remove="Assets\Help.md" />
     <Content Remove="Assets\icon.ico" />

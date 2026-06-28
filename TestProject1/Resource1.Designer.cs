@@ -19,7 +19,7 @@ namespace TestProject1 {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resource1 {
@@ -63,9 +63,9 @@ namespace TestProject1 {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] TestPackage_1_0_1_0_x86 {
+        internal static byte[] TestPackage_1_0_2_0_x64_Debug {
             get {
-                object obj = ResourceManager.GetObject("TestPackage_1.0.1.0_x86", resourceCulture);
+                object obj = ResourceManager.GetObject("TestPackage_1.0.2.0_x64_Debug", resourceCulture);
                 return ((byte[])(obj));
             }
         }

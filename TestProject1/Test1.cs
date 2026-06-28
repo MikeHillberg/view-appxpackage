@@ -54,7 +54,7 @@ public sealed class UnitTests
         InitializeSettingsTest();
 
         // Put the test package into a file
-        var packageBytes = Resource1.TestPackage_1_0_1_0_x86;
+        var packageBytes = Resource1.TestPackage_1_0_2_0_x64_Debug;
         File.WriteAllBytes(testMsixPath, packageBytes);
 
         // Create a worker thread
@@ -101,7 +101,7 @@ public sealed class UnitTests
         try
         {
             PackageManager packageManager = new();
-            await packageManager.RemovePackageAsync("a60d2c46-59cf-4c4f-87b5-a39bf0be42c9_1.0.1.0_x86__tx8btddkt3yjy");
+            await packageManager.RemovePackageAsync("a60d2c46-59cf-4c4f-87b5-a39bf0be42c9_1.0.2.0_x64__q0qjqa94e3rmc");
         }
         catch (Exception e)
         {
@@ -498,11 +498,25 @@ public sealed class UnitTests
             {
                 // Register the signed package
                 Uri msixUri = new Uri(testMsixPath);
+                var expectedExceptions = new uint[] { 0x800b0109, 0x800b0101 };
                 await _catalogModel.AddPackageAsync(msixUri, async (op) =>
                 {
                     progressCalled = true;
-                    var result = await op;
-                    Assert.IsTrue(result.IsRegistered);
+                    DeploymentResult? result = null;
+                    try
+                    {
+                        result = await op;
+                    }
+                    catch(Exception e) when (expectedExceptions.Contains((uint)e.HResult))
+                    {
+                        // 'A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider.
+                        // 'A required certificate is not within its validity period when verifying against the current system clock or the timestamp in the signed file.'
+
+                        // These aren't "expected" as in OK, just special-casing the error message
+                        // The certificate either isn't installed as a trusted cert, or it's expired (self-signed are short-lived)
+                        Assert.IsTrue(false, $"Test package certificate error:\n{e.Message}");
+                    }
+                    Assert.IsTrue(result?.IsRegistered);
                 });
             }
             Assert.IsTrue(progressCalled);
